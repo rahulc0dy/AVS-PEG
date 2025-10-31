@@ -19,6 +19,7 @@ import {
   GridHelper,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { Graph, GraphNode } from "@/utils/graph";
 
 type Node3D = {
   id: number;
@@ -48,7 +49,9 @@ export default function GraphEditor() {
   const raycasterRef = useRef<Raycaster>(new Raycaster());
   const mouseRef = useRef<Vector2>(new Vector2());
 
-  // Data refs
+  // Graph model
+  const graphRef = useRef<Graph>(new Graph());
+  // View-model mappings
   const nodesRef = useRef<Node3D[]>([]);
   const edgesRef = useRef<Edge3D[]>([]);
   // Previous node for chaining connections
@@ -126,13 +129,15 @@ export default function GraphEditor() {
       const material = new MeshBasicMaterial({ color: 0x2ecc71 });
       const mesh = new Mesh(geometry, material);
       mesh.position.copy(position);
-
+      // Create model node
+      const modelNode = graphRef.current.addNode({ x: position.x, y: position.y, z: position.z });
       const node: Node3D = {
-        id: Date.now() + Math.random(),
-        // Keep position reference in sync with mesh
+        id: Number.NaN, // unused numeric id; model id is in modelNode.id
         position: mesh.position,
         mesh,
       };
+      // Store model id on mesh userData for mapping
+      (mesh as any).userData.modelId = modelNode.id;
       nodesRef.current.push(node);
       scene.add(mesh);
       setNodeCount(nodesRef.current.length);
@@ -147,12 +152,11 @@ export default function GraphEditor() {
       ]);
       const material = new LineBasicMaterial({ color: 0x3498db });
       const line = new Line(geometry, material);
-      const edge: Edge3D = {
-        id: Date.now() + Math.random(),
-        start: a,
-        end: b,
-        line,
-      };
+      // Update model
+      const aId = (a.mesh as any).userData.modelId as string;
+      const bId = (b.mesh as any).userData.modelId as string;
+      graphRef.current.addEdge({ source: aId, target: bId });
+      const edge: Edge3D = { id: Number.NaN, start: a, end: b, line };
       edgesRef.current.push(edge);
       scene.add(line);
       setEdgeCount(edgesRef.current.length);
@@ -199,6 +203,9 @@ export default function GraphEditor() {
           ]);
         }
       });
+      // Update model position
+      const id = (node.mesh as any).userData.modelId as string;
+      graphRef.current.updateNodePosition(id, node.position.x, node.position.y, node.position.z);
     };
 
     const ensurePreviewLine = () => {
@@ -437,6 +444,10 @@ export default function GraphEditor() {
         hidePreviewLine();
       }
       if (hoverRef.current === node) hoverRef.current = null;
+
+      // Update model
+      const id = (node.mesh as any).userData.modelId as string;
+      graphRef.current.removeNode(id);
     };
 
     const onContextMenu = (e: MouseEvent) => {
