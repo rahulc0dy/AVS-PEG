@@ -80,7 +80,7 @@ export default function GraphEditor() {
 
     // Camera
     const camera = new PerspectiveCamera(
-      60,
+      10,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
@@ -106,7 +106,7 @@ export default function GraphEditor() {
     controlsRef.current = controls;
 
     // Helpers
-    const grid = new GridHelper(100, 100, 0x333333, 0x1a1a1a);
+    const grid = new GridHelper(400, 400, 0x333333, 0x1a1a1a);
     scene.add(grid);
 
     // Ground plane (math) for intersection at y = 0
