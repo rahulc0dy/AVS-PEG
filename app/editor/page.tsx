@@ -19,7 +19,7 @@ import {
   GridHelper,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Graph, GraphNode } from "@/utils/graph";
+import { Graph, GraphSnapshot } from "@/utils/graph";
 
 type Node3D = {
   id: number;
@@ -62,6 +62,8 @@ export default function GraphEditor() {
   const previewLineRef = useRef<Line<BufferGeometry, LineBasicMaterial> | null>(
     null
   );
+  // file input ref for import
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   // Dragging state
   const downNodeRef = useRef<Node3D | null>(null);
   const isDraggingRef = useRef<boolean>(false);
@@ -85,7 +87,7 @@ export default function GraphEditor() {
       0.1,
       1000
     );
-    camera.position.set(0, 5, 12);
+    camera.position.set(0, 60, 120);
     cameraRef.current = camera;
 
     // Renderer
@@ -528,6 +530,143 @@ export default function GraphEditor() {
     };
   }, []);
 
+  // Helpers: serialization / scene rebuild
+  const clearScene = () => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    edgesRef.current.forEach((e) => {
+      try {
+        e.line.geometry.dispose();
+        e.line.material.dispose();
+        scene.remove(e.line);
+      } catch (err) {}
+    });
+    nodesRef.current.forEach((n) => {
+      try {
+        n.mesh.geometry.dispose();
+        n.mesh.material.dispose();
+        scene.remove(n.mesh);
+      } catch (err) {}
+    });
+    if (previewLineRef.current) {
+      try {
+        previewLineRef.current.geometry.dispose();
+        previewLineRef.current.material.dispose();
+        scene.remove(previewLineRef.current);
+      } catch (err) {}
+      previewLineRef.current = null;
+    }
+    edgesRef.current = [];
+    nodesRef.current = [];
+    prevRef.current = null;
+    hoverRef.current = null;
+    setNodeCount(0);
+    setEdgeCount(0);
+  };
+
+  const buildSceneFromSnapshot = (snapshot: GraphSnapshot) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    clearScene();
+    // Recreate model graph preserving ids
+    graphRef.current = new Graph(snapshot);
+
+    // Create nodes
+    snapshot.nodes.forEach((n: any) => {
+      const geometry = new SphereGeometry(0.3, 16, 16);
+      const material = new MeshBasicMaterial({ color: 0x2ecc71 });
+      const mesh = new Mesh(geometry, material);
+      mesh.position.set(n.x ?? 0, n.y ?? 0, n.z ?? 0);
+      (mesh as any).userData.modelId = n.id;
+      const node: Node3D = {
+        id: Number.NaN,
+        position: mesh.position,
+        mesh,
+      };
+      nodesRef.current.push(node);
+      scene.add(mesh);
+    });
+
+    // Create edges
+    snapshot.edges.forEach((e: any) => {
+      const a = nodesRef.current.find(
+        (n) => (n.mesh as any).userData.modelId === e.source
+      );
+      const b = nodesRef.current.find(
+        (n) => (n.mesh as any).userData.modelId === e.target
+      );
+      if (!a || !b) return;
+      const geometry = new BufferGeometry().setFromPoints([
+        a.position.clone(),
+        b.position.clone(),
+      ]);
+      const material = new LineBasicMaterial({ color: 0x3498db });
+      const line = new Line(geometry, material);
+      const edge: Edge3D = { id: Number.NaN, start: a, end: b, line };
+      edgesRef.current.push(edge);
+      scene.add(line);
+    });
+
+    setNodeCount(nodesRef.current.length);
+    setEdgeCount(edgesRef.current.length);
+  };
+
+  const saveToLocal = (key = "graph_snapshot") => {
+    try {
+      const snap = graphRef.current.snapshot();
+      localStorage.setItem(key, JSON.stringify(snap));
+      // feedback via console (UI lightweight)
+      console.log("Graph saved to localStorage:", key);
+    } catch (err) {
+      console.error("Failed to save graph:", err);
+    }
+  };
+
+  const loadFromLocal = (key = "graph_snapshot") => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        console.warn("No graph in localStorage for key:", key);
+        return;
+      }
+      const snap = JSON.parse(raw);
+      buildSceneFromSnapshot(snap);
+      console.log("Graph loaded from localStorage:", key);
+    } catch (err) {
+      console.error("Failed to load graph:", err);
+    }
+  };
+
+  const exportJson = (filename = "graph.json") => {
+    try {
+      const snap = graphRef.current.snapshot();
+      const blob = new Blob([JSON.stringify(snap, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export graph:", err);
+    }
+  };
+
+  const importJson = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const snap = JSON.parse(text);
+      buildSceneFromSnapshot(snap);
+    } catch (err) {
+      console.error("Failed to import graph:", err);
+    }
+  };
+
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
@@ -555,6 +694,53 @@ export default function GraphEditor() {
         <div>Left-click empty space: add node</div>
         <div>Left-click node twice: connect nodes</div>
         <div>Drag to orbit • Scroll to zoom</div>
+      </div>
+      {/* Controls (save / load / import / export) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          color: "#eaeaea",
+          background: "rgba(0,0,0,0.6)",
+          padding: "8px 10px",
+          borderRadius: 6,
+          fontFamily:
+            "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial",
+          fontSize: 13,
+          lineHeight: 1.4,
+          pointerEvents: "auto",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+        }}>
+        <button
+          onClick={() => saveToLocal()}
+          style={{ padding: "6px 8px", cursor: "pointer" }}>
+          Save
+        </button>
+        <button
+          onClick={() => loadFromLocal()}
+          style={{ padding: "6px 8px", cursor: "pointer" }}>
+          Load
+        </button>
+        <button
+          onClick={() => exportJson()}
+          style={{ padding: "6px 8px", cursor: "pointer" }}>
+          Export
+        </button>
+        <button
+          onClick={() => importInputRef.current?.click()}
+          style={{ padding: "6px 8px", cursor: "pointer" }}>
+          Import
+        </button>
+        <input
+          ref={(el) => { importInputRef.current = el; }}
+          type="file"
+          accept="application/json"
+          style={{ display: "none" }}
+          onChange={(e) => importJson(e.target.files ? e.target.files[0] : null)}
+        />
       </div>
     </div>
   );
