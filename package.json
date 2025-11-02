@@ -18,7 +18,7 @@
   "prettier": {
     "arrowParens": "always",
     "bracketSpacing": true,
-    "endOfLine": "crlf",
+    "endOfLine": "lf",
     "singleQuote": false,
     "tabWidth": 2,
     "useTabs": false
@@ -35,3 +35,4 @@
     "typescript": "^5.9.3"
   }
 }
+
