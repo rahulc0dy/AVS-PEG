@@ -637,16 +637,47 @@ export default function GraphEditor() {
     }
   };
 
-  const exportJson = (filename = "graph.json") => {
+  const exportJson = async (filename = "graph.json") => {
     try {
       const snap = graphRef.current.snapshot();
-      const blob = new Blob([JSON.stringify(snap, null, 2)], {
+      let name = filename ?? "graph.json";
+      if (!name.toLowerCase().endsWith(".json")) name = `${name}.json`;
+
+      const data = JSON.stringify(snap, null, 2);
+
+      // Use File System Access API when available to show OS save dialog (Chrome/Edge)
+      const win = window as any;
+      if (win && typeof win.showSaveFilePicker === "function") {
+        try {
+          const handle = await win.showSaveFilePicker({
+            suggestedName: name,
+            types: [
+              {
+                description: "JSON file",
+                accept: { "application/json": [".json"] },
+              },
+            ],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(data);
+          await writable.close();
+          return;
+        } catch (err: any) {
+          // If the user cancels the save dialog, it's a DOMException with name 'AbortError'
+          if (err && err.name === "AbortError") return;
+          console.error("Save file picker failed:", err);
+          // fallback to anchor download
+        }
+      }
+
+      // Fallback: standard anchor download
+      const blob = new Blob([data], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = name;
       document.body.appendChild(a);
       a.click();
       a.remove();
