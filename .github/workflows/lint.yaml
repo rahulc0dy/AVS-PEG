@@ -29,7 +29,7 @@ jobs:
         run: |
           # Run project lint script if present (fail on error), then run Next.js lint as fallback/extra
           if grep -q '"lint"[[:space:]]*:' package.json; then
-            bun run lint --silent
+            bun run lint
           else
             echo "No lint script in package.json, skipping project lint"
           fi
