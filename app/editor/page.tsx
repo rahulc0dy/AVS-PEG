@@ -564,15 +564,29 @@ export default function GraphEditor() {
     setEdgeCount(0);
   };
 
-  const buildSceneFromSnapshot = (snapshot: GraphSnapshot) => {
+  const buildSceneFromSnapshot = (data: any) => {
     const scene = sceneRef.current;
     if (!scene) return;
     clearScene();
+    // Accept either a raw GraphSnapshot or an object { snapshot, camera }
+    let snapshot: GraphSnapshot | undefined;
+    let cameraState: any = undefined;
+    if (!data) return;
+    if (data.nodes && data.edges) {
+      snapshot = data as GraphSnapshot;
+    } else if (data.snapshot) {
+      snapshot = data.snapshot as GraphSnapshot;
+      cameraState = data.camera;
+    } else {
+      console.warn("Unrecognized snapshot format", data);
+      return;
+    }
+
     // Recreate model graph preserving ids
     graphRef.current = new Graph(snapshot);
 
     // Create nodes
-    snapshot.nodes.forEach((n: any) => {
+    snapshot!.nodes.forEach((n: any) => {
       const geometry = new SphereGeometry(0.3, 16, 16);
       const material = new MeshBasicMaterial({ color: 0x2ecc71 });
       const mesh = new Mesh(geometry, material);
@@ -609,12 +623,49 @@ export default function GraphEditor() {
 
     setNodeCount(nodesRef.current.length);
     setEdgeCount(edgesRef.current.length);
+
+    // Restore camera if present
+    const cam = cameraRef.current;
+    const controls = controlsRef.current;
+    if (cameraState && cam) {
+      try {
+        if (cameraState.position) {
+          cam.position.set(
+            cameraState.position.x ?? cameraState.position[0] ?? cam.position.x,
+            cameraState.position.y ?? cameraState.position[1] ?? cam.position.y,
+            cameraState.position.z ?? cameraState.position[2] ?? cam.position.z
+          );
+        }
+        if (controls && cameraState.target) {
+          controls.target.set(
+            cameraState.target.x ?? cameraState.target[0] ?? controls.target.x,
+            cameraState.target.y ?? cameraState.target[1] ?? controls.target.y,
+            cameraState.target.z ?? cameraState.target[2] ?? controls.target.z
+          );
+          controls.update();
+        } else if (cam) {
+          cam.updateProjectionMatrix();
+        }
+      } catch (err) {
+        console.warn("Failed to restore camera state:", err);
+      }
+    }
   };
 
   const saveToLocal = (key = "graph_snapshot") => {
     try {
       const snap = graphRef.current.snapshot();
-      localStorage.setItem(key, JSON.stringify(snap));
+      // include camera state
+      const cam = cameraRef.current;
+      const controls = controlsRef.current;
+      const cameraState = cam
+        ? {
+            position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+            target: controls ? { x: controls.target.x, y: controls.target.y, z: controls.target.z } : undefined,
+          }
+        : undefined;
+      const payload = { snapshot: snap, camera: cameraState };
+      localStorage.setItem(key, JSON.stringify(payload));
       // feedback via console (UI lightweight)
       console.log("Graph saved to localStorage:", key);
     } catch (err) {
@@ -629,8 +680,8 @@ export default function GraphEditor() {
         console.warn("No graph in localStorage for key:", key);
         return;
       }
-      const snap = JSON.parse(raw);
-      buildSceneFromSnapshot(snap);
+      const parsed = JSON.parse(raw);
+      buildSceneFromSnapshot(parsed);
       console.log("Graph loaded from localStorage:", key);
     } catch (err) {
       console.error("Failed to load graph:", err);
@@ -643,7 +694,17 @@ export default function GraphEditor() {
       let name = filename ?? "graph.json";
       if (!name.toLowerCase().endsWith(".json")) name = `${name}.json`;
 
-      const data = JSON.stringify(snap, null, 2);
+      // include camera state
+      const cam = cameraRef.current;
+      const controls = controlsRef.current;
+      const cameraState = cam
+        ? {
+            position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+            target: controls ? { x: controls.target.x, y: controls.target.y, z: controls.target.z } : undefined,
+          }
+        : undefined;
+
+      const data = JSON.stringify({ snapshot: snap, camera: cameraState }, null, 2);
 
       // Use File System Access API when available to show OS save dialog (Chrome/Edge)
       const win = window as any;
@@ -691,8 +752,8 @@ export default function GraphEditor() {
     if (!file) return;
     try {
       const text = await file.text();
-      const snap = JSON.parse(text);
-      buildSceneFromSnapshot(snap);
+      const parsed = JSON.parse(text);
+      buildSceneFromSnapshot(parsed);
     } catch (err) {
       console.error("Failed to import graph:", err);
     }
