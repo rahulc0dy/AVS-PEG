@@ -166,15 +166,20 @@ export default function GraphEditor() {
 
     // Add an edge
     const addEdge = (a: Node3D, b: Node3D) => {
+      // Ensure model IDs exist before allocating Three resources
+      const aId = getModelId(a.mesh);
+      const bId = getModelId(b.mesh);
+      if (!aId || !bId) {
+        console.error("Missing model ID on mesh", { aId, bId });
+        return;
+      }
       const geometry = new BufferGeometry().setFromPoints([
         a.position.clone(),
         b.position.clone(),
       ]);
-    const material = new LineBasicMaterial({ color: 0x3498db });
-    const line = new Line(geometry, material);
-    // Update model
-    const aId = getModelId(a.mesh) as string;
-    const bId = getModelId(b.mesh) as string;
+      const material = new LineBasicMaterial({ color: 0x3498db });
+      const line = new Line(geometry, material);
+      // Update model
       graphRef.current.addEdge({ source: aId, target: bId });
       const edge: Edge3D = { id: Number.NaN, start: a, end: b, line };
       edgesRef.current.push(edge);
@@ -224,7 +229,11 @@ export default function GraphEditor() {
         }
       });
       // Update model position
-      const id = getModelId(node.mesh) as string;
+      const id = getModelId(node.mesh);
+      if (!id) {
+        console.error("Missing model ID on mesh", { id });
+        return;
+      }
       graphRef.current.updateNodePosition(id, node.position.x, node.position.y, node.position.z);
     };
 
@@ -466,7 +475,11 @@ export default function GraphEditor() {
       if (hoverRef.current === node) hoverRef.current = null;
 
       // Update model
-      const id = getModelId(node.mesh) as string;
+      const id = getModelId(node.mesh);
+      if (!id) {
+        console.error("Missing model ID on mesh", { id });
+        return;
+      }
       graphRef.current.removeNode(id);
     };
 
