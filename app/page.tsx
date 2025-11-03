@@ -46,6 +46,8 @@ export default function Home() {
     return () => {
       renderer.setAnimationLoop(null);
       mount.removeChild(renderer.domElement);
+      geometry.dispose();
+      material.dispose();
       renderer.dispose();
     };
   }, []);
