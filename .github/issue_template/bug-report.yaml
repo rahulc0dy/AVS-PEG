@@ -1,0 +1,94 @@
+name: "Bug Report"
+description: "Report a bug affecting the autonomous vehicle simulation or procedural environments."
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the simulator. Please share enough detail so we can reproduce and fix the issue quickly.
+
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting a new bug, **search existing issues** to avoid duplicates.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact Severity
+      description: How badly does this bug affect the simulation?
+      options:
+        - Critical: Simulation crashes or blocks core flows
+        - High: Major feature broken or unstable
+        - Medium: Noticeable but workaround exists
+        - Low: Minor glitch or cosmetic issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug Summary
+      description: Briefly describe the bug in one or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps To Reproduce
+      description: |
+        List the precise steps to trigger the bug in the Next.js app.
+
+        **Example:**
+        1. Open the city environment preset
+        2. Start the traffic simulation
+        3. Switch camera mode to "Chase"
+        4. Observe the vehicle freeze
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error messages or screenshots if helpful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: |
+        Provide runtime details (browser, OS, device, build mode, Next.js version, etc.).
+
+        **Example:**
+        "Chrome 129 on Windows 11, production build, GPU: RTX 3070"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs Or Console Output
+      description: Paste relevant console logs, stack traces, or network responses. Use triple backticks for formatting.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for duplicates
+        - label: I am willing to help validate a fix when available
