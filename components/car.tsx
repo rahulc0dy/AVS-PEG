@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Scene, Object3D, Box3, Vector3, Clock } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { useKeyboardControls } from "../hooks/useKeyboardControls";
+import { useKeyboardControls } from "@/hooks/useKeyboardControls";
 
 const Car = ({
   modelPath,
@@ -14,6 +14,8 @@ const Car = ({
 }) => {
   const keyboardControls = useKeyboardControls();
   const [model, setModel] = useState<Object3D | null>(null);
+  const [speed, setSpeed] = useState(5);
+  const [turnSpeed, setTurnSpeed] = useState(1.5);
   const clockRef = useRef(new Clock());
 
   useEffect(() => {
@@ -28,6 +30,7 @@ const Car = ({
       modelPath,
       (gltf) => {
         scene.add(gltf.scene);
+        setModel(gltf.scene);
       },
       undefined,
       onError
@@ -51,13 +54,11 @@ const Car = ({
       const delta = clockRef.current.getDelta();
 
       const { forward, backward, left, right } = keyboardControls.current;
-      const moveSpeed = 5.0; // units per second
-      const rotationSpeed = 1.5; // radians per second
 
-      if (forward) model.translateZ(-moveSpeed * delta);
-      if (backward) model.translateZ(moveSpeed * delta);
-      if (left) model.rotateY(rotationSpeed * delta);
-      if (right) model.rotateY(-rotationSpeed * delta);
+      if (forward) model.translateZ(speed * delta);
+      if (backward) model.translateZ(-speed * delta);
+      if (left) model.rotateY(turnSpeed * delta);
+      if (right) model.rotateY(-turnSpeed * delta);
     };
 
     animate();
@@ -65,9 +66,40 @@ const Car = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [model, keyboardControls]); // Dependency array now correctly includes 'model'
+  }, [model, keyboardControls, speed, turnSpeed]); // Dependency array now correctly includes 'model'
 
-  return null;
+  return (
+    <div className="absolute top-4 right-4 bg-black/70 p-4 rounded-lg text-white space-y-4 w-64">
+      <div>
+        <label className="block text-xs font-semibold">
+          Movement Speed: {speed.toFixed(1)}
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="20"
+          step="0.5"
+          value={speed}
+          onChange={(e) => setSpeed(parseFloat(e.target.value))}
+          className="w-full h-0.5"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold">
+          Turn Speed: {turnSpeed.toFixed(2)}
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="5"
+          step="0.1"
+          value={turnSpeed}
+          onChange={(e) => setTurnSpeed(parseFloat(e.target.value))}
+          className="w-full h-0.5"
+        />
+      </div>
+    </div>
+  );
 };
 
 export default Car;
