@@ -19,7 +19,30 @@ import {
   GridHelper,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Graph, GraphSnapshot } from "@/utils/graph";
+import { Graph, GraphSnapshot, GraphNode, GraphEdge } from "@/utils/graph";
+
+type CameraState = {
+  position: { x: number; y: number; z: number };
+  target?: { x: number; y: number; z: number };
+};
+
+type SavedGraph = GraphSnapshot | { snapshot: GraphSnapshot; camera?: CameraState };
+
+const setModelId = (mesh: Mesh, id: string) => {
+  (mesh.userData as { modelId?: string }).modelId = id;
+};
+
+const getModelId = (mesh: Mesh): string | undefined => {
+  return (mesh.userData as { modelId?: string }).modelId;
+};
+
+type SaveFilePickerHandle = {
+  createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }>;
+};
+
+type WindowWithPicker = {
+  showSaveFilePicker?: (options?: unknown) => Promise<SaveFilePickerHandle>;
+};
 
 type Node3D = {
   id: number;
@@ -74,6 +97,7 @@ export default function GraphEditor() {
 
   useEffect(() => {
     if (!mountRef.current) return;
+    const mount = mountRef.current;
 
     // Scene
     const scene = new Scene();
@@ -83,7 +107,7 @@ export default function GraphEditor() {
     // Camera
     const camera = new PerspectiveCamera(
       10,
-      mountRef.current.clientWidth / mountRef.current.clientHeight,
+    mount.clientWidth / mount.clientHeight,
       0.1,
       1000
     );
@@ -93,11 +117,8 @@ export default function GraphEditor() {
     // Renderer
     const renderer = new WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(
-      mountRef.current.clientWidth,
-      mountRef.current.clientHeight
-    );
-    mountRef.current.appendChild(renderer.domElement);
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Controls
@@ -110,9 +131,6 @@ export default function GraphEditor() {
     // Helpers
     const grid = new GridHelper(400, 400, 0x333333, 0x1a1a1a);
     scene.add(grid);
-
-    // Ground plane (math) for intersection at y = 0
-    const groundPlane = new Plane(new Vector3(0, 1, 0), 0);
 
     // Pointer conversion helper
     const updateMouseNDC = (e: MouseEvent) => {
@@ -139,7 +157,7 @@ export default function GraphEditor() {
         mesh,
       };
       // Store model id on mesh userData for mapping
-      (mesh as any).userData.modelId = modelNode.id;
+      setModelId(mesh, modelNode.id);
       nodesRef.current.push(node);
       scene.add(mesh);
       setNodeCount(nodesRef.current.length);
@@ -152,11 +170,11 @@ export default function GraphEditor() {
         a.position.clone(),
         b.position.clone(),
       ]);
-      const material = new LineBasicMaterial({ color: 0x3498db });
-      const line = new Line(geometry, material);
-      // Update model
-      const aId = (a.mesh as any).userData.modelId as string;
-      const bId = (b.mesh as any).userData.modelId as string;
+    const material = new LineBasicMaterial({ color: 0x3498db });
+    const line = new Line(geometry, material);
+    // Update model
+    const aId = getModelId(a.mesh) as string;
+    const bId = getModelId(b.mesh) as string;
       graphRef.current.addEdge({ source: aId, target: bId });
       const edge: Edge3D = { id: Number.NaN, start: a, end: b, line };
       edgesRef.current.push(edge);
@@ -206,7 +224,7 @@ export default function GraphEditor() {
         }
       });
       // Update model position
-      const id = (node.mesh as any).userData.modelId as string;
+      const id = getModelId(node.mesh) as string;
       graphRef.current.updateNodePosition(id, node.position.x, node.position.y, node.position.z);
     };
 
@@ -277,8 +295,8 @@ export default function GraphEditor() {
             downClientRef.current = { x: e.clientX, y: e.clientY };
             // Prepare drag offset
             const hit = new Vector3();
-            const groundPlane = new Plane(new Vector3(0, 1, 0), 0);
-            if (raycasterRef.current.ray.intersectPlane(groundPlane, hit)) {
+            const gp = new Plane(new Vector3(0, 1, 0), 0);
+            if (raycasterRef.current.ray.intersectPlane(gp, hit)) {
               dragOffsetRef.current = node.position.clone().sub(hit);
             } else {
               dragOffsetRef.current = new Vector3();
@@ -448,7 +466,7 @@ export default function GraphEditor() {
       if (hoverRef.current === node) hoverRef.current = null;
 
       // Update model
-      const id = (node.mesh as any).userData.modelId as string;
+      const id = getModelId(node.mesh) as string;
       graphRef.current.removeNode(id);
     };
 
@@ -471,10 +489,9 @@ export default function GraphEditor() {
     };
 
     const onResize = () => {
-      if (!mountRef.current || !rendererRef.current || !cameraRef.current)
-        return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight;
+      if (!mount || !rendererRef.current || !cameraRef.current) return;
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
       rendererRef.current.setSize(w, h);
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
@@ -525,7 +542,7 @@ export default function GraphEditor() {
       }
 
       controls.dispose();
-      mountRef.current?.removeChild(renderer.domElement);
+      mount?.removeChild(renderer.domElement);
       renderer.dispose();
     };
   }, []);
@@ -539,21 +556,21 @@ export default function GraphEditor() {
         e.line.geometry.dispose();
         e.line.material.dispose();
         scene.remove(e.line);
-      } catch (err) {}
+      } catch {}
     });
     nodesRef.current.forEach((n) => {
       try {
         n.mesh.geometry.dispose();
         n.mesh.material.dispose();
         scene.remove(n.mesh);
-      } catch (err) {}
+      } catch {}
     });
     if (previewLineRef.current) {
       try {
         previewLineRef.current.geometry.dispose();
         previewLineRef.current.material.dispose();
         scene.remove(previewLineRef.current);
-      } catch (err) {}
+      } catch {}
       previewLineRef.current = null;
     }
     edgesRef.current = [];
@@ -564,19 +581,20 @@ export default function GraphEditor() {
     setEdgeCount(0);
   };
 
-  const buildSceneFromSnapshot = (data: any) => {
+  const buildSceneFromSnapshot = (data: SavedGraph) => {
     const scene = sceneRef.current;
     if (!scene) return;
     clearScene();
     // Accept either a raw GraphSnapshot or an object { snapshot, camera }
     let snapshot: GraphSnapshot | undefined;
-    let cameraState: any = undefined;
+    let cameraState: CameraState | undefined = undefined;
     if (!data) return;
-    if (data.nodes && data.edges) {
+    if ((data as GraphSnapshot).nodes && (data as GraphSnapshot).edges) {
       snapshot = data as GraphSnapshot;
-    } else if (data.snapshot) {
-      snapshot = data.snapshot as GraphSnapshot;
-      cameraState = data.camera;
+    } else if ((data as { snapshot?: GraphSnapshot }).snapshot) {
+      const wrapped = data as { snapshot: GraphSnapshot; camera?: CameraState };
+      snapshot = wrapped.snapshot;
+      cameraState = wrapped.camera;
     } else {
       console.warn("Unrecognized snapshot format", data);
       return;
@@ -586,12 +604,12 @@ export default function GraphEditor() {
     graphRef.current = new Graph(snapshot);
 
     // Create nodes
-    snapshot!.nodes.forEach((n: any) => {
+    snapshot!.nodes.forEach((n: GraphNode) => {
       const geometry = new SphereGeometry(0.3, 16, 16);
       const material = new MeshBasicMaterial({ color: 0x2ecc71 });
       const mesh = new Mesh(geometry, material);
       mesh.position.set(n.x ?? 0, n.y ?? 0, n.z ?? 0);
-      (mesh as any).userData.modelId = n.id;
+      setModelId(mesh, n.id);
       const node: Node3D = {
         id: Number.NaN,
         position: mesh.position,
@@ -602,12 +620,12 @@ export default function GraphEditor() {
     });
 
     // Create edges
-    snapshot.edges.forEach((e: any) => {
+    snapshot.edges.forEach((e: GraphEdge) => {
       const a = nodesRef.current.find(
-        (n) => (n.mesh as any).userData.modelId === e.source
+        (n) => getModelId(n.mesh) === e.source
       );
       const b = nodesRef.current.find(
-        (n) => (n.mesh as any).userData.modelId === e.target
+        (n) => getModelId(n.mesh) === e.target
       );
       if (!a || !b) return;
       const geometry = new BufferGeometry().setFromPoints([
@@ -631,16 +649,16 @@ export default function GraphEditor() {
       try {
         if (cameraState.position) {
           cam.position.set(
-            cameraState.position.x ?? cameraState.position[0] ?? cam.position.x,
-            cameraState.position.y ?? cameraState.position[1] ?? cam.position.y,
-            cameraState.position.z ?? cameraState.position[2] ?? cam.position.z
+            cameraState.position.x ?? cam.position.x,
+            cameraState.position.y ?? cam.position.y,
+            cameraState.position.z ?? cam.position.z
           );
         }
         if (controls && cameraState.target) {
           controls.target.set(
-            cameraState.target.x ?? cameraState.target[0] ?? controls.target.x,
-            cameraState.target.y ?? cameraState.target[1] ?? controls.target.y,
-            cameraState.target.z ?? cameraState.target[2] ?? controls.target.z
+            cameraState.target.x ?? controls.target.x,
+            cameraState.target.y ?? controls.target.y,
+            cameraState.target.z ?? controls.target.z
           );
           controls.update();
         } else if (cam) {
@@ -707,7 +725,7 @@ export default function GraphEditor() {
       const data = JSON.stringify({ snapshot: snap, camera: cameraState }, null, 2);
 
       // Use File System Access API when available to show OS save dialog (Chrome/Edge)
-      const win = window as any;
+      const win = window as unknown as WindowWithPicker;
       if (win && typeof win.showSaveFilePicker === "function") {
         try {
           const handle = await win.showSaveFilePicker({
@@ -723,9 +741,10 @@ export default function GraphEditor() {
           await writable.write(data);
           await writable.close();
           return;
-        } catch (err: any) {
+        } catch (err: unknown) {
           // If the user cancels the save dialog, it's a DOMException with name 'AbortError'
-          if (err && err.name === "AbortError") return;
+          const e = err as { name?: string };
+          if (e?.name === "AbortError") return;
           console.error("Save file picker failed:", err);
           // fallback to anchor download
         }
