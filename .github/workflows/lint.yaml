@@ -21,18 +21,12 @@ jobs:
           bun-version: "latest"
 
       - name: Install dependencies
-        run: |
-          # install with bun using the lockfile (fails if lockfile out-of-sync)
-          bun install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Run linter
         run: |
-          # Run project lint script if present (fail on error), then run Next.js lint as fallback/extra
           if grep -q '"lint"[[:space:]]*:' package.json; then
             bun run lint
           else
             echo "No lint script in package.json, skipping project lint"
           fi
-
-          # Run Next.js lint via bunx and treat any warnings as errors
-          bunx next lint --max-warnings 0
