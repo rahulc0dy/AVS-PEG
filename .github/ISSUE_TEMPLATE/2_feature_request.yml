@@ -1,0 +1,70 @@
+name: "Feature Request"
+description: "Propose a new capability for the autonomous vehicle simulation platform."
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Excited to hear your idea! Clear requests help us prioritize the roadmap effectively.
+
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a new issue, **double-check the tracker** for similar feature requests.
+
+  - type: textarea
+    id: vision
+    attributes:
+      label: Desired Outcome
+      description: |
+        Describe the feature at a high level. What should the simulator enable that it currently does not?
+
+        **Example:**
+        "Allow configuring weather systems that evolve during the simulation."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-value
+    attributes:
+      label: User Value
+      description: Who benefits from this feature and how does it improve their workflow or research?
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Key Details Or Requirements
+      description: |
+        Share important specifics, constraints, or acceptance criteria for the Next.js implementation.
+
+        **Example:**
+        "Expose configuration via a control panel on `/editor`, support both desktop and tablet breakpoints."
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies Or Related Work
+      description: Note any related issues, external services, or assets needed to deliver this feature.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Considered Alternatives
+      description: Have you explored other solutions? Why is this request the best approach?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: followup
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing feature requests and found no duplicate
+        - label: I am open to collaborating on the implementation
