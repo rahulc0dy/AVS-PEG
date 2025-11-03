@@ -43,8 +43,17 @@ export default function Home() {
     }
     renderer.setAnimationLoop(animate);
 
+    // Resize handler to keep camera aspect and renderer size in sync
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
     return () => {
       renderer.setAnimationLoop(null);
+      window.removeEventListener("resize", handleResize);
       mount.removeChild(renderer.domElement);
       geometry.dispose();
       material.dispose();
