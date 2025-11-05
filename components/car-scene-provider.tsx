@@ -17,6 +17,8 @@ import {
   AmbientLight,
   DirectionalLight,
 } from "three";
+import { Graph } from "@/utils/graph";
+import { createRoadGroup } from "@/utils/graph/roadVisual";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 
@@ -66,6 +68,68 @@ export const CarSceneProvider = ({ children }: { children: ReactNode }) => {
     const grid = new GridHelper(100, 100, 0x333333, 0x1a1a1a);
     newScene.add(grid);
 
+    // Road visuals: try to load the real graph from localStorage (used by /editor)
+    let roadGroupName = "road-group";
+    let currentRoadGroup: any = null;
+
+    const disposeRoadGroup = (group: any) => {
+      try {
+        if (!group) return;
+        group.children.forEach((child: any) => {
+          // Mesh
+          if (child.geometry) {
+            try {
+              child.geometry.dispose();
+            } catch {}
+          }
+          if (child.material) {
+            try {
+              child.material.dispose();
+            } catch {}
+          }
+        });
+        newScene.remove(group);
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    const addRoadGroupFromSnapshot = (raw: string | null) => {
+      disposeRoadGroup(currentRoadGroup);
+      try {
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const snapshot = parsed && parsed.snapshot ? parsed.snapshot : parsed;
+          const graph = new Graph(snapshot);
+          const g = createRoadGroup(graph, { roadWidth: 8, laneLine: true });
+          g.name = roadGroupName;
+          newScene.add(g);
+          currentRoadGroup = g;
+          return;
+        }
+      } catch (err) {
+        // fall through to demo
+      }
+      return;
+    };
+
+    // Initialize from localStorage key used by the editor
+    const storageKey = "graph_snapshot";
+    try {
+      const raw = localStorage.getItem(storageKey);
+      addRoadGroupFromSnapshot(raw);
+    } catch (err) {
+      addRoadGroupFromSnapshot(null);
+    }
+
+    // Update when storage changes (e.g. editor saves in another tab)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === storageKey) {
+        addRoadGroupFromSnapshot(e.newValue);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
     const onResize = () => {
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
@@ -82,11 +146,15 @@ export const CarSceneProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("storage", onStorage);
       renderer.setAnimationLoop(null);
       if (mount) {
         mount.removeChild(renderer.domElement);
         mount.removeChild(stats.dom);
       }
+      try {
+        disposeRoadGroup(currentRoadGroup);
+      } catch {}
       controls.dispose();
     };
   }, []);
