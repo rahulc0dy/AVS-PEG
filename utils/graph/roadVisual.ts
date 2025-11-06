@@ -129,7 +129,49 @@ export function createRoadGroup(
     const mesh = new Mesh(geom, mat);
     mesh.rotation.x = Math.PI / 2;
     mesh.position.y = 0.001; // slight offset to avoid z-fighting with grid
+    mesh.userData = { isRoad: true, edgeId: e.id };
     group.add(mesh);
+
+    // Add invisible vertical colliders on lane center and road borders so the car's
+    // raycasts can detect them reliably. These colliders are invisible (opacity 0)
+    // and will not interfere with movement logic (they're only used for ray intersection).
+    try {
+      const midLeftX = (startLeft.x + endLeft.x) / 2;
+      const midLeftZ = (startLeft.z + endLeft.z) / 2;
+      const midRightX = (startRight.x + endRight.x) / 2;
+      const midRightZ = (startRight.z + endRight.z) / 2;
+
+      const vertHeight = Math.max(1.2, roadWidth * 0.3);
+      const vertThickness = Math.max(0.02, roadWidth * 0.03);
+      const laneThickness = Math.max(0.02, roadWidth * 0.03);
+
+      const vertMat = new MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false });
+
+      const leftVertGeom = new BoxGeometry(len, vertHeight, vertThickness);
+      const leftVert = new Mesh(leftVertGeom, vertMat);
+      leftVert.position.set(midLeftX, vertHeight / 2, midLeftZ);
+      leftVert.userData = { isRoadEdgeVertical: true, edgeId: e.id };
+      leftVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+      group.add(leftVert);
+
+      const rightVertGeom = new BoxGeometry(len, vertHeight, vertThickness);
+      const rightVert = new Mesh(rightVertGeom, vertMat);
+      rightVert.position.set(midRightX, vertHeight / 2, midRightZ);
+      rightVert.userData = { isRoadEdgeVertical: true, edgeId: e.id };
+      rightVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+      group.add(rightVert);
+
+      const centerX = (x1 + x2) / 2;
+      const centerZ = (z1 + z2) / 2;
+      const laneVertGeom = new BoxGeometry(len, vertHeight, laneThickness);
+      const laneVert = new Mesh(laneVertGeom, vertMat);
+      laneVert.position.set(centerX, vertHeight / 2, centerZ);
+      laneVert.userData = { isLaneVertical: true, edgeId: e.id };
+      laneVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+      group.add(laneVert);
+    } catch (err) {
+      // ignore collider creation errors
+    }
 
     if (laneLine) {
       // Create a thick dashed center line using many thin box meshes to guarantee

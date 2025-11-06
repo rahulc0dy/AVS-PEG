@@ -101,7 +101,7 @@ export const CarSceneProvider = ({ children }: { children: ReactNode }) => {
           const parsed = JSON.parse(raw);
           const snapshot = parsed && parsed.snapshot ? parsed.snapshot : parsed;
           const graph = new Graph(snapshot);
-          const g = createRoadGroup(graph, { roadWidth: 8, laneLine: true });
+          const g = createRoadGroup(graph, { roadWidth: 16, laneLine: true });
           g.name = roadGroupName;
           newScene.add(g);
           currentRoadGroup = g;
