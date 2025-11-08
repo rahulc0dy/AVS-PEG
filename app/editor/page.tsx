@@ -19,7 +19,7 @@ import {
   GridHelper,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Graph, GraphSnapshot, GraphNode, GraphEdge } from "@/utils/graph";
+import { Graph, GraphSnapshot, GraphNode, GraphEdge } from "@/lib/graph";
 
 type CameraState = {
   position: { x: number; y: number; z: number };
