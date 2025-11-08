@@ -74,10 +74,16 @@ export function createRoadGroup(
     const anglePerp = angle + Math.PI / 2;
     const anglePerpOpp = angle - Math.PI / 2;
 
-  const arcSteps = Math.max(4, Math.floor(roundness));
+    const arcSteps = Math.max(4, Math.floor(roundness));
 
     // Helper to push arc points around a center (cx, cz)
-    const makeArc = (cx: number, cz: number, startAng: number, endAng: number, radius: number) => {
+    const makeArc = (
+      cx: number,
+      cz: number,
+      startAng: number,
+      endAng: number,
+      radius: number
+    ) => {
       const points: Vector2[] = [];
       const step = (endAng - startAng) / arcSteps;
       for (let i = 0; i <= arcSteps; i++) {
@@ -132,7 +138,7 @@ export function createRoadGroup(
     mesh.userData = { isRoad: true, edgeId: e.id };
     group.add(mesh);
 
-    // Add invisible vertical colliders on lane center and road borders so the car's
+    // Add invisible vertical colliders along road borders so the car's
     // raycasts can detect them reliably. These colliders are invisible (opacity 0)
     // and will not interfere with movement logic (they're only used for ray intersection).
     try {
@@ -143,32 +149,33 @@ export function createRoadGroup(
 
       const vertHeight = Math.max(1.2, roadWidth * 0.3);
       const vertThickness = Math.max(0.02, roadWidth * 0.03);
-      const laneThickness = Math.max(0.02, roadWidth * 0.03);
 
-      const vertMat = new MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false });
+      const vertMat = new MeshStandardMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
 
       const leftVertGeom = new BoxGeometry(len, vertHeight, vertThickness);
       const leftVert = new Mesh(leftVertGeom, vertMat);
       leftVert.position.set(midLeftX, vertHeight / 2, midLeftZ);
       leftVert.userData = { isRoadEdgeVertical: true, edgeId: e.id };
-      leftVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+      leftVert.quaternion.setFromUnitVectors(
+        new Vector3(1, 0, 0),
+        new Vector3(ux, 0, uz)
+      );
       group.add(leftVert);
 
       const rightVertGeom = new BoxGeometry(len, vertHeight, vertThickness);
       const rightVert = new Mesh(rightVertGeom, vertMat);
       rightVert.position.set(midRightX, vertHeight / 2, midRightZ);
       rightVert.userData = { isRoadEdgeVertical: true, edgeId: e.id };
-      rightVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+      rightVert.quaternion.setFromUnitVectors(
+        new Vector3(1, 0, 0),
+        new Vector3(ux, 0, uz)
+      );
       group.add(rightVert);
-
-      const centerX = (x1 + x2) / 2;
-      const centerZ = (z1 + z2) / 2;
-      const laneVertGeom = new BoxGeometry(len, vertHeight, laneThickness);
-      const laneVert = new Mesh(laneVertGeom, vertMat);
-      laneVert.position.set(centerX, vertHeight / 2, centerZ);
-      laneVert.userData = { isLaneVertical: true, edgeId: e.id };
-      laneVert.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
-      group.add(laneVert);
     } catch (err) {
       // ignore collider creation errors
     }
@@ -179,16 +186,27 @@ export function createRoadGroup(
       // Heuristic dash/gap sizing: base on roadWidth but clamp to sensible ranges
       const available = len;
       // base sizes (allow overrides from options)
-      const baseDash = typeof optDashLength === "number" ? optDashLength : roadWidth * 0.4;
-      const baseGap = typeof optGapLength === "number" ? optGapLength : roadWidth * 0.6;
+      const baseDash =
+        typeof optDashLength === "number" ? optDashLength : roadWidth * 0.4;
+      const baseGap =
+        typeof optGapLength === "number" ? optGapLength : roadWidth * 0.6;
       // clamp dash length to [0.2, available/2]
-      const dashLen = Math.min(Math.max(baseDash, 0.2), Math.max(0.2, available / 2));
+      const dashLen = Math.min(
+        Math.max(baseDash, 0.2),
+        Math.max(0.2, available / 2)
+      );
       // clamp gap length to [0.1, available/2]
-      const gapLen = Math.min(Math.max(baseGap * 0.6, 0.1), Math.max(0.1, available / 2));
+      const gapLen = Math.min(
+        Math.max(baseGap * 0.6, 0.1),
+        Math.max(0.1, available / 2)
+      );
       // thickness (across road) should be a fraction of roadWidth but never exceed roadWidth
-  // dash thickness: allow override, otherwise use a small fraction of roadWidth
-  // reduced default to make dashes thinner and less visually heavy
-  const segThickness = typeof optDashThickness === "number" ? optDashThickness : Math.max(0.02, roadWidth * 0.06);
+      // dash thickness: allow override, otherwise use a small fraction of roadWidth
+      // reduced default to make dashes thinner and less visually heavy
+      const segThickness =
+        typeof optDashThickness === "number"
+          ? optDashThickness
+          : Math.max(0.02, roadWidth * 0.06);
 
       const pattern = dashLen + gapLen;
       const count = Math.max(0, Math.floor(available / pattern));
@@ -201,11 +219,18 @@ export function createRoadGroup(
         const cz = z1 + uz * centerDist;
 
         const segGeom = new BoxGeometry(dashLen, 0.02, segThickness);
-        const segMat = new MeshStandardMaterial({ color: laneLineColor, emissive: laneLineColor, emissiveIntensity: 0.6 });
+        const segMat = new MeshStandardMaterial({
+          color: laneLineColor,
+          emissive: laneLineColor,
+          emissiveIntensity: 0.6,
+        });
         const seg = new Mesh(segGeom, segMat);
         seg.position.set(cx, 0.02, cz);
         // Align segment X axis with the edge direction robustly using quaternion
-        seg.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), new Vector3(ux, 0, uz));
+        seg.quaternion.setFromUnitVectors(
+          new Vector3(1, 0, 0),
+          new Vector3(ux, 0, uz)
+        );
         group.add(seg);
       }
     }
