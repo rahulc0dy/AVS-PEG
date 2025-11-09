@@ -36,9 +36,9 @@ export class Edge {
     return this.n1.equals(node) || this.n2.equals(node);
   }
 
-  distanceToPoint(node: Node): number {
-    // Get the projection of the given point onto the edge
-    const projection = this.projectPoint(node);
+  distanceToNode(node: Node): number {
+    // Get the projection of the given node onto the edge
+    const projection = this.projectNode(node);
 
     // If the projection lies within the segment (not beyond either endpoint)
     const isWithinSegment = projection.offset > 0 && projection.offset < 1;
@@ -54,9 +54,9 @@ export class Edge {
     return Math.min(distanceToStart, distanceToEnd);
   }
 
-  projectPoint(node: Node): { point: Node; offset: number } {
+  projectNode(node: Node): { point: Node; offset: number } {
     // Vector from the start of the edge (n1) to the external point
-    const vectorToPoint = subtract(node, this.n1);
+    const vectorToNode = subtract(node, this.n1);
 
     // Vector representing the edge itself (from n1 to n2)
     const edgeVector = subtract(this.n2, this.n1);
@@ -65,16 +65,16 @@ export class Edge {
     const edgeDirection = normalize(edgeVector);
 
     // Scalar projection: how far along the edge the point projects (in units of length)
-    const projectionLength = dot(vectorToPoint, edgeDirection);
+    const projectionLength = dot(vectorToNode, edgeDirection);
 
-    // Actual coordinates of the projected point on the infinite line
-    const projectedPoint = add(this.n1, scale(edgeDirection, projectionLength));
+    // Actual coordinates of the projected node on the infinite line
+    const projectedNode = add(this.n1, scale(edgeDirection, projectionLength));
 
     // Offset ratio along the segment: 0 = at n1, 1 = at n2
     const offsetRatio = projectionLength / magnitude(edgeVector);
 
     return {
-      point: projectedPoint,
+      point: projectedNode,
       offset: offsetRatio,
     };
   }
