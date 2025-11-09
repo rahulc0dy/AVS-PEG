@@ -36,6 +36,17 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function angle(node: Node): number {
+  return Math.atan2(node.y, node.x);
+}
+
+function translate(loc: Node, angle: number, offset: number): Node {
+  return new Node(
+    loc.x + Math.cos(angle) * offset,
+    loc.y + Math.sin(angle) * offset
+  );
+}
+
 type Intersection = { x: number; y: number; offset: number };
 
 function getIntersection(
@@ -79,4 +90,6 @@ export {
   magnitude,
   dot,
   getIntersection,
+  angle,
+  translate,
 };
