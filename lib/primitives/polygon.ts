@@ -1,5 +1,5 @@
-import { Node } from "./node.js";
-import { Edge } from "./edge";
+import { Node } from "@/lib/primitives/node.js";
+import { Edge } from "@/lib/primitives/edge";
 import { getIntersection, average } from "@/utils/math.js";
 
 /**

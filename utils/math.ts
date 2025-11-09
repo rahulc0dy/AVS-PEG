@@ -1,4 +1,4 @@
-import { Node } from "@/lib/primitives/node.js";
+import { Node } from "@/lib/primitives/node";
 
 function distance(n1: Node, n2: Node): number {
   return Math.hypot(n1.x - n2.x, n1.y - n2.y);

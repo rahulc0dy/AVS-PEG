@@ -1,7 +1,7 @@
 import { angle, subtract, translate } from "@/utils/math";
-import { Edge } from "./edge";
-import { Node } from "./node";
-import { Polygon } from "./polygon";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { Polygon } from "@/lib/primitives/polygon";
 
 /**
  * The Envelope class generates a polygon that represents a "thickened" version

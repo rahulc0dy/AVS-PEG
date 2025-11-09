@@ -1,4 +1,4 @@
-import { Node } from "./node.js";
+import { Node } from "@/lib/primitives/node";
 import {
   distance,
   subtract,
@@ -7,7 +7,7 @@ import {
   scale,
   magnitude,
   dot,
-} from "@/utils/math.js";
+} from "@/utils/math";
 
 export class Edge {
   n1: Node;
