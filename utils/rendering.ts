@@ -1,4 +1,11 @@
-import { Color, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import {
+  Color,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer,
+  AmbientLight,
+  DirectionalLight,
+} from "three";
 
 interface CameraConfig {
   fov?: number;
@@ -22,7 +29,12 @@ interface SceneOptions {
 export const setupScene = (
   mount: HTMLDivElement | null,
   options: SceneOptions = {}
-) => {
+): {
+  scene: Scene;
+  camera: PerspectiveCamera;
+  renderer: WebGLRenderer;
+  resizeHandler: () => void;
+} => {
   const {
     cameraConfig = {},
     cameraPosition = {},
@@ -44,9 +56,29 @@ export const setupScene = (
   );
   camera.position.set(x, y, z);
 
+  const ambient = new AmbientLight(0xffffff, 0.6);
+  scene.add(ambient);
+  const dir = new DirectionalLight(0xffffff, 0.6);
+  dir.position.set(10, 10, 10);
+  scene.add(dir);
+
   const renderer = new WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(mount.clientWidth, mount.clientHeight);
   mount.appendChild(renderer.domElement);
 
-  return { scene, camera, renderer };
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, camera);
+  });
+
+  const resizeHandler = () => {
+    if (!mount) return;
+    camera.aspect = mount.clientWidth / mount.clientHeight || aspect;
+    camera.updateProjectionMatrix();
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+  };
+
+  window.addEventListener("resize", resizeHandler);
+
+  return { scene, camera, renderer, resizeHandler };
 };

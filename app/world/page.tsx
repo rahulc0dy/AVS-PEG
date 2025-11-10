@@ -35,12 +35,11 @@ export default function CarPage() {
 
     return () => {
       renderer.setAnimationLoop(null);
-      // renderer.domElement.removeEventListener("pointerdown", );
 
       editor.dispose();
 
       mount?.removeChild(renderer.domElement);
-      renderer.dispose;
+      renderer.dispose();
     };
   }, []);
 
