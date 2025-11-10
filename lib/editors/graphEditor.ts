@@ -1,31 +1,45 @@
-import * as THREE from "three";
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
+import {
+  BufferGeometry,
+  Camera,
+  Line,
+  LineDashedMaterial,
+  Material,
+  Mesh,
+  MeshStandardMaterial,
+  Plane,
+  Raycaster,
+  Scene,
+  SphereGeometry,
+  Vector2,
+  Vector3,
+} from "three";
 
 type GraphEvents = {
   onChange?: (nodes: number, edges: number) => void;
 };
 
 export class GraphEditor {
-  private readonly scene: THREE.Scene;
-  private readonly camera: THREE.Camera;
+  private readonly scene: Scene;
+  private readonly camera: Camera;
   private readonly dom: HTMLElement;
-  private readonly raycaster = new THREE.Raycaster();
-  private readonly pointer = new THREE.Vector2();
+  private readonly raycaster = new Raycaster();
+  private readonly pointer = new Vector2();
 
-  private readonly nodes = new Map<Node, THREE.Mesh>();
+  private readonly nodes = new Map<Node, Mesh>();
   private edges: Edge[] = [];
-  private readonly edgeLines = new Map<Edge, THREE.Line>();
+  private readonly edgeLines = new Map<Edge, Line>();
 
   private selected: Node | null = null;
   private hovered: Node | null = null;
   private dragging = false;
-  private dragOffset = new THREE.Vector3();
+  private dragOffset = new Vector3();
 
   constructor(
     params: {
-      scene: THREE.Scene;
-      camera: THREE.Camera;
+      scene: Scene;
+      camera: Camera;
       dom: HTMLElement;
     } & GraphEvents
   ) {
@@ -63,12 +77,12 @@ export class GraphEditor {
     this.disable();
     this.nodes.forEach((mesh) => {
       mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      (mesh.material as Material).dispose();
       this.scene.remove(mesh);
     });
     this.edgeLines.forEach((line) => {
       line.geometry.dispose();
-      (line.material as THREE.Material).dispose();
+      (line.material as Material).dispose();
       this.scene.remove(line);
     });
     this.nodes.clear();
@@ -134,8 +148,8 @@ export class GraphEditor {
     this.hovered = this.pickNode() ?? null;
 
     if (!this.dragging || !this.selected) return;
-    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-    const newPos = new THREE.Vector3();
+    const plane = new Plane(new Vector3(0, 0, 1), 0);
+    const newPos = new Vector3();
     this.raycaster.ray.intersectPlane(plane, newPos);
     this.moveNode(this.selected, newPos);
   }
@@ -144,11 +158,11 @@ export class GraphEditor {
     this.dragging = false;
   }
 
-  private addNode(position: THREE.Vector3) {
+  private addNode(position: Vector3) {
     const node = new Node(position.x, position.y);
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(2, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0x4e9cff })
+    const mesh = new Mesh(
+      new SphereGeometry(2, 16, 16),
+      new MeshStandardMaterial({ color: 0x4e9cff })
     );
     mesh.position.copy(position);
 
@@ -159,7 +173,7 @@ export class GraphEditor {
     this.emitCounts();
   }
 
-  private moveNode(node: Node, position: THREE.Vector3) {
+  private moveNode(node: Node, position: Vector3) {
     const mesh = this.nodes.get(node);
     if (!mesh) return;
 
@@ -170,8 +184,8 @@ export class GraphEditor {
     this.edgeLines.forEach((line, edge) => {
       if (!edge.includes(node)) return;
       const pts = [
-        new THREE.Vector3(edge.n1.x, edge.n1.y, 0),
-        new THREE.Vector3(edge.n2.x, edge.n2.y, 0),
+        new Vector3(edge.n1.x, edge.n1.y, 0),
+        new Vector3(edge.n2.x, edge.n2.y, 0),
       ];
       line.geometry.setFromPoints(pts);
       line.geometry.attributes.position.needsUpdate = true;
@@ -183,13 +197,13 @@ export class GraphEditor {
     if (existing) return;
 
     const edge = new Edge(n1, n2);
-    const geometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(n1.x, n1.y, 0),
-      new THREE.Vector3(n2.x, n2.y, 0),
+    const geometry = new BufferGeometry().setFromPoints([
+      new Vector3(n1.x, n1.y, 0),
+      new Vector3(n2.x, n2.y, 0),
     ]);
-    const line = new THREE.Line(
+    const line = new Line(
       geometry,
-      new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 1 })
+      new LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 1 })
     );
     line.computeLineDistances();
 
@@ -203,7 +217,7 @@ export class GraphEditor {
     const mesh = this.nodes.get(node);
     if (mesh) {
       mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      (mesh.material as Material).dispose();
       this.scene.remove(mesh);
       this.nodes.delete(node);
     }
@@ -213,7 +227,7 @@ export class GraphEditor {
       const line = this.edgeLines.get(edge);
       if (line) {
         line.geometry.dispose();
-        (line.material as THREE.Material).dispose();
+        (line.material as Material).dispose();
         this.scene.remove(line);
         this.edgeLines.delete(edge);
       }
