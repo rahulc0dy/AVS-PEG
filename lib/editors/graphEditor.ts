@@ -3,7 +3,9 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   BufferGeometry,
   Camera,
+  Intersection,
   Line,
+  LineBasicMaterial,
   LineDashedMaterial,
   Material,
   Mesh,
@@ -15,6 +17,7 @@ import {
   Vector2,
   Vector3,
 } from "three";
+import { LineMaterial } from "three/examples/jsm/Addons.js";
 
 type GraphEvents = {
   onChange?: (nodes: number, edges: number) => void;
@@ -102,45 +105,59 @@ export class GraphEditor {
     this.raycaster.setFromCamera(this.pointer, this.camera);
   }
 
-  private pickNode(): Node | undefined {
-    const meshes = [...this.nodes.values()];
-    const hit = this.raycaster.intersectObjects(meshes, false)[0];
-    if (!hit) return undefined;
-    for (const [node, mesh] of this.nodes) {
-      if (mesh === hit.object) return node;
+  private getNodeFromMesh(mesh: Mesh): Node | undefined {
+    for (const [node, m] of this.nodes) {
+      if (m === mesh) return node;
     }
     return undefined;
   }
 
+  private pickNode(): Node | undefined {
+    const meshes = [...this.nodes.values()];
+    const hit = this.raycaster.intersectObjects(meshes, false)[0];
+    if (!hit) return undefined;
+    return this.getNodeFromMesh(hit.object as Mesh);
+  }
+
   private handlePointerDown(evt: PointerEvent) {
     this.updatePointer(evt);
-    const hit = this.pickNode();
+
+    const meshes = [...this.nodes.values()];
+    const intersection = this.raycaster.intersectObjects(meshes, false)[0] as
+      | Intersection<Mesh>
+      | undefined;
+    const hitNode = intersection
+      ? this.getNodeFromMesh(intersection.object as Mesh)
+      : undefined;
 
     if (evt.button === 2) {
-      if (hit) this.removeNode(hit);
+      if (hitNode) this.removeNode(hitNode);
       else this.selected = null;
       return;
     }
 
     if (evt.button !== 0) return;
 
-    if (hit) {
-      if (this.selected && this.selected !== hit) {
-        this.addEdge(this.selected, hit);
-        this.selected = hit;
+    if (intersection && hitNode) {
+      if (this.selected && !this.selected.equals(hitNode)) {
+        this.addEdge(this.selected, hitNode);
+        this.selected = hitNode;
       } else {
-        this.selected = hit;
+        this.selected = hitNode;
       }
+
+      const mesh = this.nodes.get(hitNode)!;
+      this.dragOffset.copy(intersection.point).sub(mesh.position);
       this.dragging = true;
-      const mesh = this.nodes.get(hit)!;
-      this.dragOffset.copy(mesh.position);
       return;
     }
 
-    const point = this.raycaster.ray.origin
-      .clone()
-      .add(this.raycaster.ray.direction.clone().multiplyScalar(50));
-    this.addNode(point);
+    const plane = new Plane(new Vector3(0, 0, 1), 0);
+    const planePoint = new Vector3();
+    const ok = this.raycaster.ray.intersectPlane(plane, planePoint);
+    if (!ok) return;
+    planePoint.z = 0;
+    this.addNode(planePoint);
   }
 
   private handlePointerMove(evt: PointerEvent) {
@@ -150,7 +167,10 @@ export class GraphEditor {
     if (!this.dragging || !this.selected) return;
     const plane = new Plane(new Vector3(0, 0, 1), 0);
     const newPos = new Vector3();
-    this.raycaster.ray.intersectPlane(plane, newPos);
+    const ok = this.raycaster.ray.intersectPlane(plane, newPos);
+    if (!ok) return;
+    newPos.sub(this.dragOffset);
+    newPos.z = 0;
     this.moveNode(this.selected, newPos);
   }
 
@@ -159,15 +179,22 @@ export class GraphEditor {
   }
 
   private addNode(position: Vector3) {
+    const previous = Array.from(this.nodes.keys()).pop();
+
     const node = new Node(position.x, position.y);
     const mesh = new Mesh(
       new SphereGeometry(2, 16, 16),
       new MeshStandardMaterial({ color: 0x4e9cff })
     );
-    mesh.position.copy(position);
+    mesh.position.set(position.x, position.y, 0);
 
     this.nodes.set(node, mesh);
     this.scene.add(mesh);
+
+    if (previous) {
+      this.addEdge(previous, node);
+    }
+
     this.selected = node;
     this.hovered = node;
     this.emitCounts();
@@ -179,7 +206,7 @@ export class GraphEditor {
 
     node.x = position.x;
     node.y = position.y;
-    mesh.position.copy(position);
+    mesh.position.set(node.x, node.y, 0);
 
     this.edgeLines.forEach((line, edge) => {
       if (!edge.includes(node)) return;
@@ -187,8 +214,10 @@ export class GraphEditor {
         new Vector3(edge.n1.x, edge.n1.y, 0),
         new Vector3(edge.n2.x, edge.n2.y, 0),
       ];
-      line.geometry.setFromPoints(pts);
-      line.geometry.attributes.position.needsUpdate = true;
+      (line.geometry as BufferGeometry).setFromPoints(pts);
+      const posAttr = (line.geometry as BufferGeometry).attributes.position;
+      if (posAttr) posAttr.needsUpdate = true;
+      line.computeLineDistances();
     });
   }
 
@@ -201,10 +230,7 @@ export class GraphEditor {
       new Vector3(n1.x, n1.y, 0),
       new Vector3(n2.x, n2.y, 0),
     ]);
-    const line = new Line(
-      geometry,
-      new LineDashedMaterial({ color: 0xffffff, dashSize: 2, gapSize: 1 })
-    );
+    const line = new Line(geometry, new LineBasicMaterial({ color: 0xffffff }));
     line.computeLineDistances();
 
     this.edges.push(edge);
