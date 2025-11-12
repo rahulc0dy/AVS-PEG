@@ -1,22 +1,5 @@
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
-import {
-  BufferGeometry,
-  Camera,
-  Intersection,
-  Line,
-  LineBasicMaterial,
-  LineDashedMaterial,
-  Material,
-  Mesh,
-  MeshStandardMaterial,
-  Plane,
-  Raycaster,
-  Scene,
-  SphereGeometry,
-  Vector2,
-  Vector3,
-} from "three";
 
 type GraphEvents = {
   onChange?: () => void;

@@ -36,8 +36,6 @@ export default function GraphEditorComponent({
 }: GraphComponentProps) {
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
   const [selected, setSelected] = useState<Node | null>(null);
   const [hovered, setHovered] = useState<Node | null>(null);
 
@@ -62,12 +60,9 @@ export default function GraphEditorComponent({
   const gridRef = useRef<GridHelper | null>(null);
   const planeRef = useRef<Mesh | null>(null);
 
+  // Setup OrbitControls, Visual Grid and a Plane which receives pointer events.
   useEffect(() => {
-    const controls = new OrbitControls(camera, dom);
-    controls.enableDamping = true;
-    controls.enablePan = true;
-    controls.enableZoom = true;
-    controlsRef.current = controls;
+    controlsRef.current = new OrbitControls(camera, dom);
 
     const grid = new GridHelper(1000, 40, 0x666666, 0x333333);
     grid.position.set(0, 0, 0);
@@ -90,14 +85,17 @@ export default function GraphEditorComponent({
     planeRef.current = plane;
 
     return () => {
-      controls.dispose();
-      controlsRef.current = null;
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+        controlsRef.current = null;
+      }
 
       if (gridRef.current) {
         scene.remove(gridRef.current);
         gridRef.current.dispose();
         gridRef.current = null;
       }
+
       if (planeRef.current) {
         scene.remove(planeRef.current);
         planeRef.current.geometry.dispose();
@@ -207,8 +205,6 @@ export default function GraphEditorComponent({
 
       setNodeCount(currentNodes.length);
       setEdgeCount(currentEdges.length);
-      setNodes(currentNodes);
-      setEdges(currentEdges);
       setSelected(graph.getSelected());
       setHovered(graph.getHovered());
     },
@@ -393,8 +389,6 @@ export default function GraphEditorComponent({
 
       setNodeCount(0);
       setEdgeCount(0);
-      setNodes([]);
-      setEdges([]);
       setSelected(null);
       setHovered(null);
       connectionAnchorRef.current = null;
