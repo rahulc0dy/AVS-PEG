@@ -41,7 +41,7 @@ export const setupScene = (
     bgColor = 0x0b0b0f,
   } = options;
 
-  const { fov = 10, aspect = 16 / 9, near = 0.1, far = 1000 } = cameraConfig;
+  const { fov = 10, aspect = 16 / 9, near = 0.1, far = 10000 } = cameraConfig;
   const { x = 0, y = 0, z = 5 } = cameraPosition;
   if (!mount) throw new Error("Mount element not ready");
 
