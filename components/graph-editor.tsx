@@ -167,8 +167,11 @@ export default function GraphEditorComponent({
         if (edgeSet.has(edge)) return;
 
         scene.remove(line);
+
+        // Clean up resources
         line.geometry.dispose();
         (line.material as Material).dispose();
+
         edgeLinesRef.current.delete(edge);
       });
 
