@@ -4,16 +4,13 @@ import { Node } from "@/lib/primitives/node";
 import {
   BufferGeometry,
   Camera,
-  DoubleSide,
   GridHelper,
   Line,
   LineDashedMaterial,
   Material,
   Mesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   Plane,
-  PlaneGeometry,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -58,31 +55,16 @@ export default function GraphEditorComponent({
   const controlsRef = useRef<OrbitControls | null>(null);
   const connectionAnchorRef = useRef<Node | null>(null);
   const gridRef = useRef<GridHelper | null>(null);
-  const planeRef = useRef<Mesh | null>(null);
 
-  // Setup OrbitControls, Visual Grid and a Plane which receives pointer events.
+  // Setup OrbitControls, Visual Grid
   useEffect(() => {
     controlsRef.current = new OrbitControls(camera, dom);
 
     const grid = new GridHelper(1000, 40, 0x666666, 0x333333);
     grid.position.set(0, 0, 0);
-
-    const plane = new Mesh(
-      new PlaneGeometry(1000, 1000),
-      new MeshBasicMaterial({
-        color: 0x11171f,
-        opacity: 0.2,
-        transparent: true,
-        side: DoubleSide,
-      })
-    );
-    plane.rotation.x = -Math.PI / 2;
-    plane.position.set(0, 0, 0);
+    gridRef.current = grid;
 
     scene.add(grid);
-    scene.add(plane);
-    gridRef.current = grid;
-    planeRef.current = plane;
 
     return () => {
       if (controlsRef.current) {
@@ -94,13 +76,6 @@ export default function GraphEditorComponent({
         scene.remove(gridRef.current);
         gridRef.current.dispose();
         gridRef.current = null;
-      }
-
-      if (planeRef.current) {
-        scene.remove(planeRef.current);
-        planeRef.current.geometry.dispose();
-        (planeRef.current.material as Material).dispose();
-        planeRef.current = null;
       }
     };
   }, [scene, camera, dom]);
@@ -122,107 +97,151 @@ export default function GraphEditorComponent({
 
   const syncVisuals = useCallback(
     (graph: GraphEditor) => {
+      // Get the current state of the graph
       const currentNodes = graph.getNodes();
-      const nodeSet = new Set(currentNodes);
+      const currentEdges = graph.getEdges();
       const selectedNode = graph.getSelected();
       const hoveredNode = graph.getHovered();
 
+      const nodeSet = new Set(currentNodes);
+      const edgeSet = new Set(currentEdges);
+
+      // Remove any nodes that no longer exist in the graph
       nodeMeshesRef.current.forEach((mesh, node) => {
         if (nodeSet.has(node)) return;
+
         scene.remove(mesh);
+
+        // Clean up resources
         mesh.geometry.dispose();
         (mesh.material as Material).dispose();
+
         nodeMeshesRef.current.delete(node);
       });
 
+      // Add or update all current nodes
       currentNodes.forEach((node) => {
         let mesh = nodeMeshesRef.current.get(node);
+
+        // If this node doesn't have a mesh yet, create one
         if (!mesh) {
           mesh = new Mesh(
             new SphereGeometry(2, 16, 16),
             new MeshStandardMaterial({ color: 0x4e9cff })
           );
+
+          // Position the sphere where the node is located in the graph
           mesh.position.set(node.x, 0, node.y);
           mesh.userData.node = node;
+
           scene.add(mesh);
+
           nodeMeshesRef.current.set(node, mesh);
         } else {
+          // Update position if the node moved
           mesh.position.set(node.x, 0, node.y);
         }
 
+        // Change color based on interaction state (default / hover / selected)
         const material = mesh.material as MeshStandardMaterial;
-        const baseColor = 0x4e9cff;
-        const hoverColor = 0xfff07a;
-        const selectedColor = 0xff6b6b;
+        const COLORS = {
+          default: 0x4e9cff,
+          hover: 0xfff07a,
+          selected: 0xff6b6b,
+        };
 
-        if (selectedNode === node) {
-          material.color.setHex(selectedColor);
-        } else if (hoveredNode === node) {
-          material.color.setHex(hoverColor);
-        } else {
-          material.color.setHex(baseColor);
+        switch (node) {
+          case selectedNode:
+            material.color.setHex(COLORS.selected);
+            break;
+          case hoveredNode:
+            material.color.setHex(COLORS.hover);
+            break;
+          default:
+            material.color.setHex(COLORS.default);
         }
       });
 
-      const currentEdges = graph.getEdges();
-      const edgeSet = new Set(currentEdges);
-
+      // Remove edges that no longer exist in the graph
       edgeLinesRef.current.forEach((line, edge) => {
         if (edgeSet.has(edge)) return;
+
         scene.remove(line);
         line.geometry.dispose();
         (line.material as Material).dispose();
         edgeLinesRef.current.delete(edge);
       });
 
+      // Add or update all current edges
       currentEdges.forEach((edge) => {
         let line = edgeLinesRef.current.get(edge);
+
+        // Each edge connects two nodes - build points between them
         const points = [
           new Vector3(edge.n1.x, 0, edge.n1.y),
           new Vector3(edge.n2.x, 0, edge.n2.y),
         ];
 
         if (!line) {
+          // If no line exists yet, create a dashed line
           const geometry = new BufferGeometry().setFromPoints(points);
           const material = new LineDashedMaterial({
             color: 0xffffff,
             dashSize: 2,
             gapSize: 1,
           });
+
           line = new Line(geometry, material);
-          line.computeLineDistances();
+          line.computeLineDistances(); // required for dashed lines to render
           line.userData.edge = edge;
+
           scene.add(line);
           edgeLinesRef.current.set(edge, line);
         } else {
+          // Update existing line when nodes move
           const geometry = line.geometry as BufferGeometry;
           geometry.setFromPoints(points);
-          const position = geometry.attributes.position;
-          if (position) position.needsUpdate = true;
+          geometry.attributes.position.needsUpdate = true;
           line.computeLineDistances();
         }
       });
 
+      // Update some UI states
       setNodeCount(currentNodes.length);
       setEdgeCount(currentEdges.length);
-      setSelected(graph.getSelected());
-      setHovered(graph.getHovered());
+      setSelected(selectedNode);
+      setHovered(hoveredNode);
     },
     [scene]
   );
 
   const updatePointer = useCallback(
     (evt: PointerEvent) => {
+      // Get the bounding box of the canvas (so we can normalize mouse coordinates)
       const rect = dom.getBoundingClientRect();
+
+      // Convert the pointer's screen position into normalized device coordinates (NDC)
+      // where (0,0) is the center of the screen, and range is [-1, 1] for both axes.
+      // This is what Three.js expects for raycasting.
       pointerRef.current.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
       pointerRef.current.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Update the raycaster with the new pointer position and the active camera.
+      // This allows Three.js to cast a ray from the camera through the mouse cursor
+      // into the 3D scene, which can be used for detecting intersections.
       raycasterRef.current.setFromCamera(pointerRef.current, camera);
     },
     [camera, dom]
   );
 
   const pickIntersection = useCallback(() => {
+    // Get all the node meshes currently in the scene.
+    // These are the clickable / hoverable spheres representing graph nodes.
     const meshes = Array.from(nodeMeshesRef.current.values());
+
+    // Use the raycaster to check which of these meshes the mouse ray intersects.
+    // intersectObjects() returns an array of all hits, sorted by distance from the camera.
+    // We only care about the closest one (the first hit), so we return [0].
     return raycasterRef.current.intersectObjects(meshes, false)[0];
   }, []);
 
