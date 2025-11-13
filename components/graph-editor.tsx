@@ -19,6 +19,7 @@ import {
 } from "three";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { World } from "@/lib/world";
 
 interface GraphComponentProps {
   scene: Scene;
@@ -55,6 +56,7 @@ export default function GraphEditorComponent({
   const controlsRef = useRef<OrbitControls | null>(null);
   const connectionAnchorRef = useRef<Node | null>(null);
   const gridRef = useRef<GridHelper | null>(null);
+  const worldRef = useRef<World | null>(null);
 
   // Setup OrbitControls, Visual Grid
   useEffect(() => {
@@ -209,6 +211,9 @@ export default function GraphEditorComponent({
         }
       });
 
+      worldRef.current?.generate();
+      worldRef.current?.draw();
+
       // Update some UI states
       setNodeCount(currentNodes.length);
       setEdgeCount(currentEdges.length);
@@ -255,6 +260,8 @@ export default function GraphEditorComponent({
       onChange: () => syncVisuals(graphEditor),
     });
     editorRef.current = graphEditor;
+    worldRef.current = new World(editorRef.current, scene);
+
     syncVisuals(graphEditor);
 
     const handlePointerDown = (evt: PointerEvent) => {

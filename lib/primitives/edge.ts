@@ -8,6 +8,14 @@ import {
   magnitude,
   dot,
 } from "@/utils/math";
+import {
+  BufferGeometry,
+  Color,
+  Group,
+  Line,
+  LineBasicMaterial,
+  Vector3,
+} from "three";
 
 export class Edge {
   n1: Node;
@@ -77,5 +85,18 @@ export class Edge {
       point: projectedNode,
       offset: offsetRatio,
     };
+  }
+
+  draw(group: Group, config: { width: number; color: Color }) {
+    const edgeMaterial = new LineBasicMaterial({
+      color: config.color,
+      linewidth: config.width,
+    });
+    const edgeGeometry = new BufferGeometry().setFromPoints([
+      new Vector3(this.n1.x, 0, this.n1.y),
+      new Vector3(this.n2.x, 0, this.n2.y),
+    ]);
+    const edgeLine = new Line(edgeGeometry, edgeMaterial);
+    group.add(edgeLine);
   }
 }

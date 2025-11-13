@@ -1,6 +1,15 @@
-import { Node } from "@/lib/primitives/node.js";
+import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
-import { getIntersection, average } from "@/utils/math.js";
+import { getIntersection, average } from "@/utils/math";
+import {
+  Color,
+  Mesh,
+  Group,
+  MeshBasicMaterial,
+  ShapeGeometry,
+  Shape,
+  BackSide,
+} from "three";
 
 /**
  * Represents a closed polygon defined by ordered nodes.
@@ -166,5 +175,30 @@ export class Polygon {
 
     // Odd count → inside; even count → outside
     return intersectionCount % 2 === 1;
+  }
+
+  draw(
+    group: Group,
+    config: { lineWidth: number; strokeColor: Color; fillColor: Color }
+  ) {
+    const material = new MeshBasicMaterial({
+      color: config.fillColor,
+      side: BackSide, // The polygon is flipped, the backside is visible
+    });
+
+    const shape = new Shape();
+    if (this.nodes.length > 0) {
+      shape.moveTo(this.nodes[0].x, this.nodes[0].y);
+      for (let i = 1; i < this.nodes.length; i++) {
+        shape.lineTo(this.nodes[i].x, this.nodes[i].y);
+      }
+      shape.lineTo(this.nodes[0].x, this.nodes[0].y);
+    }
+
+    const geometry = new ShapeGeometry(shape);
+    const mesh = new Mesh(geometry, material);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.y = -0.01; // Slightly below to avoid z-fighting
+    group.add(mesh);
   }
 }

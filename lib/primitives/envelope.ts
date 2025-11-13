@@ -2,6 +2,7 @@ import { angle, subtract, translate } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
+import { Color, Group } from "three";
 
 /**
  * The Envelope class generates a polygon that represents a "thickened" version
@@ -63,5 +64,12 @@ export class Envelope {
 
     // Return the final polygon wrapping both ends
     return new Polygon(nodes);
+  }
+
+  draw(
+    group: Group,
+    config: { lineWidth: number; strokeColor: Color; fillColor: Color }
+  ) {
+    this.poly.draw(group, config);
   }
 }
