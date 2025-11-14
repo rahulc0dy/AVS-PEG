@@ -80,6 +80,23 @@ function getIntersection(
   return { x, y, offset: t };
 }
 
+function getNearestNode(
+  loc: Node,
+  nodes: Node[],
+  threshold: number = Number.MAX_SAFE_INTEGER
+): Node | null {
+  let minDistance = Number.MAX_SAFE_INTEGER;
+  let nearestNode = null;
+  for (const node of nodes) {
+    const dist = distance(loc, node);
+    if (dist < minDistance && dist < threshold) {
+      minDistance = dist;
+      nearestNode = node;
+    }
+  }
+  return nearestNode;
+}
+
 export {
   distance,
   add,
@@ -92,4 +109,5 @@ export {
   getIntersection,
   angle,
   translate,
+  getNearestNode,
 };
