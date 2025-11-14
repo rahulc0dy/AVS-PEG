@@ -1,11 +1,4 @@
-import {
-  BufferGeometry,
-  Color,
-  Group,
-  Points,
-  PointsMaterial,
-  Vector3,
-} from "three";
+import { Color, Group, Mesh, MeshBasicMaterial, SphereGeometry } from "three";
 
 export class Node {
   x: number;
@@ -21,14 +14,11 @@ export class Node {
   }
 
   draw(group: Group, config: { size: number; color: Color }) {
-    const geometry = new BufferGeometry().setFromPoints([
-      new Vector3(this.x, 0, this.y),
-    ]);
-    const material = new PointsMaterial({
-      color: config.color,
-      size: config.size,
-    });
-    const point = new Points(geometry, material);
-    group.add(point);
+    const geometry = new SphereGeometry(config.size);
+    const material = new MeshBasicMaterial({ color: config.color });
+    const sphere = new Mesh(geometry, material);
+    sphere.position.set(this.x, 0, this.y);
+
+    group.add(sphere);
   }
 }

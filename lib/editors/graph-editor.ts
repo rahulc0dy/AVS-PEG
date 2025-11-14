@@ -1,145 +1,106 @@
-import { Node } from "@/lib/primitives/node";
+import { Graph } from "@/lib/primitives/graph";
+import { Color, Group, Scene, Vector3 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-
-type GraphEvents = {
-  onChange?: () => void;
-};
-
-type AddNodeOptions = {
-  connectToPrevious?: boolean;
-};
+import { Node } from "@/lib/primitives/node";
+import { getNearestNode } from "@/utils/math";
 
 export class GraphEditor {
-  private nodes: Node[] = [];
-  private edges: Edge[] = [];
-  private selected: Node | null = null;
-  private hovered: Node | null = null;
-  private dragging = false;
-  private onChange: () => void = () => {};
+  graph: Graph;
+  selectedNode: Node | null;
+  hoveredNode: Node | null;
+  dragging: boolean;
 
-  constructor(events: GraphEvents = {}) {
-    this.setOnChange(events.onChange);
+  scene: Scene;
+  graphEditorGroup: Group;
+
+  constructor(graph: Graph, scene: Scene) {
+    this.graph = graph;
+    this.selectedNode = null;
+    this.hoveredNode = null;
+    this.dragging = false;
+
+    this.scene = scene;
+    this.graphEditorGroup = new Group();
   }
 
-  setOnChange(callback?: () => void) {
-    this.onChange = callback ?? (() => {});
-  }
-
-  getNodes(): Node[] {
-    return this.nodes.slice();
-  }
-
-  getEdges(): Edge[] {
-    return this.edges.slice();
-  }
-
-  getSelected(): Node | null {
-    return this.selected;
-  }
-
-  getHovered(): Node | null {
-    return this.hovered;
-  }
-
-  addNode(node: Node, options: AddNodeOptions = {}) {
-    const { connectToPrevious = true } = options;
-    const previous = this.nodes[this.nodes.length - 1] ?? null;
-
-    this.nodes.push(node);
-
-    if (connectToPrevious && previous && previous !== node) {
-      this.addEdgeInternal(previous, node);
+  private selectNode(node: Node) {
+    if (this.selectedNode) {
+      this.graph.tryAddEdge(new Edge(this.selectedNode, node));
     }
-
-    this.selected = node;
-    this.hovered = node;
-    this.notify();
+    this.selectedNode = node;
   }
 
-  addEdge(n1: Node, n2: Node) {
-    if (!this.nodes.includes(n1) || !this.nodes.includes(n2)) return;
-    if (n1 == n2) return;
-    if (this.hasEdge(n1, n2)) return;
-
-    this.edges.push(new Edge(n1, n2));
-    this.notify();
+  private hoverNode(node: Node | null) {
+    this.hoveredNode = node;
   }
 
-  moveNode(node: Node, x: number, y: number) {
-    if (!this.nodes.includes(node)) return;
-    if (node.x === x && node.y === y) return;
-
-    node.x = x;
-    node.y = y;
-    this.notify();
+  private removeNode(node: Node) {
+    this.graph.removeNode(node);
+    this.hoveredNode = null;
+    if (this.selectedNode == node) {
+      this.selectedNode = null;
+    }
   }
 
-  removeNode(node: Node) {
-    const index = this.nodes.indexOf(node);
-    if (index === -1) return;
+  handleLeftClick(pointer: Vector3) {
+    if (this.hoveredNode) {
+      this.selectNode(this.hoveredNode);
+      this.dragging = true;
+      return;
+    }
+    const node = this.graph.tryAddNode(new Node(pointer.x, pointer.z));
+    if (node) {
+      this.selectNode(node);
+      this.hoverNode(node);
+    }
+  }
 
-    this.nodes.splice(index, 1);
-    this.edges = this.edges.filter(
-      (edge) => edge.n1 !== node && edge.n2 !== node
+  handleRightClick(pointer: Vector3) {
+    if (this.selectedNode) {
+      this.selectedNode = null;
+    } else if (this.hoveredNode) {
+      this.removeNode(this.hoveredNode);
+    }
+  }
+
+  handlePointerMove(pointer: Vector3) {
+    this.hoverNode(
+      getNearestNode(new Node(pointer.x, pointer.z), this.graph.getNodes(), 10)
     );
-
-    if (this.selected === node) this.selected = null;
-    if (this.hovered === node) this.hovered = null;
-
-    this.notify();
+    if (this.dragging) {
+      this.selectedNode = new Node(pointer.x, pointer.z);
+    }
   }
 
-  removeEdge(edge: Edge) {
-    const index = this.edges.indexOf(edge);
-    if (index == -1) return;
-    this.edges.splice(index, 1);
-    this.notify();
+  handleClickRelease() {
+    this.dragging = false;
   }
 
-  selectNode(node: Node | null) {
-    if (this.selected === node) return;
-    if (node && !this.nodes.includes(node)) return;
+  draw() {
+    this.graphEditorGroup.clear();
 
-    this.selected = node;
-    this.notify();
-  }
+    this.graph.getNodes().forEach((node) => {
+      switch (node) {
+        case this.hoveredNode:
+          node.draw(this.graphEditorGroup, {
+            size: 1.2,
+            color: new Color(0xcccccc),
+          });
+          break;
+        case this.selectedNode:
+          node.draw(this.graphEditorGroup, {
+            size: 1,
+            color: new Color(0x0000ff),
+          });
+          break;
+        default:
+          node.draw(this.graphEditorGroup, {
+            size: 1,
+            color: new Color(0xffffff),
+          });
+      }
+    });
 
-  setHovered(node: Node | null) {
-    if (this.hovered === node) return;
-    if (node && !this.nodes.includes(node)) return;
-
-    this.hovered = node;
-    this.notify();
-  }
-
-  clear() {
-    this.nodes = [];
-    this.edges = [];
-    this.selected = null;
-    this.hovered = null;
-    this.notify();
-  }
-
-  dispose() {
-    this.clear();
-  }
-
-  private addEdgeInternal(n1: Node, n2: Node) {
-    if (!this.nodes.includes(n1) || !this.nodes.includes(n2)) return;
-    if (n1 === n2) return;
-    if (this.hasEdge(n1, n2)) return;
-
-    this.edges.push(new Edge(n1, n2));
-  }
-
-  private hasEdge(n1: Node, n2: Node): boolean {
-    return this.edges.some(
-      (edge) =>
-        (edge.n1 === n1 && edge.n2 === n2) || (edge.n1 === n2 && edge.n2 === n1)
-    );
-  }
-
-  private notify() {
-    this.onChange();
+    this.scene.add(this.graphEditorGroup);
   }
 }

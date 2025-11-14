@@ -39,6 +39,10 @@ export class Graph {
     this.nodes.splice(this.nodes.indexOf(node), 1);
   }
 
+  getEdges(): Edge[] {
+    return this.edges;
+  }
+
   private addEdge(edge: Edge) {
     this.edges.push(edge);
   }
@@ -71,7 +75,7 @@ export class Graph {
 
   draw(group: Group) {
     for (const node of this.nodes) {
-      node.draw(group, { size: 0.2, color: new Color(0xffffff) });
+      node.draw(group, { size: 10, color: new Color(0xffffff) });
     }
   }
 }

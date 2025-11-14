@@ -1,11 +1,11 @@
 import { Color, Group, Scene } from "three";
-import { GraphEditor } from "./editors/graph-editor";
 import { Edge } from "./primitives/edge";
 import { Envelope } from "./primitives/envelope";
 import { Polygon } from "./primitives/polygon";
+import { Graph } from "./primitives/graph";
 
 export class World {
-  graph: GraphEditor;
+  graph: Graph;
   scene: Scene;
   worldGroup: Group;
   roadWidth: number;
@@ -15,9 +15,9 @@ export class World {
   laneGuides: Edge[];
 
   constructor(
-    graph: GraphEditor,
+    graph: Graph,
     scene: Scene,
-    roadWidth: number = 50,
+    roadWidth: number = 30,
     roadRoundness: number = 8
   ) {
     this.graph = graph;
@@ -68,7 +68,7 @@ export class World {
       });
     }
     for (const edge of this.roadBorders) {
-      edge.draw(this.worldGroup, { width: 4, color: new Color(0x00ff00) });
+      edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
     }
 
     this.scene.add(this.worldGroup);

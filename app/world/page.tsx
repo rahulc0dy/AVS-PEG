@@ -1,8 +1,8 @@
 "use client";
 
+import WorldComponent from "@/components/world";
 import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
-import GraphEditorComponent from "@/components/graph-editor";
 import { Camera, Scene } from "three";
 export default function CarPage() {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -36,7 +36,7 @@ export default function CarPage() {
     <div className="w-screen h-screen relative">
       <div ref={mountRef} className="w-full h-full" />
       {graphProps && (
-        <GraphEditorComponent
+        <WorldComponent
           scene={graphProps.scene}
           camera={graphProps.camera}
           dom={graphProps.dom}
