@@ -54,7 +54,8 @@ export class Graph {
 
     const nodeIndex = this.nodes.indexOf(node);
     if (nodeIndex != -1) {
-      this.nodes.splice(nodeIndex, 1);
+      const [removedNode] = this.nodes.splice(nodeIndex, 1);
+      removedNode.dispose();
       this.incChanges;
     }
   }

@@ -20,8 +20,8 @@ export class GraphEditor {
   private addNodeOnRelease: boolean = false;
 
   private static readonly baseColor = new Color(0xffffff);
-  private static readonly hoveredColor = new Color(0xcccccc);
-  private static readonly selectedColor = new Color(0x0000ff);
+  private static readonly hoveredColor = new Color(0xfff23b);
+  private static readonly selectedColor = new Color(0xff2b59);
 
   constructor(
     graph: Graph,
@@ -131,18 +131,19 @@ export class GraphEditor {
 
     this.graph.getNodes().forEach((node) => {
       switch (node) {
-        case this.hoveredNode:
-          node.draw(this.graphEditorGroup, {
-            size: 1.2,
-            color: GraphEditor.hoveredColor,
-          });
-          break;
         case this.selectedNode:
           node.draw(this.graphEditorGroup, {
             size: 1,
             color: GraphEditor.selectedColor,
           });
           break;
+        case this.hoveredNode:
+          node.draw(this.graphEditorGroup, {
+            size: 1.2,
+            color: GraphEditor.hoveredColor,
+          });
+          break;
+
         default:
           node.draw(this.graphEditorGroup, {
             size: 1,
