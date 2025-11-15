@@ -17,6 +17,8 @@ export class GraphEditor {
   private needsRedraw: boolean;
   private lastGraphChanges: number;
 
+  private addNodeOnRelease: boolean = false;
+
   private static readonly baseColor = new Color(0xffffff);
   private static readonly hoveredColor = new Color(0xcccccc);
   private static readonly selectedColor = new Color(0x0000ff);
@@ -72,12 +74,7 @@ export class GraphEditor {
       this.dragging = true;
       return;
     }
-    const node = this.graph.tryAddNode(new Node(pointer.x, pointer.z));
-    if (node) {
-      this.selectNode(node);
-      this.hoverNode(node);
-      this.needsRedraw = true;
-    }
+    this.addNodeOnRelease = true;
   }
 
   handleRightClick(pointer: Vector3) {
@@ -106,11 +103,23 @@ export class GraphEditor {
 
       this.onDragStateChanged(true);
     }
+    if (!this.dragging && !this.hoveredNode) {
+      this.addNodeOnRelease = false;
+    }
   }
 
-  handleClickRelease() {
+  handleClickRelease(pointer: Vector3) {
     this.dragging = false;
     this.onDragStateChanged(false);
+    if (this.addNodeOnRelease) {
+      const node = this.graph.tryAddNode(new Node(pointer.x, pointer.z));
+      if (node) {
+        this.selectNode(node);
+        this.hoverNode(node);
+        this.needsRedraw = true;
+      }
+      this.addNodeOnRelease = false;
+    }
   }
 
   draw() {

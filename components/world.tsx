@@ -133,8 +133,10 @@ export default function WorldComponent({
       }
     };
 
-    const handlePointerUp = () => {
-      graphEditor.handleClickRelease();
+    const handlePointerUp = (evt: PointerEvent) => {
+      updatePointer(evt);
+      const intersectionPoint = getIntersectPoint();
+      graphEditor.handleClickRelease(intersectionPoint);
     };
 
     dom.addEventListener("pointermove", handlePointerMove);
