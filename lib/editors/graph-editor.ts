@@ -131,16 +131,16 @@ export class GraphEditor {
 
     this.graph.getNodes().forEach((node) => {
       switch (node) {
-        case this.selectedNode:
-          node.draw(this.graphEditorGroup, {
-            size: 1,
-            color: GraphEditor.selectedColor,
-          });
-          break;
         case this.hoveredNode:
           node.draw(this.graphEditorGroup, {
             size: 1.2,
             color: GraphEditor.hoveredColor,
+          });
+          break;
+        case this.selectedNode:
+          node.draw(this.graphEditorGroup, {
+            size: 1,
+            color: GraphEditor.selectedColor,
           });
           break;
 
