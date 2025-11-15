@@ -10,6 +10,8 @@ export class GraphEditor {
   hoveredNode: Node | null;
   dragging: boolean;
 
+  private onDragStateChanged: (isDragging: boolean) => void = () => {};
+
   scene: Scene;
   graphEditorGroup: Group;
   private needsRedraw: boolean;
@@ -19,11 +21,16 @@ export class GraphEditor {
   private static readonly hoveredColor = new Color(0xcccccc);
   private static readonly selectedColor = new Color(0x0000ff);
 
-  constructor(graph: Graph, scene: Scene) {
+  constructor(
+    graph: Graph,
+    scene: Scene,
+    onDragStateChanged: (isDragging: boolean) => void
+  ) {
     this.graph = graph;
     this.selectedNode = null;
     this.hoveredNode = null;
     this.dragging = false;
+    this.onDragStateChanged = onDragStateChanged;
 
     this.scene = scene;
     this.graphEditorGroup = new Group();
@@ -93,13 +100,17 @@ export class GraphEditor {
     ) {
       this.selectedNode.x = pointer.x;
       this.selectedNode.y = pointer.z;
+
       this.graph.touch();
       this.needsRedraw = true;
+
+      this.onDragStateChanged(true);
     }
   }
 
   handleClickRelease() {
     this.dragging = false;
+    this.onDragStateChanged(false);
   }
 
   draw() {

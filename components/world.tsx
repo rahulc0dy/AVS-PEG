@@ -103,7 +103,12 @@ export default function WorldComponent({
     const graph = new Graph([], []);
     graphRef.current = graph;
 
-    const graphEditor = new GraphEditor(graph, scene);
+    const graphEditor = new GraphEditor(graph, scene, (isDragging) => {
+      // Disable orbit controls while dragging a node
+      if (controlsRef.current) {
+        controlsRef.current.enabled = !isDragging;
+      }
+    });
     graphEditorRef.current = graphEditor;
 
     const world = new World(graph, scene);
