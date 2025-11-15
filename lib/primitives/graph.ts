@@ -5,10 +5,24 @@ import { Node } from "@/lib/primitives/node";
 export class Graph {
   private nodes: Node[];
   private edges: Edge[];
+  private changes: number;
 
   constructor(nodes: Node[], edges: Edge[]) {
     this.nodes = nodes;
     this.edges = edges;
+    this.changes = 0;
+  }
+
+  private incChanges() {
+    this.changes += 1;
+  }
+
+  getChanges(): number {
+    return this.changes;
+  }
+
+  touch() {
+    this.incChanges();
   }
 
   getNodes(): Node[] {
@@ -17,6 +31,7 @@ export class Graph {
 
   private addNode(node: Node) {
     this.nodes.push(node);
+    this.incChanges();
   }
 
   containsNode(node: Node) {
@@ -36,7 +51,12 @@ export class Graph {
     for (const edge of edges) {
       this.removeEdge(edge);
     }
-    this.nodes.splice(this.nodes.indexOf(node), 1);
+
+    const nodeIndex = this.nodes.indexOf(node);
+    if (nodeIndex != -1) {
+      this.nodes.splice(nodeIndex, 1);
+      this.incChanges;
+    }
   }
 
   getEdges(): Edge[] {
@@ -45,6 +65,7 @@ export class Graph {
 
   private addEdge(edge: Edge) {
     this.edges.push(edge);
+    this.incChanges();
   }
 
   containsEdge(edge: Edge) {
@@ -60,7 +81,12 @@ export class Graph {
   }
 
   removeEdge(edge: Edge) {
-    this.edges.splice(this.edges.indexOf(edge), 1);
+    const edgeIndex = this.edges.indexOf(edge);
+    if (edgeIndex !== -1) {
+      const [removedEdge] = this.edges.splice(edgeIndex, 1);
+      removedEdge.dispose();
+      this.incChanges();
+    }
   }
 
   getEdgesWithNode(node: Node) {

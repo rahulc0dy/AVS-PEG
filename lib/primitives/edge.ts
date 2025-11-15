@@ -11,6 +11,7 @@ import {
 import {
   BufferGeometry,
   Color,
+  Float32BufferAttribute,
   Group,
   Line,
   LineBasicMaterial,
@@ -21,11 +22,13 @@ export class Edge {
   n1: Node;
   n2: Node;
   isDirected: boolean;
+  private line: Line<BufferGeometry, LineBasicMaterial> | null;
 
   constructor(n1: Node, n2: Node, isDirected = false) {
     this.n1 = n1;
     this.n2 = n2;
     this.isDirected = isDirected;
+    this.line = null;
   }
 
   length(): number {
@@ -88,15 +91,46 @@ export class Edge {
   }
 
   draw(group: Group, config: { width: number; color: Color }) {
-    const edgeMaterial = new LineBasicMaterial({
-      color: config.color,
-      linewidth: config.width,
-    });
-    const edgeGeometry = new BufferGeometry().setFromPoints([
-      new Vector3(this.n1.x, 0, this.n1.y),
-      new Vector3(this.n2.x, 0, this.n2.y),
-    ]);
-    const edgeLine = new Line(edgeGeometry, edgeMaterial);
-    group.add(edgeLine);
+    if (!this.line) {
+      const edgeGeometry = new BufferGeometry();
+      edgeGeometry.setAttribute(
+        "position",
+        new Float32BufferAttribute(
+          [this.n1.x, 0, this.n1.y, this.n2.x, 0, this.n2.y],
+          3
+        )
+      );
+
+      const edgeMaterial = new LineBasicMaterial({
+        color: config.color,
+        linewidth: config.width,
+      });
+
+      this.line = new Line(edgeGeometry, edgeMaterial);
+    } else {
+      const positionAttribute = this.line.geometry.getAttribute(
+        "position"
+      ) as Float32BufferAttribute;
+      positionAttribute.setXYZ(0, this.n1.x, 0, this.n1.y);
+      positionAttribute.setXYZ(1, this.n2.x, 0, this.n2.y);
+      positionAttribute.needsUpdate = true;
+
+      const material = this.line.material as LineBasicMaterial;
+      material.color.copy(config.color);
+      material.linewidth = config.width;
+    }
+
+    const line = this.line;
+    if (line && !group.children.includes(line)) {
+      group.add(line);
+    }
+  }
+
+  dispose() {
+    if (this.line) {
+      this.line.geometry.dispose();
+      this.line.material.dispose();
+      this.line = null;
+    }
   }
 }

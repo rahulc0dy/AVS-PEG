@@ -32,6 +32,7 @@ export default function WorldComponent({
 
   const controlsRef = useRef<OrbitControls | null>(null);
   const gridRef = useRef<GridHelper | null>(null);
+  const frameRef = useRef<number | null>(null);
 
   // Setup OrbitControls, Visual Grid
   useEffect(() => {
@@ -134,25 +135,63 @@ export default function WorldComponent({
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
-    dom.addEventListener("contextmenu", (e) => e.preventDefault());
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    dom.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
+      dom.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, []);
+  }, [camera, dom, scene, updatePointer, getIntersectPoint]);
 
   useEffect(() => {
-    animate();
-    function animate() {
-      requestAnimationFrame(animate);
+    let previousGraphChanges = -1;
+    let mounted = true;
+
+    const animate = () => {
+      if (!mounted) return;
+      frameRef.current = requestAnimationFrame(animate);
+
       controlsRef.current?.update();
-      graphEditorRef.current?.draw();
-      worldRef.current?.generate();
-      worldRef.current?.draw();
-    }
-  }, [graphRef]);
+
+      const editor = graphEditorRef.current;
+      const world = worldRef.current;
+      const graph = graphRef.current;
+      const editorChanged = editor?.draw() ?? false;
+
+      if (!world || !graph) {
+        return;
+      }
+
+      const revision =
+        typeof (graph as any).getRevision === "function"
+          ? (graph as any).getRevision()
+          : graph.getChanges();
+
+      if (revision !== previousGraphChanges) {
+        world.generate();
+        previousGraphChanges = revision;
+        world.draw();
+        return;
+      }
+
+      if (editorChanged) {
+        world.draw();
+      }
+    };
+
+    animate();
+
+    return () => {
+      mounted = false;
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, []);
 
   return <div></div>;
 }
