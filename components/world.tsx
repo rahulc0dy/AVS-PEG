@@ -173,8 +173,8 @@ export default function WorldComponent({
       }
 
       const revision =
-        typeof (graph as any).getRevision === "function"
-          ? (graph as any).getRevision()
+        typeof (graph as Graph).getChanges === "function"
+          ? (graph as Graph).getChanges()
           : graph.getChanges();
 
       if (revision !== previousGraphChanges) {

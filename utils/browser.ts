@@ -9,7 +9,7 @@ export function isWebGPUSupported(): boolean {
     return false;
   if (!window.isSecureContext) return false;
 
-  const nav: any = navigator;
+  const nav: Navigator = navigator;
   if (!nav?.gpu) return false;
 
   return true;

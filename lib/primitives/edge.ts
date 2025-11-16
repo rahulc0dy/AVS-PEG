@@ -15,7 +15,6 @@ import {
   Group,
   Line,
   LineBasicMaterial,
-  Vector3,
 } from "three";
 
 export class Edge {

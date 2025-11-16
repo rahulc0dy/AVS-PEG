@@ -18,6 +18,7 @@ import {
 export class Polygon {
   nodes: Node[];
   edges: Edge[];
+  private mesh: Mesh<ShapeGeometry, MeshBasicMaterial> | null = null;
 
   constructor(nodes: Node[]) {
     this.nodes = nodes;
@@ -33,8 +34,16 @@ export class Polygon {
 
   /**
    * Computes the union of multiple polygons.
-   * Breaks polygons at intersections, then keeps only the outermost edges.
-   * Returns an array of edges that form the resulting union shape.
+   *
+   * Side effect: this call mutates the provided polygons. {@link Polygon.multiBreak}
+   * splits intersecting edges in-place, so clone your polygons beforehand if
+   * immutability is required.
+   *
+   * Containment heuristic: {@link Polygon.containsEdge} checks only the midpoint
+   * of each edge. This works for convex/simple envelopes (e.g., rectangles) but
+   * can fail for concave shapes or edges that merely touch. Ensure inputs meet
+   * that precondition or swap in a more robust containment test before relying
+   * on the result.
    */
   static union(polygons: Polygon[]): Edge[] {
     // Split all intersecting edges so polygons share common intersection nodes
@@ -152,7 +161,8 @@ export class Polygon {
 
   /**
    * Checks if a given edge lies inside this polygon.
-   * Does this by testing the midpoint of the edge.
+   * Uses a midpoint test, which is reliable only for simple/convex polygons
+   * where edges cannot “poke out” between vertices.
    */
   containsEdge(edge: Edge): boolean {
     const midpoint = average(edge.n1, edge.n2);
@@ -165,7 +175,9 @@ export class Polygon {
    * Draws a line from the point to a far-away "outer" point and counts intersections.
    */
   containsNode(node: Node): boolean {
-    const outerPoint = new Node(-1000, 1000); // point far outside the polygon
+    const minX = Math.min(...this.nodes.map((n) => n.x));
+    const maxY = Math.max(...this.nodes.map((n) => n.y));
+    const outerPoint = new Node(minX - 1000, maxY + 1000);
     let intersectionCount = 0;
 
     for (const edge of this.edges) {
@@ -181,24 +193,37 @@ export class Polygon {
     group: Group,
     config: { lineWidth: number; strokeColor: Color; fillColor: Color }
   ) {
-    const material = new MeshBasicMaterial({
-      color: config.fillColor,
-      side: BackSide, // The polygon is flipped, the backside is visible
-    });
+    if (!this.mesh) {
+      const material = new MeshBasicMaterial({
+        color: config.fillColor,
+        side: BackSide,
+      });
 
-    const shape = new Shape();
-    if (this.nodes.length > 0) {
-      shape.moveTo(this.nodes[0].x, this.nodes[0].y);
-      for (let i = 1; i < this.nodes.length; i++) {
-        shape.lineTo(this.nodes[i].x, this.nodes[i].y);
+      const shape = new Shape();
+      if (this.nodes.length > 0) {
+        shape.moveTo(this.nodes[0].x, this.nodes[0].y);
+        for (let i = 1; i < this.nodes.length; i++) {
+          shape.lineTo(this.nodes[i].x, this.nodes[i].y);
+        }
       }
-      shape.lineTo(this.nodes[0].x, this.nodes[0].y);
+      const geometry = new ShapeGeometry(shape);
+      this.mesh = new Mesh(geometry, material);
+      this.mesh.rotation.x = Math.PI / 2;
+      this.mesh.position.y = -0.01;
+    } else {
+      this.mesh.material.color.copy(config.fillColor);
     }
 
-    const geometry = new ShapeGeometry(shape);
-    const mesh = new Mesh(geometry, material);
-    mesh.rotation.x = Math.PI / 2;
-    mesh.position.y = -0.01; // Slightly below to avoid z-fighting
-    group.add(mesh);
+    if (!group.children.includes(this.mesh)) {
+      group.add(this.mesh);
+    }
+  }
+
+  dispose() {
+    if (this.mesh) {
+      this.mesh.geometry.dispose();
+      this.mesh.material.dispose();
+      this.mesh = null;
+    }
   }
 }

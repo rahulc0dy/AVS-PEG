@@ -25,7 +25,12 @@ function scale(n: Node, scaler: number): Node {
 }
 
 function normalize(n: Node): Node {
-  return scale(n, 1 / magnitude(n));
+  const mag = magnitude(n);
+  if (mag === 0) {
+    // Fallback: return zero vector unchanged
+    return new Node(0, 0);
+  }
+  return scale(n, 1 / mag);
 }
 
 function dot(n1: Node, n2: Node): number {

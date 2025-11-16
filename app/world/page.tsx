@@ -16,7 +16,7 @@ export default function CarPage() {
     if (!mountRef.current) return;
     const mount = mountRef.current;
 
-    const { scene, camera, renderer } = setupScene(mount, {
+    const { scene, camera, renderer, resizeHandler } = setupScene(mount, {
       cameraPosition: { x: 0, y: 60, z: 420 },
     });
 
@@ -29,6 +29,7 @@ export default function CarPage() {
         mount.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      window.removeEventListener("resize", resizeHandler);
     };
   }, []);
 

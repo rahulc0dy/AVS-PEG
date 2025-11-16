@@ -47,7 +47,7 @@ export class World {
   }
 
   generateLaneGuides() {
-    const tmpEnvelopes = [];
+    const tmpEnvelopes: Envelope[] = [];
     for (const edge of this.graph.getEdges()) {
       tmpEnvelopes.push(
         new Envelope(edge, this.roadWidth / 2, this.roadRoundness)

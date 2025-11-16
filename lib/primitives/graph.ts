@@ -56,7 +56,7 @@ export class Graph {
     if (nodeIndex != -1) {
       const [removedNode] = this.nodes.splice(nodeIndex, 1);
       removedNode.dispose();
-      this.incChanges;
+      this.incChanges();
     }
   }
 
@@ -91,7 +91,7 @@ export class Graph {
   }
 
   getEdgesWithNode(node: Node) {
-    const edges = [];
+    const edges: Edge[] = [];
     for (const edge of this.edges) {
       if (edge.includes(node)) {
         edges.push(edge);

@@ -12,18 +12,20 @@ export class Node {
   }
 
   equals(node: Node) {
-    return this.x == node.x && this.y == node.y;
+    return this.x === node.x && this.y === node.y;
   }
 
   draw(group: Group, config: { size: number; color: Color }) {
-    this.dispose();
-
-    const geometry = new SphereGeometry(config.size);
-    const material = new MeshBasicMaterial({ color: config.color });
-    this.mesh = new Mesh(geometry, material);
-
+    if (!this.mesh) {
+      // Use unit sphere and drive size via scale so we can update it per draw.
+      const geometry = new SphereGeometry(1);
+      const material = new MeshBasicMaterial();
+      this.mesh = new Mesh(geometry, material);
+    }
     const sphere = this.mesh;
     sphere.position.set(this.x, 0, this.y);
+    sphere.scale.set(config.size, config.size, config.size);
+    (sphere.material as MeshBasicMaterial).color.copy(config.color);
     group.add(sphere);
   }
 

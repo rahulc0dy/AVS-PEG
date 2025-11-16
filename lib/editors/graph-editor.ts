@@ -68,16 +68,17 @@ export class GraphEditor {
     this.needsRedraw = true;
   }
 
-  handleLeftClick(pointer: Vector3) {
+  handleLeftClick(_pointer: Vector3) {
     if (this.hoveredNode) {
       this.selectNode(this.hoveredNode);
       this.dragging = true;
       return;
     }
+
     this.addNodeOnRelease = true;
   }
 
-  handleRightClick(pointer: Vector3) {
+  handleRightClick(_pointer: Vector3) {
     if (this.selectedNode) {
       this.selectedNode = null;
       this.needsRedraw = true;

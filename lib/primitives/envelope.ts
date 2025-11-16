@@ -37,6 +37,9 @@ export class Envelope {
    * @returns         A Polygon instance representing the envelope area
    */
   private generatePolygon(width: number, roundness: number): Polygon {
+    if (width <= 0) {
+      throw new Error("Width must be positive.");
+    }
     const { n1, n2 } = this.skeleton;
 
     // Compute geometry basics
