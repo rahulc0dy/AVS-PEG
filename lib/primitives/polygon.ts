@@ -16,10 +16,19 @@ import {
  * Each consecutive pair of nodes forms an edge, and the polygon closes back to the first node.
  */
 export class Polygon {
+  /** Ordered list of polygon vertices (2D points). */
   nodes: Node[];
+  /** Edges connecting consecutive nodes (closed loop). */
   edges: Edge[];
+
+  /** Cached Three.js mesh used for filled rendering; created lazily. */
   private mesh: Mesh<ShapeGeometry, MeshBasicMaterial> | null = null;
 
+  /**
+   * Create a polygon from an ordered array of `Node`s. Consecutive nodes are
+   * connected by edges; the polygon closes back to the first node.
+   * @param nodes - Ordered vertices defining the polygon
+   */
   constructor(nodes: Node[]) {
     this.nodes = nodes;
     this.edges = [];
@@ -74,8 +83,9 @@ export class Polygon {
   }
 
   /**
-   * Breaks all polygons in the list at their intersection points.
-   * This ensures edges are split wherever polygons intersect.
+   * Break all polygons at pairwise intersections so that intersecting
+   * edges are split and share common intersection nodes.
+   * @param polygons - Array of polygons to split in-place
    */
   static multiBreak(polygons: Polygon[]): void {
     for (let i = 0; i < polygons.length - 1; i++) {
@@ -86,8 +96,12 @@ export class Polygon {
   }
 
   /**
-   * Breaks two polygons wherever their edges intersect.
-   * Adds new nodes at intersection points and splits affected edges.
+   * Break two polygons at their pairwise edge intersections. When an
+   * intersection is found (excluding endpoints), a new `Node` is inserted
+   * at the intersection and both edges are split so the intersection becomes
+   * an explicit vertex shared by both polygons.
+   *
+   * This mutates `poly1` and `poly2` in-place.
    */
   static break(poly1: Polygon, poly2: Polygon): void {
     const edges1 = poly1.edges;
@@ -126,17 +140,20 @@ export class Polygon {
   }
 
   /**
-   * Returns the shortest distance from a given node to this polygon.
-   * Computed as the minimum distance from the node to any of the polygon's edges.
+   * Compute the shortest distance from `node` to this polygon (min over edges).
+   * @param node - External point
+   * @returns Minimum distance to any edge of the polygon
    */
   distanceToNode(node: Node): number {
     return Math.min(...this.edges.map((edge) => edge.distanceToNode(node)));
   }
 
   /**
-   * Returns the shortest distance between this polygon and another polygon.
-   * Computed as the minimum distance between any edge of this polygon
-   * and the closest point on the other polygon.
+   * Compute the shortest distance between this polygon and another polygon.
+   * Approximated by checking distance from each edge's start point to the
+   * other polygon (sufficient for many simple/convex cases).
+   * @param polygon - Other polygon
+   * @returns Minimum pairwise distance
    */
   distanceToPoly(polygon: Polygon): number {
     return Math.min(
@@ -145,8 +162,9 @@ export class Polygon {
   }
 
   /**
-   * Checks if this polygon intersects with another polygon.
-   * True if any pair of edges from the two polygons intersect.
+   * Determine whether this polygon intersects `polygon` (any edge pair intersects).
+   * @param polygon - Other polygon
+   * @returns `true` when an intersection exists
    */
   intersectsPoly(polygon: Polygon): boolean {
     for (const edge1 of this.edges) {
@@ -160,9 +178,12 @@ export class Polygon {
   }
 
   /**
-   * Checks if a given edge lies inside this polygon.
-   * Uses a midpoint test, which is reliable only for simple/convex polygons
-   * where edges cannot “poke out” between vertices.
+   * Heuristic containment test for an edge: check whether the edge's
+   * midpoint lies inside this polygon. NOTE: This is a midpoint heuristic
+   * and can give false positives/negatives for concave polygons or edges
+   * that touch the boundary.
+   * @param edge - Edge to test
+   * @returns `true` if midpoint is inside the polygon
    */
   containsEdge(edge: Edge): boolean {
     const midpoint = average(edge.n1, edge.n2);
@@ -170,9 +191,11 @@ export class Polygon {
   }
 
   /**
-   * Checks if a given node (point) lies inside this polygon using
-   * the ray-casting algorithm (odd–even rule).
-   * Draws a line from the point to a far-away "outer" point and counts intersections.
+   * Point-in-polygon test using the ray-casting (odd-even) rule. Casts a
+   * ray from the query point to a sufficiently far "outer" point and counts
+   * intersections with polygon edges.
+   * @param node - Point to test
+   * @returns `true` when the point is inside the polygon
    */
   containsNode(node: Node): boolean {
     const minX = Math.min(...this.nodes.map((n) => n.x));
@@ -189,6 +212,16 @@ export class Polygon {
     return intersectionCount % 2 === 1;
   }
 
+  /**
+   * Create or update a filled Three.js `Mesh` representing the polygon and
+   * add it to the provided `Group`.
+   *
+   * The mesh is created lazily. When created, the polygon is rotated to lie
+   * on the X-Z plane and slightly offset in Y to reduce z-fighting.
+   *
+   * @param group - Scene group to add the mesh to
+   * @param config - Rendering config (fillColor)
+   */
   draw(group: Group, config: { fillColor: Color }) {
     if (!this.mesh) {
       const material = new MeshBasicMaterial({
@@ -216,6 +249,10 @@ export class Polygon {
     }
   }
 
+  /**
+   * Dispose of any Three.js resources held by this polygon (geometry + material)
+   * and clear the cached mesh reference.
+   */
   dispose() {
     if (this.mesh) {
       this.mesh.geometry.dispose();

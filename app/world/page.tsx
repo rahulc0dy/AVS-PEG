@@ -5,8 +5,18 @@ import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Scene } from "three";
 export default function CarPage() {
+  /**
+   * DOM container element used to mount the Three.js renderer canvas.
+   * The ref is populated after the component mounts.
+   */
   const mountRef = useRef<HTMLDivElement>(null);
-  const [graphProps, setGraphProps] = useState<{
+
+  /**
+   * When non-null, `renderContext` holds the ready-to-use `scene`, `camera`,
+   * and renderer `dom` element produced by `setupScene`. We only render the
+   * `WorldComponent` after these are available.
+   */
+  const [renderContext, setRenderContext] = useState<{
     scene: Scene;
     camera: Camera;
     dom: HTMLElement;
@@ -20,10 +30,15 @@ export default function CarPage() {
       cameraPosition: { x: 0, y: 60, z: 420 },
     });
 
-    setGraphProps({ scene, camera, dom: renderer.domElement });
+    // Expose the scene/camera/dom to the WorldComponent by storing them
+    // in state. `renderer.domElement` is the actual canvas element used for input
+    // coordinate calculations (raycasting) in the editor.
+    setRenderContext({ scene, camera, dom: renderer.domElement });
 
     return () => {
-      setGraphProps(null);
+      setRenderContext(null);
+      // Tear down the renderer and remove event listeners when unmounting.
+      // `setAnimationLoop(null)` stops the renderer's requestAnimationFrame loop.
       renderer.setAnimationLoop(null);
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
@@ -36,11 +51,11 @@ export default function CarPage() {
   return (
     <div className="w-screen h-screen relative">
       <div ref={mountRef} className="w-full h-full" />
-      {graphProps && (
+      {renderContext && (
         <WorldComponent
-          scene={graphProps.scene}
-          camera={graphProps.camera}
-          dom={graphProps.dom}
+          scene={renderContext.scene}
+          camera={renderContext.camera}
+          dom={renderContext.dom}
         />
       )}
     </div>

@@ -5,15 +5,29 @@ import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
 
 export class World {
+  /** Underlying road graph (nodes and edges). */
   graph: Graph;
+  /** Three.js scene where the world will be rendered. */
   scene: Scene;
+  /** Group used to collect world meshes before adding to the scene. */
   worldGroup: Group;
+  /** Width used when constructing road envelopes (in same units as Nodes). */
   roadWidth: number;
+  /** Controls smoothness of envelope end caps (higher = smoother). */
   roadRoundness: number;
+  /** Border segments produced by unioning road envelopes. */
   roadBorders: Edge[];
-  envelopes: Envelope[];
-  laneGuides: Edge[];
+  /** Road polygons generated from graph edges. */
+  roads: Envelope[];
 
+  /**
+   * Construct a World which generates visual road geometry from a `Graph`.
+   *
+   * @param graph - Road graph providing edges to thicken into roads
+   * @param scene - Three.js scene where generated geometry will be added
+   * @param roadWidth - Width used for road envelopes (default: 30)
+   * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
+   */
   constructor(
     graph: Graph,
     scene: Scene,
@@ -25,42 +39,40 @@ export class World {
     this.roadWidth = roadWidth;
     this.roadRoundness = roadRoundness;
     this.roadBorders = [];
-    this.envelopes = [];
-    this.laneGuides = [];
+    this.roads = [];
     this.worldGroup = new Group();
 
+    // Build derived geometry immediately
     this.generate();
   }
 
+  /**
+   * Generate envelope polygons and unions for the current `graph`.
+   *
+   * This rebuilds `envelopes`, computes the unioned `roadBorders`, and
+   * regenerates `laneGuides`. The operation is idempotent with respect to
+   * the current graph state and intended to be called after graph updates.
+   */
   generate() {
-    this.envelopes.length = 0;
+    // Recompute envelopes for every edge in the graph
+    this.roads.length = 0;
     for (const edge of this.graph.getEdges()) {
-      this.envelopes.push(
-        new Envelope(edge, this.roadWidth, this.roadRoundness)
-      );
+      this.roads.push(new Envelope(edge, this.roadWidth, this.roadRoundness));
     }
 
-    this.roadBorders = Polygon.union(this.envelopes.map((e) => e.poly));
-
-    this.laneGuides.length = 0;
-    this.laneGuides.push(...this.generateLaneGuides());
+    // Compute the union of all envelope polygons to derive continuous borders
+    this.roadBorders = Polygon.union(this.roads.map((e) => e.poly));
   }
 
-  generateLaneGuides() {
-    const tmpEnvelopes: Envelope[] = [];
-    for (const edge of this.graph.getEdges()) {
-      tmpEnvelopes.push(
-        new Envelope(edge, this.roadWidth / 2, this.roadRoundness)
-      );
-    }
-    const segments = Polygon.union(tmpEnvelopes.map((e) => e.poly));
-    return segments;
-  }
-
+  /**
+   * Render the world: clear the `worldGroup`, draw envelopes and road borders,
+   * and add the group to the scene. Colors and widths are currently hardcoded
+   * here for a base visual appearance.
+   */
   draw() {
     this.worldGroup.clear();
 
-    for (const envelope of this.envelopes) {
+    for (const envelope of this.roads) {
       envelope.draw(this.worldGroup, {
         fillColor: new Color(0x222021),
       });

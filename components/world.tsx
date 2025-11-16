@@ -13,25 +13,48 @@ import {
 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 
+/**
+ * Props for the `WorldComponent` React component.
+ * - `scene`: Three.js scene instance to render into
+ * - `camera`: Active camera used for raycasting and orbit controls
+ * - `dom`: DOM element (canvas container) used to compute pointer coordinates
+ */
 interface WorldComponentProps {
   scene: Scene;
   camera: Camera;
   dom: HTMLElement;
 }
 
+/**
+ * React component that wires the 3D world together: sets up orbit controls,
+ * a visual grid, pointer-to-world raycasting, and the editor/world
+ * instances (graph, GraphEditor, World). It handles pointer events and runs
+ * the animation loop that updates editor visuals and regenerates world
+ * geometry when the graph changes.
+ */
 export default function WorldComponent({
   scene,
   camera,
   dom,
 }: WorldComponentProps) {
   const graphRef = useRef<Graph | null>(null);
+
+  /** Mutable ref holding the current `Graph` instance (used across effects). */
   const worldRef = useRef<World | null>(null);
+  /** Mutable ref holding the editor instance responsible for editing the graph. */
   const graphEditorRef = useRef<GraphEditor | null>(null);
 
+  /**
+   * Pointer coordinates in normalized device coordinates (NDC) used by the
+   * `Raycaster` for picking. `x`/`y` are in [-1, 1].
+   */
   const pointerRef = useRef(new Vector2());
 
+  /** Orbit controls instance controlling the camera. */
   const controlsRef = useRef<OrbitControls | null>(null);
+  /** Visual grid helper added to the scene for orientation. */
   const gridRef = useRef<GridHelper | null>(null);
+  /** requestAnimationFrame id returned by `requestAnimationFrame`. */
   const frameRef = useRef<number | null>(null);
 
   // Setup OrbitControls, Visual Grid
@@ -58,8 +81,13 @@ export default function WorldComponent({
     };
   }, [scene, camera, dom]);
 
+  /** Raycaster used to convert pointer NDC into a world-space picking ray. */
   const raycasterRef = useRef(new Raycaster());
-
+  /**
+   * Update the normalized device coordinates used for raycasting from a
+   * PointerEvent. Converts screen coordinates to NDC (-1..1) and updates the
+   * internal `Raycaster` with the active camera.
+   */
   const updatePointer = useCallback(
     (evt: PointerEvent) => {
       // Get the bounding box of the canvas (so we can normalize mouse coordinates)
@@ -79,6 +107,12 @@ export default function WorldComponent({
     [camera, dom]
   );
 
+  /**
+   * Returns the world-space intersection point between the current ray
+   * (set by `updatePointer`) and a horizontal plane at y=0. The returned
+   * vector contains the intersection coordinates; when the ray is parallel
+   * to the plane the returned vector remains unchanged.
+   */
   const getIntersectPoint = useCallback((): Vector3 => {
     // Use the raycaster that was updated by updatePointer to cast a ray
     const raycaster = raycasterRef.current;
@@ -158,6 +192,10 @@ export default function WorldComponent({
     let previousGraphChanges = -1;
     let mounted = true;
 
+    /**
+     *  Animation loop: update controls, redraw editor visuals when needed,
+     * and regenerate / redraw world geometry when the graph changes.
+     */
     const animate = () => {
       if (!mounted) return;
       frameRef.current = requestAnimationFrame(animate);
@@ -175,6 +213,8 @@ export default function WorldComponent({
 
       const changes = graph.getChanges();
 
+      // If the graph has changed since the last frame, regenerate world
+      // geometry (envelopes, unions) and redraw.
       if (changes !== previousGraphChanges) {
         world.generate();
         previousGraphChanges = changes;
@@ -182,6 +222,8 @@ export default function WorldComponent({
         return;
       }
 
+      // If only the editor visuals changed (hover/selection), redraw world
+      // to reflect any editor-driven appearance changes.
       if (editorChanged) {
         world.draw();
       }

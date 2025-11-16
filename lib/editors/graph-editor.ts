@@ -5,20 +5,31 @@ import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
 
 export class GraphEditor {
+  /** Underlying graph being edited. */
   graph: Graph;
+  /** Currently selected node (null when none). */
   selectedNode: Node | null;
+  /** Node currently under the pointer (hover). */
   hoveredNode: Node | null;
+  /** Whether the editor is currently dragging a selected node. */
   dragging: boolean;
 
+  /** Callback invoked when drag state changes. */
   private onDragStateChanged: (isDragging: boolean) => void = () => {};
 
+  /** Three.js scene used for rendering editor visuals. */
   scene: Scene;
+  /** Group that contains editor visuals (node meshes). */
   graphEditorGroup: Group;
+  /** Whether a redraw is required on next `draw()` call. */
   private needsRedraw: boolean;
+  /** Last observed graph change counter to avoid redundant redraws. */
   private lastGraphChanges: number;
 
+  /** Internal flag used to create a node on pointer release when set. */
   private addNodeOnRelease: boolean = false;
 
+  /** Colors used for different node states. */
   private static readonly baseColor = new Color(0xffffff);
   private static readonly hoveredColor = new Color(0xfff23b);
   private static readonly selectedColor = new Color(0xff2b59);
@@ -28,6 +39,7 @@ export class GraphEditor {
     scene: Scene,
     onDragStateChanged: (isDragging: boolean) => void
   ) {
+    // Initialize state
     this.graph = graph;
     this.selectedNode = null;
     this.hoveredNode = null;
@@ -38,10 +50,16 @@ export class GraphEditor {
     this.graphEditorGroup = new Group();
     this.scene.add(this.graphEditorGroup);
 
+    // Force an initial draw
     this.needsRedraw = true;
     this.lastGraphChanges = -1;
   }
 
+  /**
+   * Select `node`. If another node was already selected, attempt to create
+   * an edge between them.
+   * @param node - Node to select
+   */
   private selectNode(node: Node) {
     if (this.selectedNode) {
       this.graph.tryAddEdge(new Edge(this.selectedNode, node));
@@ -52,6 +70,10 @@ export class GraphEditor {
     }
   }
 
+  /**
+   * Update hover state; causes a redraw when the hovered node changes.
+   * @param node - Node being hovered or `null` when none
+   */
   private hoverNode(node: Node | null) {
     if (this.hoveredNode !== node) {
       this.hoveredNode = node;
@@ -59,6 +81,10 @@ export class GraphEditor {
     }
   }
 
+  /**
+   * Remove `node` from the graph and clear selection/hover state if needed.
+   * @param node - Node to remove
+   */
   private removeNode(node: Node) {
     this.graph.removeNode(node);
     this.hoveredNode = null;
@@ -68,6 +94,12 @@ export class GraphEditor {
     this.needsRedraw = true;
   }
 
+  /**
+   * Handle left mouse (or primary) click. If clicking a hovered node, select
+   * it and start dragging. Otherwise mark that a node should be added on
+   * pointer release (enables click-to-add behavior).
+   * @param _pointer - 3D pointer position (x, z used as node coords)
+   */
   handleLeftClick(_pointer: Vector3) {
     if (this.hoveredNode) {
       this.selectNode(this.hoveredNode);
@@ -78,6 +110,11 @@ export class GraphEditor {
     this.addNodeOnRelease = true;
   }
 
+  /**
+   * Handle right mouse (or secondary) click. Clears selection when present,
+   * or removes the hovered node when none is selected.
+   * @param _pointer - 3D pointer position
+   */
   handleRightClick(_pointer: Vector3) {
     if (this.selectedNode) {
       this.selectedNode = null;
@@ -87,6 +124,11 @@ export class GraphEditor {
     }
   }
 
+  /**
+   * Handle pointer movement: update hovered node and support dragging a
+   * selected node (updates node coordinates and marks graph/visuals dirty).
+   * @param pointer - 3D pointer position (x, z used as node coords)
+   */
   handlePointerMove(pointer: Vector3) {
     this.hoverNode(
       getNearestNode(new Node(pointer.x, pointer.z), this.graph.getNodes(), 10)
@@ -96,6 +138,7 @@ export class GraphEditor {
       this.selectedNode &&
       (this.selectedNode.x !== pointer.x || this.selectedNode.y !== pointer.z)
     ) {
+      // Move the selected node to the pointer position (x,z)
       this.selectedNode.x = pointer.x;
       this.selectedNode.y = pointer.z;
 
@@ -105,10 +148,16 @@ export class GraphEditor {
       this.onDragStateChanged(true);
     }
     if (!this.dragging && !this.hoveredNode) {
+      // Cancel pending add-on-release if pointer moved away
       this.addNodeOnRelease = false;
     }
   }
 
+  /**
+   * Handle pointer release events: finish dragging and optionally add a new
+   * node at the release position when `addNodeOnRelease` is set.
+   * @param pointer - 3D pointer position
+   */
   handleClickRelease(pointer: Vector3) {
     this.dragging = false;
     this.onDragStateChanged(false);
@@ -123,6 +172,11 @@ export class GraphEditor {
     }
   }
 
+  /**
+   * Draw editor visuals (nodes) into the scene. Uses `needsRedraw` and the
+   * graph's change counter to avoid unnecessary work.
+   * @returns `true` when a redraw was performed, `false` when skipped
+   */
   draw() {
     const currentChanges = this.graph.getChanges();
     if (!this.needsRedraw && currentChanges === this.lastGraphChanges) {
