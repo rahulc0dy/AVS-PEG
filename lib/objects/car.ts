@@ -163,8 +163,8 @@ export class Car {
         (gltf) => {
           this.model = gltf.scene;
           this.loadingModel = false;
-          this.model.scale.set(15, 15, 15);
-          this.model.position.set(this.position.x, 0, -this.position.y);
+          this.model.scale.set(3, 3, 3);
+          this.model.position.set(this.position.x, 0, this.position.y);
           this.model.rotation.set(0, this.angle, 0);
           target.add(this.model);
         },

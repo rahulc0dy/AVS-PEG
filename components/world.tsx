@@ -227,6 +227,8 @@ export default function WorldComponent({
       if (editorChanged) {
         world.draw();
       }
+
+      world.update();
     };
 
     animate();

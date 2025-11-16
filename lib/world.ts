@@ -66,6 +66,7 @@ export class World {
 
     // Build derived geometry immediately
     this.generate();
+    this.update();
   }
 
   update() {
