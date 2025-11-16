@@ -189,14 +189,11 @@ export class Polygon {
     return intersectionCount % 2 === 1;
   }
 
-  draw(
-    group: Group,
-    config: { lineWidth: number; strokeColor: Color; fillColor: Color }
-  ) {
+  draw(group: Group, config: { fillColor: Color }) {
     if (!this.mesh) {
       const material = new MeshBasicMaterial({
         color: config.fillColor,
-        side: BackSide,
+        side: BackSide, // The polygon is flipped, the backside is visible
       });
 
       const shape = new Shape();
@@ -209,7 +206,7 @@ export class Polygon {
       const geometry = new ShapeGeometry(shape);
       this.mesh = new Mesh(geometry, material);
       this.mesh.rotation.x = Math.PI / 2;
-      this.mesh.position.y = -0.01;
+      this.mesh.position.y = -0.01; // Slightly below to avoid z-fighting
     } else {
       this.mesh.material.color.copy(config.fillColor);
     }

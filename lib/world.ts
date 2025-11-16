@@ -62,8 +62,6 @@ export class World {
 
     for (const envelope of this.envelopes) {
       envelope.draw(this.worldGroup, {
-        lineWidth: 2,
-        strokeColor: new Color(0x0000ff),
         fillColor: new Color(0x222021),
       });
     }

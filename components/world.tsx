@@ -139,10 +139,11 @@ export default function WorldComponent({
       graphEditor.handleClickRelease(intersectionPoint);
     };
 
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
-    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     dom.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
@@ -172,14 +173,11 @@ export default function WorldComponent({
         return;
       }
 
-      const revision =
-        typeof (graph as Graph).getChanges === "function"
-          ? (graph as Graph).getChanges()
-          : graph.getChanges();
+      const changes = graph.getChanges();
 
-      if (revision !== previousGraphChanges) {
+      if (changes !== previousGraphChanges) {
         world.generate();
-        previousGraphChanges = revision;
+        previousGraphChanges = changes;
         world.draw();
         return;
       }

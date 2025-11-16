@@ -69,10 +69,7 @@ export class Envelope {
     return new Polygon(nodes);
   }
 
-  draw(
-    group: Group,
-    config: { lineWidth: number; strokeColor: Color; fillColor: Color }
-  ) {
+  draw(group: Group, config: { fillColor: Color }) {
     this.poly.draw(group, config);
   }
 }
