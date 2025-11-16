@@ -1,7 +1,8 @@
 import { Car } from "@/lib/objects/car";
 import { getIntersection, Intersection, lerp } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
+import { BufferGeometry, Color, Group, Line, LineBasicMaterial } from "three";
 
 export class Sensor {
   car: Car;
@@ -11,6 +12,7 @@ export class Sensor {
 
   rays: Edge[];
   readings: (Intersection | null | undefined)[];
+  private lineGroup: Group;
   constructor(car: Car) {
     this.car = car;
     this.rayCount = 5;
@@ -19,6 +21,7 @@ export class Sensor {
 
     this.rays = [];
     this.readings = [];
+    this.lineGroup = new Group();
   }
 
   update(roadBorders: Edge[], traffic: Car[]) {
@@ -85,6 +88,51 @@ export class Sensor {
         this.car.position.y - Math.cos(rayAngle) * this.rayLength
       );
       this.rays.push(new Edge(start, end));
+    }
+  }
+
+  draw(group: Group) {
+    if (!this.lineGroup.parent) {
+      group.add(this.lineGroup);
+    }
+    this.lineGroup.clear(); // Clear previous lines
+
+    for (let i = 0; i < this.rayCount; i++) {
+      if (!this.rays[i]) continue;
+
+      const endPos = this.readings[i]
+        ? { x: this.readings[i]!.x, y: this.readings[i]!.y }
+        : this.rays[i].n2;
+
+      const points = [
+        this.rays[i].n1.x,
+        0,
+        -this.rays[i].n1.y,
+        endPos.x,
+        0,
+        -endPos.y,
+      ];
+
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new (require("three").Float32BufferAttribute)(points, 3)
+      );
+
+      const material = new LineBasicMaterial({
+        color: this.readings[i] ? 0xff0000 : 0xffff00, // Red if hit, yellow otherwise
+        linewidth: 2,
+      });
+
+      const line = new Line(geometry, material);
+      this.lineGroup.add(line);
+    }
+  }
+
+  dispose() {
+    this.lineGroup.clear();
+    if (this.lineGroup.parent) {
+      this.lineGroup.parent.remove(this.lineGroup);
     }
   }
 }

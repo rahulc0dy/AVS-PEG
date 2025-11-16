@@ -240,5 +240,5 @@ export default function WorldComponent({
     };
   }, []);
 
-  return <div></div>;
+  return <></>;
 }

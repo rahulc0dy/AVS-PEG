@@ -5,6 +5,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   Scene,
+  Vector2,
 } from "three";
 import { Edge } from "./primitives/edge";
 import { Envelope } from "./primitives/envelope";
@@ -12,6 +13,7 @@ import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
 import { angle, distance } from "@/utils/math";
 import { Node } from "./primitives/node";
+import { Car } from "./objects/car";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -28,6 +30,9 @@ export class World {
   roadBorders: Edge[];
   /** Road polygons generated from graph edges. */
   roads: Envelope[];
+
+  cars: Car[];
+  traffic: Car[];
 
   /** Cached Three.js mesh used for filled rendering; created lazily. */
   private roadBorderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
@@ -54,8 +59,22 @@ export class World {
     this.roads = [];
     this.worldGroup = new Group();
 
+    this.cars = [new Car(new Vector2(100, 100), 30, 50, "KEYS")];
+    this.traffic = [
+      new Car(new Vector2(100, -100), 30, 50, "DUMMY", Math.PI, 2),
+    ];
+
     // Build derived geometry immediately
     this.generate();
+  }
+
+  update() {
+    for (const car of this.cars) {
+      car.update(this.roadBorders, this.traffic);
+    }
+    for (const car of this.traffic) {
+      car.update(this.roadBorders, this.cars);
+    }
   }
 
   /**
@@ -115,6 +134,13 @@ export class World {
       );
 
       this.worldGroup.add(this.roadBorderMesh);
+    }
+
+    for (const car of this.traffic) {
+      car.draw(this.worldGroup, "/models/car.gltf");
+    }
+    for (const car of this.cars) {
+      car.draw(this.worldGroup, "/models/car.gltf");
     }
 
     this.scene.add(this.worldGroup);
