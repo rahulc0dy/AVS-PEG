@@ -1,4 +1,7 @@
-export type ControlType = "KEYS" | "DUMMY";
+export enum ControlType {
+  HUMAN,
+  AI,
+}
 
 export class Controls {
   forward = false;
@@ -12,10 +15,10 @@ export class Controls {
     this.reverse = false;
 
     switch (type) {
-      case "KEYS":
+      case ControlType.HUMAN:
         this.addKeyboardListeners();
         break;
-      case "DUMMY":
+      case ControlType.AI:
         this.forward = true;
         break;
     }

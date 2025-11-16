@@ -27,7 +27,7 @@ export class Car {
     position: Vector2,
     width: number,
     height: number,
-    controlType: string,
+    controlType: ControlType,
     angle = 0,
     maxSpeed = 3,
     color = "blue"
@@ -43,7 +43,7 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    if (controlType != "DUMMY") {
+    if (controlType != ControlType.AI) {
       this.sensor = new Sensor(this);
     }
     this.controls = new Controls(controlType as ControlType);

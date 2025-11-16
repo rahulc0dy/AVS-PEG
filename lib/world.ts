@@ -14,6 +14,7 @@ import { Graph } from "./primitives/graph";
 import { angle, distance } from "@/utils/math";
 import { Node } from "./primitives/node";
 import { Car } from "./objects/car";
+import { ControlType } from "./objects/controls";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -59,10 +60,8 @@ export class World {
     this.roads = [];
     this.worldGroup = new Group();
 
-    this.cars = [new Car(new Vector2(100, 100), 30, 50, "KEYS")];
-    this.traffic = [
-      new Car(new Vector2(100, -100), 30, 50, "DUMMY", Math.PI, 2),
-    ];
+    this.cars = [new Car(new Vector2(100, 100), 30, 50, ControlType.HUMAN)];
+    this.traffic = [];
 
     // Build derived geometry immediately
     this.generate();
@@ -72,9 +71,11 @@ export class World {
   update() {
     for (const car of this.cars) {
       car.update(this.roadBorders, this.traffic);
+      car.draw(this.worldGroup, "/models/car.gltf");
     }
     for (const car of this.traffic) {
       car.update(this.roadBorders, this.cars);
+      car.draw(this.worldGroup, "/models/car.gltf");
     }
   }
 
