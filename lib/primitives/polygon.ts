@@ -25,19 +25,40 @@ export class Polygon {
   private mesh: Mesh<ShapeGeometry, MeshBasicMaterial> | null = null;
 
   /**
-   * Create a polygon from an ordered array of `Node`s. Consecutive nodes are
-   * connected by edges; the polygon closes back to the first node.
-   * @param nodes - Ordered vertices defining the polygon
+   * Create a polygon from either an ordered array of `Node`s (vertices) or an
+   * array of `Edge`s (pre-built edges forming a closed loop).
+   *
+   * When called with `Node[]`, edges are constructed by connecting consecutive
+   * nodes and closing the loop. When called with `Edge[]`, the polygon will use
+   * the supplied edges (shallow-copied) and derive its node list from the
+   * edges' `n1` vertices.
    */
-  constructor(nodes: Node[]) {
-    this.nodes = nodes;
-    this.edges = [];
+  constructor(nodes: Node[]);
+  constructor(edges: Edge[]);
+  constructor(nodesOrEdges: Node[] | Edge[]) {
+    if (!nodesOrEdges || nodesOrEdges.length === 0) {
+      this.nodes = [];
+      this.edges = [];
+      return;
+    }
 
-    // Create edges by connecting consecutive nodes (and closing the loop)
-    for (let i = 0; i < nodes.length; i++) {
-      const start = nodes[i];
-      const end = nodes[(i + 1) % nodes.length]; // wraps around to the first node
-      this.edges.push(new Edge(start, end));
+    // Detect whether we received an Edge[] (edge objects have `n1` property)
+    if ("n1" in nodesOrEdges[0]) {
+      const edges = nodesOrEdges as Edge[];
+      // Copy edges to avoid accidental external mutation and derive nodes
+      this.edges = edges.slice();
+      this.nodes = edges.map((e) => e.n1);
+    } else {
+      const nodes = nodesOrEdges as Node[];
+      this.nodes = nodes;
+      this.edges = [];
+
+      // Create edges by connecting consecutive nodes (and closing the loop)
+      for (let i = 0; i < nodes.length; i++) {
+        const start = nodes[i];
+        const end = nodes[(i + 1) % nodes.length]; // wraps around to the first node
+        this.edges.push(new Edge(start, end));
+      }
     }
   }
 

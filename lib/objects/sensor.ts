@@ -1,9 +1,7 @@
 import { Car } from "@/lib/objects/car";
-import { getIntersection, lerp } from "@/utils/math";
-import { Node } from "@/lib/primitives/node";
+import { getIntersection, Intersection, lerp } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
-
-type Ray = { start: Node; end: Node };
+import { Node } from "../primitives/node";
 
 export class Sensor {
   car: Car;
@@ -11,8 +9,8 @@ export class Sensor {
   rayLength: number;
   raySpread: number;
 
-  rays: Ray[];
-  readings: number[];
+  rays: Edge[];
+  readings: (Intersection | null | undefined)[];
   constructor(car: Car) {
     this.car = car;
     this.rayCount = 5;
@@ -23,7 +21,7 @@ export class Sensor {
     this.readings = [];
   }
 
-  update(roadBorders: Edge[], traffic) {
+  update(roadBorders: Edge[], traffic: Car[]) {
     this.castRays();
     this.readings = [];
     for (let i = 0; i < this.rays.length; i++) {
@@ -31,13 +29,13 @@ export class Sensor {
     }
   }
 
-  private getReading(ray: Ray, roadBorders: Edge[], traffic: Car[]) {
+  private getReading(ray: Edge, roadBorders: Edge[], traffic: Car[]) {
     let touches = [];
 
     for (let i = 0; i < roadBorders.length; i++) {
       const touch = getIntersection(
-        ray.start,
-        ray.end,
+        ray.n1,
+        ray.n2,
         roadBorders[i].n1,
         roadBorders[i].n2
       );
@@ -49,12 +47,12 @@ export class Sensor {
     for (let i = 0; i < traffic.length; i++) {
       const poly = traffic[i].polygon;
       if (poly === null) continue;
-      for (let j = 0; j < poly.length; j++) {
+      for (let j = 0; j < poly.nodes.length; j++) {
         const value = getIntersection(
-          ray.start,
-          ray.end,
-          poly[j],
-          poly[(j + 1) % poly.length]
+          ray.n1,
+          ray.n2,
+          poly.nodes[j],
+          poly.nodes[(j + 1) % poly.nodes.length]
         );
         if (value) {
           touches.push(value);
@@ -81,39 +79,12 @@ export class Sensor {
           this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
         ) + this.car.angle;
 
-      const start = {
-        x: this.car.position.x,
-        y: this.car.position.y,
-      };
-      const end = {
-        x: this.car.position.x - Math.sin(rayAngle) * this.rayLength,
-        y: this.car.position.y - Math.cos(rayAngle) * this.rayLength,
-      };
-
-      this.rays.push({ start, end });
-    }
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    for (let i = 0; i < this.rayCount; i++) {
-      let end = this.rays[i][1];
-      if (this.readings[i]) {
-        end = this.readings[i];
-      }
-
-      ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "yellow";
-      ctx.moveTo(this.rays[i][0].x, this.rays[i][0].y);
-      ctx.lineTo(end.x, end.y);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "black";
-      ctx.moveTo(this.rays[i][1].x, this.rays[i][1].y);
-      ctx.lineTo(end.x, end.y);
-      ctx.stroke();
+      const start = new Node(this.car.position.x, this.car.position.y);
+      const end = new Node(
+        this.car.position.x - Math.sin(rayAngle) * this.rayLength,
+        this.car.position.y - Math.cos(rayAngle) * this.rayLength
+      );
+      this.rays.push(new Edge(start, end));
     }
   }
 }

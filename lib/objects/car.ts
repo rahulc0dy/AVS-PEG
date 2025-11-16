@@ -1,8 +1,10 @@
 import { Vector2 } from "three";
 import { Sensor } from "@/lib/objects/sensor";
-import { NeuralNetwork } from "@/lib/objects/network";
 import { Controls, ControlType } from "@/lib/objects/controls";
 import { Polygon } from "@/lib/primitives/polygon";
+import { Edge } from "../primitives/edge";
+import { Node } from "../primitives/node";
+import { doPolygonsIntersect } from "@/utils/math";
 
 export class Car {
   position: Vector2;
@@ -14,13 +16,8 @@ export class Car {
   friction: number;
   angle: number;
   damaged: boolean;
-  fitness: number;
-  useBrain: boolean;
   sensor: Sensor | null = null;
-  brain: NeuralNetwork | null = null;
   controls: Controls;
-  img: HTMLImageElement;
-  mask: HTMLCanvasElement;
   polygon: Polygon | null = null;
 
   constructor(
@@ -43,39 +40,15 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    this.fitness = 0;
-
-    this.useBrain = controlType == "AI";
-
     if (controlType != "DUMMY") {
       this.sensor = new Sensor(this);
-      this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]);
     }
     this.controls = new Controls(controlType as ControlType);
-
-    this.img = new Image();
-    this.img.src = "car.png";
-
-    this.mask = document.createElement("canvas");
-    this.mask.width = width;
-    this.mask.height = height;
-
-    this.img.onload = () => {
-      const maskCtx = this.mask.getContext("2d");
-      if (!maskCtx) return;
-      maskCtx.fillStyle = color;
-      maskCtx.rect(0, 0, this.width, this.height);
-      maskCtx.fill();
-
-      maskCtx.globalCompositeOperation = "destination-atop";
-      maskCtx.drawImage(this.img, 0, 0, this.width, this.height);
-    };
   }
 
-  update(roadBorders, traffic) {
+  update(roadBorders: Edge[], traffic: Car[]) {
     if (!this.damaged) {
       this.move();
-      this.fitness += this.speed;
       this.polygon = this.createPolygon();
       this.damaged = this.assessDamage(roadBorders, traffic);
     }
@@ -84,52 +57,54 @@ export class Car {
       const offsets = this.sensor.readings.map((s) =>
         s == null ? 0 : 1 - s.offset
       );
-      const outputs = NeuralNetwork.feedForward(offsets, this.brain);
-
-      if (this.useBrain) {
-        this.controls.forward = outputs[0];
-        this.controls.left = outputs[1];
-        this.controls.right = outputs[2];
-        this.controls.reverse = outputs[3];
-      }
     }
   }
 
-  private assessDamage(roadBorders, traffic) {
+  private assessDamage(roadBorders: Edge[], traffic: Car[]): boolean {
+    if (this.polygon === null) return false;
     for (let i = 0; i < roadBorders.length; i++) {
-      if (polysIntersect(this.polygon, roadBorders[i])) {
+      if (doPolygonsIntersect(this.polygon, new Polygon([roadBorders[i]]))) {
         return true;
       }
     }
     for (let i = 0; i < traffic.length; i++) {
-      if (polysIntersect(this.polygon, traffic[i].polygon)) {
+      if (traffic[i].polygon === null) continue;
+      if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
         return true;
       }
     }
     return false;
   }
 
-  private createPolygon() {
+  private createPolygon(): Polygon {
     const points = [];
     const rad = Math.hypot(this.width, this.height) / 2;
     const alpha = Math.atan2(this.width, this.height);
-    points.push({
-      x: this.x - Math.sin(this.angle - alpha) * rad,
-      y: this.y - Math.cos(this.angle - alpha) * rad,
-    });
-    points.push({
-      x: this.x - Math.sin(this.angle + alpha) * rad,
-      y: this.y - Math.cos(this.angle + alpha) * rad,
-    });
-    points.push({
-      x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-      y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad,
-    });
-    points.push({
-      x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-      y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad,
-    });
-    return points;
+    points.push(
+      new Node(
+        this.position.x - Math.sin(this.angle - alpha) * rad,
+        this.position.y - Math.cos(this.angle - alpha) * rad
+      )
+    );
+    points.push(
+      new Node(
+        this.position.x - Math.sin(this.angle + alpha) * rad,
+        this.position.y - Math.cos(this.angle + alpha) * rad
+      )
+    );
+    points.push(
+      new Node(
+        this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
+        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad
+      )
+    );
+    points.push(
+      new Node(
+        this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
+        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad
+      )
+    );
+    return new Polygon(points);
   }
 
   private move() {
@@ -168,35 +143,7 @@ export class Car {
       }
     }
 
-    this.x -= Math.sin(this.angle) * this.speed;
-    this.y -= Math.cos(this.angle) * this.speed;
-  }
-
-  draw(ctx, drawSensor = false) {
-    if (this.sensor && drawSensor) {
-      this.sensor.draw(ctx);
-    }
-
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(-this.angle);
-    if (!this.damaged) {
-      ctx.drawImage(
-        this.mask,
-        -this.width / 2,
-        -this.height / 2,
-        this.width,
-        this.height
-      );
-      ctx.globalCompositeOperation = "multiply";
-    }
-    ctx.drawImage(
-      this.img,
-      -this.width / 2,
-      -this.height / 2,
-      this.width,
-      this.height
-    );
-    ctx.restore();
+    this.position.x -= Math.sin(this.angle) * this.speed;
+    this.position.y -= Math.cos(this.angle) * this.speed;
   }
 }

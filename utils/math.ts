@@ -1,4 +1,5 @@
 import { Node } from "@/lib/primitives/node";
+import { Polygon } from "@/lib/primitives/polygon";
 
 /**
  * Euclidean distance between two nodes.
@@ -111,6 +112,21 @@ export function getIntersection(
   const y = lerp(A.y, B.y, t);
 
   return { x, y, offset: t };
+}
+
+export function doPolygonsIntersect(polyA: Polygon, polyB: Polygon): boolean {
+  for (let i = 0; i < polyA.nodes.length; i++) {
+    const a1 = polyA.nodes[i];
+    const a2 = polyA.nodes[(i + 1) % polyA.nodes.length];
+    for (let j = 0; j < polyB.nodes.length; j++) {
+      const b1 = polyB.nodes[j];
+      const b2 = polyB.nodes[(j + 1) % polyB.nodes.length];
+      if (getIntersection(a1, a2, b1, b2)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**
