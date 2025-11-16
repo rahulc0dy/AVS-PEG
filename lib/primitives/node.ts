@@ -16,11 +16,11 @@ export class Node {
   }
 
   draw(group: Group, config: { size: number; color: Color }) {
-    if (!this.mesh) {
-      const geometry = new SphereGeometry(config.size);
-      const material = new MeshBasicMaterial({ color: config.color });
-      this.mesh = new Mesh(geometry, material);
-    }
+    this.dispose();
+
+    const geometry = new SphereGeometry(config.size);
+    const material = new MeshBasicMaterial({ color: config.color });
+    this.mesh = new Mesh(geometry, material);
 
     const sphere = this.mesh;
     sphere.position.set(this.x, 0, this.y);
