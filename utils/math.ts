@@ -29,8 +29,9 @@ export function average(n1: Node, n2: Node): Node {
 export function magnitude(n: Node): number {
   return Math.hypot(n.x, n.y);
 }
-export /** Scale a node vector by a scalar. */
-function scale(n: Node, scaler: number): Node {
+
+/** Scale a node vector by a scalar. */
+export function scale(n: Node, scaler: number): Node {
   return new Node(n.x * scaler, n.y * scaler);
 }
 

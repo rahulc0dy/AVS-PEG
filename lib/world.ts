@@ -1,8 +1,17 @@
-import { Color, Group, Scene } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  Scene,
+} from "three";
 import { Edge } from "./primitives/edge";
 import { Envelope } from "./primitives/envelope";
 import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
+import { angle, distance } from "@/utils/math";
+import { Node } from "./primitives/node";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -19,6 +28,9 @@ export class World {
   roadBorders: Edge[];
   /** Road polygons generated from graph edges. */
   roads: Envelope[];
+
+  /** Cached Three.js mesh used for filled rendering; created lazily. */
+  private roadBorderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -79,8 +91,44 @@ export class World {
     }
     for (const edge of this.roadBorders) {
       edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
+
+      const roadBorderHeight = 10;
+      const roadBorderGeometry = new BoxGeometry(
+        distance(edge.n1, edge.n2),
+        roadBorderHeight,
+        1
+      );
+      const roadBorderMaterial = new MeshBasicMaterial({
+        color: new Color(0xff0000),
+        transparent: true,
+        opacity: 0.5,
+      });
+      this.roadBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
+
+      this.roadBorderMesh.position.set(
+        (edge.n1.x + edge.n2.x) / 2,
+        roadBorderHeight / 2,
+        (edge.n1.y + edge.n2.y) / 2
+      );
+      this.roadBorderMesh.rotation.y = -angle(
+        new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y)
+      );
+
+      this.worldGroup.add(this.roadBorderMesh);
     }
 
     this.scene.add(this.worldGroup);
+  }
+
+  /**
+   * Dispose of any Three.js resources held by this world (geometry + material)
+   * and clear the cached mesh reference.
+   */
+  dispose() {
+    if (this.roadBorderMesh) {
+      this.roadBorderMesh.geometry.dispose();
+      this.roadBorderMesh.material.dispose();
+      this.roadBorderMesh = null;
+    }
   }
 }
