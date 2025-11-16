@@ -29,7 +29,7 @@ export class Car {
     height: number,
     controlType: ControlType,
     angle = 0,
-    maxSpeed = 3,
+    maxSpeed = 2,
     color = "blue"
   ) {
     this.position = position;
@@ -147,7 +147,7 @@ export class Car {
     }
 
     this.position.x -= Math.sin(this.angle) * this.speed;
-    this.position.y -= Math.cos(this.angle) * this.speed;
+    this.position.y += Math.cos(this.angle) * this.speed;
   }
 
   draw(target: Group, url: string, loader?: GLTFLoader) {
@@ -165,7 +165,7 @@ export class Car {
           this.loadingModel = false;
           this.model.scale.set(3, 3, 3);
           this.model.position.set(this.position.x, 0, this.position.y);
-          this.model.rotation.set(0, this.angle, 0);
+          this.model.rotation.set(0, this.angle + Math.PI, 0);
           target.add(this.model);
         },
         undefined,

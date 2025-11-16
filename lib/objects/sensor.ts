@@ -80,7 +80,9 @@ export class Sensor {
           this.raySpread / 2,
           -this.raySpread / 2,
           this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
-        ) + this.car.angle;
+        ) -
+        this.car.angle +
+        Math.PI;
 
       const start = new Node(this.car.position.x, this.car.position.y);
       const end = new Node(
