@@ -15,6 +15,7 @@ import {
   Group,
   Line,
   LineBasicMaterial,
+  LineDashedMaterial,
 } from "three";
 
 /**
@@ -32,7 +33,10 @@ export class Edge {
   isDirected: boolean;
 
   /** Cached Three.js `Line` used for rendering. Created lazily on first draw. */
-  private line: Line<BufferGeometry, LineBasicMaterial> | null;
+  private line: Line<
+    BufferGeometry,
+    LineBasicMaterial | LineDashedMaterial
+  > | null;
 
   /**
    * Create an Edge between `n1` and `n2`.
@@ -152,7 +156,10 @@ export class Edge {
    * @param config.width - Line width (passed to material.linewidth)
    * @param config.color - Line color
    */
-  draw(group: Group, config: { width: number; color: Color }) {
+  draw(
+    group: Group,
+    config: { width: number; color: Color; dashed?: boolean }
+  ) {
     // Lazy-create geometry + material on first draw. We store two points
     // (start and end) in a single Float32 buffer attribute with 3 components
     // per vertex: [x1, y1, z1, x2, y2, z2]. Using a single attribute lets us
@@ -167,15 +174,32 @@ export class Edge {
         )
       );
 
-      // Create a basic line material. Some renderers ignore `linewidth`, so
+      // Create the line material. Some renderers ignore `linewidth`, so
       // we still pass color but treat line width as a hint rather than a
       // guaranteed setting across all platforms.
-      const edgeMaterial = new LineBasicMaterial({
-        color: config.color,
-        linewidth: config.width,
-      });
-
+      let edgeMaterial;
+      if (config.dashed) {
+        edgeMaterial = new LineDashedMaterial({
+          color: config.color,
+          linewidth: config.width,
+          dashSize: 5,
+          gapSize: 5,
+        });
+      } else {
+        edgeMaterial = new LineBasicMaterial({
+          color: config.color,
+          linewidth: config.width,
+        });
+      }
       this.line = new Line(edgeGeometry, edgeMaterial);
+
+      // Three.js requires computing line distances for dashed lines to render.
+      // computeLineDistances populates an internal attribute used by
+      // LineDashedMaterial to place dashes along the geometry.
+      // Note: It still works without this call, but dashes appear after a delay of few frames.
+      if (config.dashed) {
+        this.line.computeLineDistances();
+      }
     } else {
       // Reuse the existing position buffer to avoid reallocating geometry on
       // every frame. `setXYZ` updates the attribute values for each vertex
@@ -191,7 +215,7 @@ export class Edge {
       // Update material color to match the requested config. Note: many
       // WebGL renderers do not support changing line width via material, so
       // this may be a no-op on some platforms; color updates are reliable.
-      const material = this.line.material as LineBasicMaterial;
+      const material = this.line.material;
       material.color.copy(config.color);
       material.linewidth = config.width;
     }
