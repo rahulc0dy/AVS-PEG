@@ -60,7 +60,15 @@ export class World {
     this.roads = [];
     this.worldGroup = new Group();
 
-    this.cars = [new Car(new Vector2(100, 100), 30, 50, ControlType.HUMAN)];
+    this.cars = [
+      new Car(
+        new Vector2(100, 100),
+        30,
+        50,
+        ControlType.HUMAN,
+        this.worldGroup
+      ),
+    ];
     this.traffic = [];
 
     // Build derived geometry immediately
@@ -74,11 +82,9 @@ export class World {
   update() {
     for (const car of this.cars) {
       car.update(this.roadBorders, this.traffic);
-      car.draw(this.worldGroup, "/models/car.gltf");
     }
     for (const car of this.traffic) {
       car.update(this.roadBorders, this.cars);
-      car.draw(this.worldGroup, "/models/car.gltf");
     }
   }
 

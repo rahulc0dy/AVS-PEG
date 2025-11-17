@@ -21,14 +21,18 @@ export class Car {
   controls: Controls;
   polygon: Polygon | null = null;
 
+  private modelUrl: string = "/models/car.gltf";
   private model: Group | null = null;
   private loadingModel = false;
+
+  private group: Group;
 
   constructor(
     position: Vector2,
     width: number,
     height: number,
     controlType: ControlType,
+    group: Group,
     angle = 0,
     maxSpeed = 0.5
   ) {
@@ -47,9 +51,11 @@ export class Car {
       this.sensor = new Sensor(this);
     }
     this.controls = new Controls(controlType as ControlType);
+    this.group = group;
   }
 
   update(roadBorders: Edge[], traffic: Car[]) {
+    this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
       this.move();
       this.polygon = this.createPolygon();
