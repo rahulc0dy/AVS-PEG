@@ -80,13 +80,11 @@ export class Sensor {
           this.raySpread / 2,
           -this.raySpread / 2,
           this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
-        ) -
-        this.car.angle +
-        Math.PI;
+        ) - this.car.angle;
 
       const start = new Node(this.car.position.x, this.car.position.y);
       const end = new Node(
-        this.car.position.x - Math.sin(rayAngle) * this.rayLength,
+        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
         this.car.position.y - Math.cos(rayAngle) * this.rayLength
       );
       this.rays.push(new Edge(start, end));
@@ -109,10 +107,10 @@ export class Sensor {
       const points = [
         this.rays[i].n1.x,
         0,
-        -this.rays[i].n1.y,
+        this.rays[i].n1.y,
         endPos.x,
         0,
-        -endPos.y,
+        endPos.y,
       ];
 
       const geometry = new BufferGeometry();

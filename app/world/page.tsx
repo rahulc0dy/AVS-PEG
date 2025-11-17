@@ -27,7 +27,7 @@ export default function CarPage() {
     const mount = mountRef.current;
 
     const { scene, camera, renderer, resizeHandler } = setupScene(mount, {
-      cameraPosition: { x: 0, y: 60, z: 420 },
+      cameraPosition: { x: 0, y: 2000, z: 0 },
     });
 
     // Expose the scene/camera/dom to the WorldComponent by storing them
