@@ -228,6 +228,7 @@ export default function WorldComponent({
         world.draw();
       }
 
+      // Update worlds state every frame
       world.update();
     };
 

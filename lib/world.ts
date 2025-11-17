@@ -65,9 +65,12 @@ export class World {
 
     // Build derived geometry immediately
     this.generate();
-    this.update();
   }
 
+  /**
+   * Update the world state: move cars and update their sensors.
+   * This function should be called once per frame.
+   */
   update() {
     for (const car of this.cars) {
       car.update(this.roadBorders, this.traffic);
@@ -136,13 +139,6 @@ export class World {
       );
 
       this.worldGroup.add(this.roadBorderMesh);
-    }
-
-    for (const car of this.traffic) {
-      car.draw(this.worldGroup, "/models/car.gltf");
-    }
-    for (const car of this.cars) {
-      car.draw(this.worldGroup, "/models/car.gltf");
     }
 
     this.scene.add(this.worldGroup);
