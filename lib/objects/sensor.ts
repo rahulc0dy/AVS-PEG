@@ -15,8 +15,8 @@ export class Sensor {
   private lineGroup: Group;
   constructor(car: Car) {
     this.car = car;
-    this.rayCount = 5;
-    this.rayLength = 150;
+    this.rayCount = 10;
+    this.rayLength = 50;
     this.raySpread = Math.PI / 2;
 
     this.rays = [];
@@ -106,10 +106,10 @@ export class Sensor {
 
       const points = [
         this.rays[i].n1.x,
-        0,
+        2,
         this.rays[i].n1.y,
         endPos.x,
-        0,
+        2,
         endPos.y,
       ];
 

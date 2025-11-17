@@ -49,7 +49,7 @@ export class World {
   constructor(
     graph: Graph,
     scene: Scene,
-    roadWidth: number = 30,
+    roadWidth: number = 40,
     roadRoundness: number = 8
   ) {
     this.graph = graph;
