@@ -2,26 +2,34 @@ import { Car } from "@/lib/objects/car";
 import { getIntersection, Intersection, lerp } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { BufferGeometry, Color, Group, Line, LineBasicMaterial } from "three";
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  Group,
+  Line,
+  LineBasicMaterial,
+} from "three";
 
 export class Sensor {
   car: Car;
   rayCount: number;
   rayLength: number;
-  raySpread: number;
+  raySpreadAngle: number;
 
   rays: Edge[];
   readings: (Intersection | null | undefined)[];
-  private lineGroup: Group;
+
+  private sensorGroup: Group;
+
   constructor(car: Car) {
     this.car = car;
     this.rayCount = 10;
     this.rayLength = 50;
-    this.raySpread = Math.PI / 2;
+    this.raySpreadAngle = Math.PI / 2;
 
     this.rays = [];
     this.readings = [];
-    this.lineGroup = new Group();
+    this.sensorGroup = new Group();
   }
 
   update(roadBorders: Edge[], traffic: Car[]) {
@@ -29,6 +37,25 @@ export class Sensor {
     this.readings = [];
     for (let i = 0; i < this.rays.length; i++) {
       this.readings.push(this.getReading(this.rays[i], roadBorders, traffic));
+    }
+  }
+
+  private castRays() {
+    this.rays = [];
+    for (let i = 0; i < this.rayCount; i++) {
+      const rayAngle =
+        lerp(
+          this.raySpreadAngle / 2,
+          -this.raySpreadAngle / 2,
+          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
+        ) - this.car.angle;
+
+      const start = new Node(this.car.position.x, this.car.position.y);
+      const end = new Node(
+        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
+        this.car.position.y - Math.cos(rayAngle) * this.rayLength
+      );
+      this.rays.push(new Edge(start, end));
     }
   }
 
@@ -72,30 +99,11 @@ export class Sensor {
     }
   }
 
-  private castRays() {
-    this.rays = [];
-    for (let i = 0; i < this.rayCount; i++) {
-      const rayAngle =
-        lerp(
-          this.raySpread / 2,
-          -this.raySpread / 2,
-          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
-        ) - this.car.angle;
-
-      const start = new Node(this.car.position.x, this.car.position.y);
-      const end = new Node(
-        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
-        this.car.position.y - Math.cos(rayAngle) * this.rayLength
-      );
-      this.rays.push(new Edge(start, end));
-    }
-  }
-
   draw(group: Group) {
-    if (!this.lineGroup.parent) {
-      group.add(this.lineGroup);
+    if (!this.sensorGroup.parent) {
+      group.add(this.sensorGroup);
     }
-    this.lineGroup.clear(); // Clear previous lines
+    this.sensorGroup.clear(); // Clear previous lines
 
     for (let i = 0; i < this.rayCount; i++) {
       if (!this.rays[i]) continue;
@@ -114,10 +122,7 @@ export class Sensor {
       ];
 
       const geometry = new BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new (require("three").Float32BufferAttribute)(points, 3)
-      );
+      geometry.setAttribute("position", new Float32BufferAttribute(points, 3));
 
       const material = new LineBasicMaterial({
         color: this.readings[i] ? 0xff0000 : 0xffff00, // Red if hit, yellow otherwise
@@ -125,14 +130,14 @@ export class Sensor {
       });
 
       const line = new Line(geometry, material);
-      this.lineGroup.add(line);
+      this.sensorGroup.add(line);
     }
   }
 
   dispose() {
-    this.lineGroup.clear();
-    if (this.lineGroup.parent) {
-      this.lineGroup.parent.remove(this.lineGroup);
+    this.sensorGroup.clear();
+    if (this.sensorGroup.parent) {
+      this.sensorGroup.parent.remove(this.sensorGroup);
     }
   }
 }

@@ -20,6 +20,7 @@ export class Car {
   sensor: Sensor | null = null;
   controls: Controls;
   polygon: Polygon | null = null;
+
   private model: Group | null = null;
   private loadingModel = false;
 
@@ -29,8 +30,7 @@ export class Car {
     height: number,
     controlType: ControlType,
     angle = 0,
-    maxSpeed = 50,
-    color = "blue"
+    maxSpeed = 0.5
   ) {
     this.position = position;
     this.width = width;
@@ -38,7 +38,7 @@ export class Car {
 
     this.speed = 0;
     this.acceleration = 0.2;
-    this.maxSpeed = maxSpeed / 100;
+    this.maxSpeed = maxSpeed;
     this.friction = 0.05;
     this.angle = angle;
     this.damaged = false;
