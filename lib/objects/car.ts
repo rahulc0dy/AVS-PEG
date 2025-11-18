@@ -1,4 +1,13 @@
-import { Material, Mesh, Vector2, Group, Object3D } from "three";
+import {
+  Material,
+  Mesh,
+  Vector2,
+  Group,
+  Object3D,
+  Color,
+  BoxGeometry,
+  MeshBasicMaterial,
+} from "three";
 import { Sensor } from "@/lib/objects/sensor";
 import { Controls, ControlType } from "@/lib/objects/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -9,7 +18,8 @@ import { GLTFLoader } from "three/examples/jsm/Addons.js";
 
 export class Car {
   position: Vector2;
-  width: number;
+  breadth: number;
+  length: number;
   height: number;
   speed: number;
   acceleration: number;
@@ -25,11 +35,14 @@ export class Car {
   private model: Group | null = null;
   private loadingModel = false;
 
+  private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
+
   private group: Group;
 
   constructor(
     position: Vector2,
-    width: number,
+    breadth: number,
+    length: number,
     height: number,
     controlType: ControlType,
     group: Group,
@@ -37,7 +50,8 @@ export class Car {
     maxSpeed = 0.5
   ) {
     this.position = position;
-    this.width = width;
+    this.breadth = breadth;
+    this.length = length;
     this.height = height;
 
     this.speed = 0;
@@ -87,8 +101,8 @@ export class Car {
 
   private createPolygon(): Polygon {
     const points = [];
-    const rad = Math.hypot(this.width, this.height) / 2;
-    const alpha = Math.atan2(this.width, this.height);
+    const rad = Math.hypot(this.breadth, this.length) / 2;
+    const alpha = Math.atan2(this.breadth, this.length);
     points.push(
       new Node(
         this.position.x - Math.sin(this.angle - alpha) * rad,
@@ -185,8 +199,34 @@ export class Car {
 
     this.model.position.set(this.position.x, 0, this.position.y);
     this.model.rotation.set(0, this.angle, 0);
+
     if (!target.children.includes(this.model)) {
       target.add(this.model);
+    }
+
+    if (!this.carColliderMesh) {
+      const carGeometry = new BoxGeometry(
+        this.breadth,
+        this.height,
+        this.length
+      );
+      const carMaterial = new MeshBasicMaterial({
+        color: new Color(0x00ff00),
+        transparent: true,
+        opacity: 0.2,
+      });
+      const carMesh = new Mesh(carGeometry, carMaterial);
+      this.carColliderMesh = carMesh;
+    }
+    this.carColliderMesh.position.set(
+      this.position.x,
+      this.height / 2,
+      this.position.y
+    );
+    this.carColliderMesh.rotation.set(0, this.angle, 0);
+
+    if (!target.children.includes(this.carColliderMesh)) {
+      target.add(this.carColliderMesh);
     }
   }
 

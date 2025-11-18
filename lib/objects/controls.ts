@@ -7,6 +7,7 @@
 export enum ControlType {
   HUMAN,
   AI,
+  NONE,
 }
 
 /**
@@ -45,6 +46,9 @@ export class Controls {
       case ControlType.AI:
         // Simple AI behaviour: drive forward by default
         this.forward = true;
+        break;
+      case ControlType.NONE:
+        // No input by default
         break;
     }
   }

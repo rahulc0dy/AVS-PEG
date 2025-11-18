@@ -33,7 +33,6 @@ export class World {
   roads: Envelope[];
 
   cars: Car[];
-  traffic: Car[];
 
   /** Cached Three.js mesh used for filled rendering; created lazily. */
   private roadBorderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
@@ -62,14 +61,22 @@ export class World {
 
     this.cars = [
       new Car(
-        new Vector2(100, 100),
-        30,
-        50,
+        new Vector2(0, 0),
+        10,
+        17.5,
+        7,
         ControlType.HUMAN,
         this.worldGroup
       ),
+      new Car(
+        new Vector2(20, 0),
+        10,
+        17.5,
+        7,
+        ControlType.NONE,
+        this.worldGroup
+      ),
     ];
-    this.traffic = [];
 
     // Build derived geometry immediately
     this.generate();
@@ -81,10 +88,10 @@ export class World {
    */
   update() {
     for (const car of this.cars) {
-      car.update(this.roadBorders, this.traffic);
-    }
-    for (const car of this.traffic) {
-      car.update(this.roadBorders, this.cars);
+      car.update(
+        this.roadBorders,
+        this.cars.filter((c) => c !== car)
+      );
     }
   }
 
