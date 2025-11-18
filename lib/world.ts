@@ -3,8 +3,8 @@ import { Edge } from "./primitives/edge";
 import { Envelope } from "./primitives/envelope";
 import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
-import { Car } from "./objects/car";
-import { ControlType } from "./objects/controls";
+import { Car } from "./car/car";
+import { ControlType } from "./car/controls";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
