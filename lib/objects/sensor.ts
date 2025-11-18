@@ -10,17 +10,33 @@ import {
   LineBasicMaterial,
 } from "three";
 
+/**
+ * Sensor suite attached to a `Car` that casts multiple rays and reports the
+ * closest intersection along each ray. The sensor does not perform physics
+ * itself — it only performs geometric intersection tests against other cars' polygons.
+ */
 export class Sensor {
+  /** Owning car instance (provides position and heading). */
   car: Car;
+  /** Number of rays to cast per update. */
   rayCount: number;
+  /** Maximum length of each ray in world units. */
   rayLength: number;
+  /** Angular spread (radians) across which rays are cast, centred on car heading. */
   raySpreadAngle: number;
 
+  /** Ray segments represented as `Edge`s (start/end Nodes in world coords). */
   rays: Edge[];
+  /** Cached intersection readings for each ray (null if no hit). */
   readings: (Intersection | null | undefined)[];
 
+  /** Three.js Group used to render debug lines for the rays. */
   private sensorGroup: Group;
 
+  /**
+   * Create a Sensor attached to `car`.
+   * @param car Owner car that provides position/heading for casting rays.
+   */
   constructor(car: Car) {
     this.car = car;
     this.rayCount = 10;
@@ -32,6 +48,13 @@ export class Sensor {
     this.sensorGroup = new Group();
   }
 
+  /**
+   * Recompute rays and their closest intersection with other vehicles.
+   *
+   * The `traffic` array contains other cars whose polygons are tested
+   * against each ray; `readings` is populated with the nearest hit (or
+   * null if none).
+   */
   update(traffic: Car[]) {
     this.castRays();
     this.readings = [];
@@ -40,7 +63,16 @@ export class Sensor {
     }
   }
 
+  /**
+   * Build the ray segments in world coordinates.
+   *
+   * Rays are evenly distributed across `raySpreadAngle` and rotated by the
+   * car's heading. Each ray is represented as an `Edge` (start/end `Node`).
+   * This method updates the `rays` array.
+   */
   private castRays() {
+    // Construct ray segments in world coordinates. Rays are distributed
+    // evenly across `raySpreadAngle` and rotated by the car's heading.
     this.rays = [];
     for (let i = 0; i < this.rayCount; i++) {
       const rayAngle =
@@ -59,6 +91,14 @@ export class Sensor {
     }
   }
 
+  /**
+   * Find the closest intersection point between `ray` and any polygon in
+   * `traffic`.
+   *
+   * @param ray - Ray segment to test
+   * @param traffic - Array of other cars whose polygons will be tested
+   * @returns The nearest `Intersection` along the ray, or `null` if none
+   */
   private getReading(ray: Edge, traffic: Car[]) {
     let touches = [];
 
@@ -86,8 +126,16 @@ export class Sensor {
       return touches.find((e) => e.offset == minOffset);
     }
   }
-
+  /**
+   * Draw debug lines for the sensor rays into `group`.
+   *
+   * Rays are drawn at world Y=2 and Node.y is mapped directly to Three.js
+   * Z when creating the line vertices.
+   *
+   * @param group Parent Three.js `Group` to which the debug lines are added
+   */
   draw(group: Group) {
+    // Add sensorGroup to the scene (once) and draw lines for each ray.
     if (!this.sensorGroup.parent) {
       group.add(this.sensorGroup);
     }
@@ -100,6 +148,7 @@ export class Sensor {
         ? { x: this.readings[i]!.x, y: this.readings[i]!.y }
         : this.rays[i].n2;
 
+      // Map Node.y directly to Three.js Z when drawing (sensor lines sit at y=2)
       const points = [
         this.rays[i].n1.x,
         2,
@@ -123,6 +172,7 @@ export class Sensor {
   }
 
   dispose() {
+    // Remove debug visuals and detach from parent.
     this.sensorGroup.clear();
     if (this.sensorGroup.parent) {
       this.sensorGroup.parent.remove(this.sensorGroup);

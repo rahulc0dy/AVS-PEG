@@ -11,32 +11,62 @@ import {
 import { Sensor } from "@/lib/objects/sensor";
 import { Controls, ControlType } from "@/lib/objects/controls";
 import { Polygon } from "@/lib/primitives/polygon";
-import { Edge } from "../primitives/edge";
 import { Node } from "../primitives/node";
 import { doPolygonsIntersect } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 
+/**
+ * Simulated vehicle with simple physics, optional sensors and a lazily
+ * loaded GLTF visual model.
+ *
+ * Responsibilities:
+ * - Maintain logical state (position, heading, speed)
+ * - Advance simulation each frame (`update` / `move`)
+ * - Provide a collision polygon used for intersection tests
+ * - Lazily load and render a 3D model and an optional collider mesh
+ *
+ * Coordinate convention: `position` is a `Vector2` (x, y) where `y` maps
+ * to Three.js Z when rendering.
+ */
 export class Car {
+  /** Position in world units. `y` maps to Three.js Z when rendering. */
   position: Vector2;
+  /** Vehicle width along the X axis. */
   breadth: number;
+  /** Vehicle length along the Z axis. */
   length: number;
+  /** Vehicle height along the Y axis. */
   height: number;
+  /** Current forward (+) / reverse (-) speed. */
   speed: number;
+  /** Per-frame acceleration applied when accelerating or reversing. */
   acceleration: number;
+  /** Maximum forward speed. */
   maxSpeed: number;
+  /** Friction applied each frame to reduce speed. */
   friction: number;
+  /** Heading angle in radians. */
   angle: number;
+  /** Whether the car has been damaged (collision detected). */
   damaged: boolean;
+  /** Optional sensor array attached to the car (null if none). */
   sensor: Sensor | null = null;
+  /** Input state (keyboard or AI) controlling this car. */
   controls: Controls;
+  /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
 
+  /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
+  /** Root group returned by the GLTF loader (null until loaded). */
   private model: Group | null = null;
+  /** Simple guard to prevent concurrent model loads. */
   private loadingModel = false;
 
+  /** Mesh used to visualize the car collider (optional, created lazily). */
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
 
+  /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
   constructor(
@@ -83,6 +113,12 @@ export class Car {
     }
   }
 
+  /**
+   * Check for collisions between this car and other vehicles.
+   *
+   * Iterates over the provided `traffic` array and returns `true` if the
+   * current car's collision polygon intersects any other's polygon.
+   */
   private assessDamage(traffic: Car[]): boolean {
     if (this.polygon === null) return false;
 
@@ -96,6 +132,12 @@ export class Car {
     return false;
   }
 
+  /**
+   * Construct a collision polygon representing this car's footprint.
+   *
+   * The polygon is computed from the car's centre position, dimensions and
+   * heading and returned as a `Polygon` suitable for intersection tests.
+   */
   private createPolygon(): Polygon {
     const points = [];
     const rad = Math.hypot(this.breadth, this.length) / 2;
@@ -127,6 +169,12 @@ export class Car {
     return new Polygon(points);
   }
 
+  /**
+   * Apply a single timestep of vehicle dynamics.
+   *
+   * Applies acceleration/reverse inputs, clamps speed, applies friction,
+   * handles turning (inverts when reversing) and updates position.
+   */
   private move() {
     if (this.controls.forward) {
       this.speed += this.acceleration;
@@ -167,6 +215,15 @@ export class Car {
     this.position.y -= Math.cos(this.angle) * this.speed;
   }
 
+  /**
+   * Render the car's sensors, 3D model and optional collider into `target`.
+   * The GLTF model is loaded lazily; `loadingModel` prevents duplicate
+   * concurrent loads.
+   *
+   * @param target Parent group where meshes are added
+   * @param url GLTF model URL
+   * @param loader Optional `GLTFLoader` to reuse
+   */
   draw(target: Group, url: string, loader?: GLTFLoader) {
     if (this.sensor) {
       this.sensor.draw(target);
@@ -196,7 +253,6 @@ export class Car {
 
     this.model.position.set(this.position.x, 0, this.position.y);
     this.model.rotation.set(0, this.angle, 0);
-
     if (!target.children.includes(this.model)) {
       target.add(this.model);
     }
@@ -227,6 +283,11 @@ export class Car {
     }
   }
 
+  /**
+   * Dispose Three.js resources used by this car and remove visuals from the
+   * scene. This frees geometries and materials owned by the car's model and
+   * collider mesh.
+   */
   dispose() {
     if (this.sensor) {
       this.sensor.dispose();
