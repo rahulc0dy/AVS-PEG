@@ -248,5 +248,11 @@ export class Car {
     });
     this.model = null;
     this.loadingModel = false;
+
+    if (this.carColliderMesh) {
+      this.carColliderMesh.geometry.dispose();
+      this.carColliderMesh.material.dispose();
+      this.carColliderMesh = null;
+    }
   }
 }
