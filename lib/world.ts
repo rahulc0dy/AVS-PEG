@@ -1,8 +1,10 @@
-import { Color, Group, Scene } from "three";
+import { Color, Group, Scene, Vector2 } from "three";
 import { Edge } from "./primitives/edge";
 import { Envelope } from "./primitives/envelope";
 import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
+import { Car } from "./car/car";
+import { ControlType } from "./car/controls";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -20,6 +22,8 @@ export class World {
   /** Road polygons generated from graph edges. */
   roads: Envelope[];
 
+  cars: Car[];
+
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
    *
@@ -31,7 +35,7 @@ export class World {
   constructor(
     graph: Graph,
     scene: Scene,
-    roadWidth: number = 30,
+    roadWidth: number = 40,
     roadRoundness: number = 8
   ) {
     this.graph = graph;
@@ -42,8 +46,37 @@ export class World {
     this.roads = [];
     this.worldGroup = new Group();
 
+    this.cars = [
+      new Car(
+        new Vector2(0, 0),
+        10,
+        17.5,
+        7,
+        ControlType.HUMAN,
+        this.worldGroup
+      ),
+      new Car(
+        new Vector2(20, 0),
+        10,
+        17.5,
+        7,
+        ControlType.NONE,
+        this.worldGroup
+      ),
+    ];
+
     // Build derived geometry immediately
     this.generate();
+  }
+
+  /**
+   * Update the world state: move cars and update their sensors.
+   * This function should be called once per frame.
+   */
+  update() {
+    for (const car of this.cars) {
+      car.update(this.cars.filter((c) => c !== car));
+    }
   }
 
   /**
@@ -82,5 +115,19 @@ export class World {
     }
 
     this.scene.add(this.worldGroup);
+  }
+
+  /**
+   * Dispose of any Three.js resources held by this world (geometry + material)
+   * and clear the cached mesh reference.
+   */
+  dispose() {
+    for (const car of this.cars) {
+      car.dispose();
+    }
+    this.worldGroup.clear();
+    if (this.worldGroup.parent) {
+      this.worldGroup.parent.remove(this.worldGroup);
+    }
   }
 }

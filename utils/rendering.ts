@@ -64,7 +64,7 @@ export const setupScene = (
   } = options;
 
   const { fov = 10, aspect = 16 / 9, near = 0.1, far = 10000 } = cameraConfig;
-  const { x = 0, y = 0, z = 5 } = cameraPosition;
+  const { x = 0, y = 100, z = 5 } = cameraPosition;
   if (!mount) throw new Error("Mount element not ready");
 
   // Scene + background
@@ -79,6 +79,7 @@ export const setupScene = (
     far
   );
   camera.position.set(x, y, z);
+  camera.lookAt(0, 0, 0);
 
   // Simple lighting for basic visibility
   const ambient = new AmbientLight(0xffffff, 0.6);

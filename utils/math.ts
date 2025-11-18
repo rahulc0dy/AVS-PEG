@@ -1,36 +1,37 @@
 import { Node } from "@/lib/primitives/node";
+import { Polygon } from "@/lib/primitives/polygon";
 
 /**
  * Euclidean distance between two nodes.
  * @param n1 - first point
  * @param n2 - second point
  */
-function distance(n1: Node, n2: Node): number {
+export function distance(n1: Node, n2: Node): number {
   return Math.hypot(n1.x - n2.x, n1.y - n2.y);
 }
 
 /** Component-wise addition of two nodes. */
-function add(n1: Node, n2: Node): Node {
+export function add(n1: Node, n2: Node): Node {
   return new Node(n1.x + n2.x, n1.y + n2.y);
 }
 
 /** Component-wise subtraction (n1 - n2). */
-function subtract(n1: Node, n2: Node): Node {
+export function subtract(n1: Node, n2: Node): Node {
   return new Node(n1.x - n2.x, n1.y - n2.y);
 }
 
 /** Midpoint between two nodes. */
-function average(n1: Node, n2: Node): Node {
+export function average(n1: Node, n2: Node): Node {
   return new Node((n1.x + n2.x) / 2, (n1.y + n2.y) / 2);
 }
 
 /** Magnitude (length) of a node vector. */
-function magnitude(n: Node): number {
+export function magnitude(n: Node): number {
   return Math.hypot(n.x, n.y);
 }
 
 /** Scale a node vector by a scalar. */
-function scale(n: Node, scaler: number): Node {
+export function scale(n: Node, scaler: number): Node {
   return new Node(n.x * scaler, n.y * scaler);
 }
 
@@ -38,7 +39,7 @@ function scale(n: Node, scaler: number): Node {
  * Normalize a vector to unit length.
  * Returns the zero vector when input has zero length (safe fallback).
  */
-function normalize(n: Node): Node {
+export function normalize(n: Node): Node {
   const mag = magnitude(n);
   if (mag === 0) {
     // Fallback: return zero vector unchanged
@@ -48,22 +49,22 @@ function normalize(n: Node): Node {
 }
 
 /** Dot product of two node vectors. */
-function dot(n1: Node, n2: Node): number {
+export function dot(n1: Node, n2: Node): number {
   return n1.x * n2.x + n1.y * n2.y;
 }
 
 /** Linear interpolation between two scalar values. */
-function lerp(a: number, b: number, t: number): number {
+export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
 /** Angle (radians) of a node vector measured from +X axis. */
-function angle(node: Node): number {
+export function angle(node: Node): number {
   return Math.atan2(node.y, node.x);
 }
 
 /** Translate a point by angle (radians) and distance (offset). */
-function translate(loc: Node, angle: number, offset: number): Node {
+export function translate(loc: Node, angle: number, offset: number): Node {
   return new Node(
     loc.x + Math.cos(angle) * offset,
     loc.y + Math.sin(angle) * offset
@@ -75,7 +76,7 @@ function translate(loc: Node, angle: number, offset: number): Node {
  * - `x`, `y`: intersection coordinates
  * - `offset`: parameter along the first segment (A->B) where the intersection lies (0..1)
  */
-type Intersection = { x: number; y: number; offset: number };
+export type Intersection = { x: number; y: number; offset: number };
 
 /**
  * Compute the intersection point (if any) between segments AB and CD.
@@ -83,7 +84,7 @@ type Intersection = { x: number; y: number; offset: number };
  * within their finite ranges. Uses a small EPSILON to tolerate floating-point
  * imprecision when testing for parallelism.
  */
-function getIntersection(
+export function getIntersection(
   A: Node,
   B: Node,
   C: Node,
@@ -114,11 +115,26 @@ function getIntersection(
   return { x, y, offset: t };
 }
 
+export function doPolygonsIntersect(polyA: Polygon, polyB: Polygon): boolean {
+  for (let i = 0; i < polyA.nodes.length; i++) {
+    const a1 = polyA.nodes[i];
+    const a2 = polyA.nodes[(i + 1) % polyA.nodes.length];
+    for (let j = 0; j < polyB.nodes.length; j++) {
+      const b1 = polyB.nodes[j];
+      const b2 = polyB.nodes[(j + 1) % polyB.nodes.length];
+      if (getIntersection(a1, a2, b1, b2)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Find the nearest node to `loc` within an optional `threshold`.
  * Returns the matching `Node` or `null` when none is found within the threshold.
  */
-function getNearestNode(
+export function getNearestNode(
   loc: Node,
   nodes: Node[],
   threshold: number = Number.MAX_SAFE_INTEGER
@@ -134,18 +150,3 @@ function getNearestNode(
   }
   return nearestNode;
 }
-
-export {
-  distance,
-  add,
-  subtract,
-  average,
-  normalize,
-  scale,
-  magnitude,
-  dot,
-  getIntersection,
-  angle,
-  translate,
-  getNearestNode,
-};

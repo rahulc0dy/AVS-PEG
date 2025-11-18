@@ -227,12 +227,19 @@ export default function WorldComponent({
       if (editorChanged) {
         world.draw();
       }
+
+      // Update worlds state every frame
+      world.update();
     };
 
     animate();
 
     return () => {
       mounted = false;
+      if (worldRef.current) {
+        worldRef.current.dispose();
+        worldRef.current = null;
+      }
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
@@ -240,5 +247,5 @@ export default function WorldComponent({
     };
   }, []);
 
-  return <div></div>;
+  return <></>;
 }
