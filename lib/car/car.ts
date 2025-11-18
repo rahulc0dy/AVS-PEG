@@ -107,9 +107,7 @@ export class Car {
     }
     if (this.sensor) {
       this.sensor.update(traffic);
-      const offsets = this.sensor.readings.map((s) =>
-        s == null ? 0 : 1 - s.offset
-      );
+      this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
     }
   }
 

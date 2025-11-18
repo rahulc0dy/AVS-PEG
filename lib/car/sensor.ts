@@ -100,7 +100,7 @@ export class Sensor {
    * @returns The nearest `Intersection` along the ray, or `null` if none
    */
   private getReading(ray: Edge, traffic: Car[]) {
-    let touches = [];
+    let touches: Intersection[] = [];
 
     for (let i = 0; i < traffic.length; i++) {
       const poly = traffic[i].polygon;
@@ -118,13 +118,13 @@ export class Sensor {
       }
     }
 
-    if (touches.length == 0) {
+    if (touches.length === 0) {
       return null;
-    } else {
-      const offsets = touches.map((e) => e.offset);
-      const minOffset = Math.min(...offsets);
-      return touches.find((e) => e.offset == minOffset);
     }
+
+    const offsets = touches.map((e) => e.offset);
+    const minOffset = Math.min(...offsets);
+    return touches.find((e) => e.offset == minOffset);
   }
   /**
    * Draw debug lines for the sensor rays into `group`.
@@ -139,7 +139,6 @@ export class Sensor {
     if (!this.sensorGroup.parent) {
       group.add(this.sensorGroup);
     }
-    this.sensorGroup.clear(); // Clear previous lines
 
     for (let i = 0; i < this.rayCount; i++) {
       if (!this.rays[i]) continue;
@@ -158,21 +157,54 @@ export class Sensor {
         endPos.y,
       ];
 
-      const geometry = new BufferGeometry();
-      geometry.setAttribute("position", new Float32BufferAttribute(points, 3));
+      let line = this.sensorGroup.children[i] as Line<
+        BufferGeometry,
+        LineBasicMaterial
+      >;
 
-      const material = new LineBasicMaterial({
-        color: this.readings[i] ? 0xff0000 : 0xffff00, // Red if hit, yellow otherwise
-        linewidth: 2,
-      });
+      if (line) {
+        // Update existing line
+        line.geometry.setAttribute(
+          "position",
+          new Float32BufferAttribute(points, 3)
+        );
+        line.material.color.set(this.readings[i] ? 0xff0000 : 0xffff00);
+        line.geometry.computeBoundingSphere(); // Important for frustum culling
+      } else {
+        // Create new line if it doesn't exist
+        const geometry = new BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new Float32BufferAttribute(points, 3)
+        );
+        const material = new LineBasicMaterial({
+          color: this.readings[i] ? 0xff0000 : 0xffff00,
+          linewidth: 2,
+        });
+        line = new Line(geometry, material);
+        this.sensorGroup.add(line);
+      }
+    }
 
-      const line = new Line(geometry, material);
-      this.sensorGroup.add(line);
+    // Remove any excess lines if rayCount was reduced
+    while (this.sensorGroup.children.length > this.rayCount) {
+      const line = this.sensorGroup.children.pop() as Line;
+      line.geometry.dispose();
+      (line.material as LineBasicMaterial).dispose();
     }
   }
 
   dispose() {
-    // Remove debug visuals and detach from parent.
+    // Dispose of all geometries and materials before removing the group.
+    this.sensorGroup.children.forEach((child) => {
+      const line = child as Line;
+      if (line.geometry) {
+        line.geometry.dispose();
+      }
+      if (line.material) {
+        (line.material as LineBasicMaterial).dispose();
+      }
+    });
     this.sensorGroup.clear();
     if (this.sensorGroup.parent) {
       this.sensorGroup.parent.remove(this.sensorGroup);

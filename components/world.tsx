@@ -236,6 +236,10 @@ export default function WorldComponent({
 
     return () => {
       mounted = false;
+      if (worldRef.current) {
+        worldRef.current.dispose();
+        worldRef.current = null;
+      }
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;

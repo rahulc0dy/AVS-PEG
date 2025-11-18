@@ -121,5 +121,13 @@ export class World {
    * Dispose of any Three.js resources held by this world (geometry + material)
    * and clear the cached mesh reference.
    */
-  dispose() {}
+  dispose() {
+    for (const car of this.cars) {
+      car.dispose();
+    }
+    this.worldGroup.clear();
+    if (this.worldGroup.parent) {
+      this.worldGroup.parent.remove(this.worldGroup);
+    }
+  }
 }
