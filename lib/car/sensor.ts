@@ -100,7 +100,7 @@ export class Sensor {
    * @returns The nearest `Intersection` along the ray, or `null` if none
    */
   private getReading(ray: Edge, traffic: Car[]) {
-    let touches: Intersection[] = [];
+    const touches: Intersection[] = [];
 
     for (let i = 0; i < traffic.length; i++) {
       const poly = traffic[i].polygon;
