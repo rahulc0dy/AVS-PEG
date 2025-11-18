@@ -68,34 +68,31 @@ export class Car {
     this.group = group;
   }
 
-  update(roadBorders: Edge[], traffic: Car[]) {
+  update(traffic: Car[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
       this.move();
       this.polygon = this.createPolygon();
-      this.damaged = this.assessDamage(roadBorders, traffic);
+      this.damaged = this.assessDamage(traffic);
     }
     if (this.sensor) {
-      this.sensor.update(roadBorders, traffic);
+      this.sensor.update(traffic);
       const offsets = this.sensor.readings.map((s) =>
         s == null ? 0 : 1 - s.offset
       );
     }
   }
 
-  private assessDamage(roadBorders: Edge[], traffic: Car[]): boolean {
+  private assessDamage(traffic: Car[]): boolean {
     if (this.polygon === null) return false;
-    for (let i = 0; i < roadBorders.length; i++) {
-      if (doPolygonsIntersect(this.polygon, new Polygon([roadBorders[i]]))) {
-        return true;
-      }
-    }
+
     for (let i = 0; i < traffic.length; i++) {
       if (traffic[i].polygon === null) continue;
       if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
         return true;
       }
     }
+
     return false;
   }
 

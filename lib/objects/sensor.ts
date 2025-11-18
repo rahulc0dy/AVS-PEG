@@ -32,11 +32,11 @@ export class Sensor {
     this.sensorGroup = new Group();
   }
 
-  update(roadBorders: Edge[], traffic: Car[]) {
+  update(traffic: Car[]) {
     this.castRays();
     this.readings = [];
     for (let i = 0; i < this.rays.length; i++) {
-      this.readings.push(this.getReading(this.rays[i], roadBorders, traffic));
+      this.readings.push(this.getReading(this.rays[i], traffic));
     }
   }
 
@@ -59,20 +59,8 @@ export class Sensor {
     }
   }
 
-  private getReading(ray: Edge, roadBorders: Edge[], traffic: Car[]) {
+  private getReading(ray: Edge, traffic: Car[]) {
     let touches = [];
-
-    for (let i = 0; i < roadBorders.length; i++) {
-      const touch = getIntersection(
-        ray.n1,
-        ray.n2,
-        roadBorders[i].n1,
-        roadBorders[i].n2
-      );
-      if (touch) {
-        touches.push(touch);
-      }
-    }
 
     for (let i = 0; i < traffic.length; i++) {
       const poly = traffic[i].polygon;
