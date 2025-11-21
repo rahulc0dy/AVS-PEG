@@ -1,7 +1,9 @@
+"use client";
+
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
   GridHelper,
@@ -12,6 +14,7 @@ import {
   Vector3,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
+import OsmModal from "@/components/osm-modal";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -37,6 +40,8 @@ export default function WorldComponent({
   camera,
   dom,
 }: WorldComponentProps) {
+  const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
+
   const graphRef = useRef<Graph | null>(null);
 
   /** Mutable ref holding the current `Graph` instance (used across effects). */
@@ -247,5 +252,14 @@ export default function WorldComponent({
     };
   }, []);
 
-  return <></>;
+  return (
+    <div>
+      {isOsmModalOpen && (
+        <OsmModal
+          isOpen={isOsmModalOpen}
+          onClose={() => setIsOsmModalOpen(false)}
+        />
+      )}
+    </div>
+  );
 }

@@ -4,7 +4,8 @@ import WorldComponent from "@/components/world";
 import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Scene } from "three";
-export default function CarPage() {
+
+export default function WorldPage() {
   /**
    * DOM container element used to mount the Three.js renderer canvas.
    * The ref is populated after the component mounts.
