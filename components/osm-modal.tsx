@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Modal from "@/components/modal";
 import { getRoadData } from "@/services/osm-service";
 import { Graph } from "@/lib/primitives/graph";
+import { parseRoadsFromOsmData } from "@/utils/osm";
 import { Node } from "@/lib/primitives/node";
 
 interface OsmModalProps {
@@ -30,10 +31,12 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
     setIsLoading(true);
     try {
       const res = await getRoadData(minLat, minLon, maxLat, maxLon);
-      if (graphRef.current) {
-        // Update the graph with the new data
-        graphRef.current.tryAddNode(new Node(0, 0));
-      }
+      // if (graphRef.current) {
+      //   // Update the graph with the new data
+      //   graphRef.current = parseRoadsFromOsmData(res);
+      //   graphRef.current.touch();
+      // }
+      graphRef.current?.tryAddNode(new Node(10, 10));
       onClose();
     } catch (err) {
       setError("An error occurred: " + (err as Error).message);

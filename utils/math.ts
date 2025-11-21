@@ -58,9 +58,17 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+export function invLerp(a: number, b: number, v: number): number {
+  return (v - a) / (b - a);
+}
+
 /** Angle (radians) of a node vector measured from +X axis. */
 export function angle(node: Node): number {
   return Math.atan2(node.y, node.x);
+}
+
+export function degToRad(degree: number): number {
+  return (degree * Math.PI) / 180;
 }
 
 /** Translate a point by angle (radians) and distance (offset). */
