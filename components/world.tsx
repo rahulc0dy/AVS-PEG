@@ -254,6 +254,8 @@ export default function WorldComponent({
 
   return (
     <div>
+      <button onClick={() => setIsOsmModalOpen(true)}>Import from OSM</button>
+
       {isOsmModalOpen && (
         <OsmModal
           isOpen={isOsmModalOpen}
