@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "@/components/modal";
 import { getRoadData } from "@/services/osm-service";
+import { Graph } from "@/lib/primitives/graph";
+import { Node } from "@/lib/primitives/node";
 
 interface OsmModalProps {
   isOpen: boolean;
   onClose: () => void;
+  graphRef: React.RefObject<Graph | null>;
 }
 
-const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose }) => {
+const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
   const [minLat, setMinLat] = useState(22.576851981848424);
   const [minLon, setMinLon] = useState(88.4058666229248);
   const [maxLat, setMaxLat] = useState(22.593168369979654);
@@ -18,11 +21,19 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    handleGetRoadData();
+  }, []);
+
   const handleGetRoadData = async () => {
     setError(null);
     setIsLoading(true);
     try {
       const res = await getRoadData(minLat, minLon, maxLat, maxLon);
+      if (graphRef.current) {
+        // Update the graph with the new data
+        graphRef.current.tryAddNode(new Node(0, 0));
+      }
       onClose();
     } catch (err) {
       setError("An error occurred: " + (err as Error).message);

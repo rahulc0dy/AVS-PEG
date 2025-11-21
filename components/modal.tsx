@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface ModalProps {
@@ -11,11 +11,34 @@ interface ModalProps {
 
 export default function Modal({ isOpen, onClose, children }: ModalProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+  const createdRef = useRef(false);
 
   // Mount check to ensure compatibility with SSR
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Ensure a portal container exists on the client. If a global
+  // `#modal-container` is present in the page use it; otherwise create
+  // one and clean it up on unmount (only if we created it).
+  useEffect(() => {
+    if (!isMounted) return;
+    let el = document.getElementById("modal-container") as HTMLElement | null;
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "modal-container";
+      document.body.appendChild(el);
+      createdRef.current = true;
+    }
+    setPortalEl(el);
+    return () => {
+      // only remove if we created it
+      if (createdRef.current && el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    };
+  }, [isMounted]);
 
   // Escape key closes modal only when open
   useEffect(() => {
@@ -31,7 +54,7 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
     };
   }, [isOpen, onClose]);
 
-  if (!isMounted || !isOpen) return null;
+  if (!isMounted || !isOpen || !portalEl) return null;
 
   return createPortal(
     <div
@@ -45,6 +68,6 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
         {children}
       </div>
     </div>,
-    document.getElementById("modal-container") as HTMLElement
+    portalEl
   );
 }
