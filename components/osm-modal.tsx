@@ -29,12 +29,14 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
     setIsLoading(true);
     try {
       const res = await getRoadData(minLat, minLon, maxLat, maxLon);
-      // if (graphRef.current) {
-      //   // Update the graph with the new data
-      //   graphRef.current = parseRoadsFromOsmData(res);
-      //   graphRef.current.touch();
-      // }
-      graphRef.current?.tryAddNode(new Node(10, 10));
+      const newGraph = parseRoadsFromOsmData(res);
+
+      if (graphRef.current) {
+        // Update the existing graph instance to maintain references held by World/Editor
+        graphRef.current.load(newGraph.getNodes(), newGraph.getEdges());
+        // Trigger an update in the WorldComponent loop
+        graphRef.current.touch();
+      }
       onClose();
     } catch (err) {
       setError("An error occurred: " + (err as Error).message);
