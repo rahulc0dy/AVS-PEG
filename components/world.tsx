@@ -15,6 +15,7 @@ import {
 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import OsmModal from "@/components/osm-modal";
+import Button from "@/components/ui/button";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -255,7 +256,11 @@ export default function WorldComponent({
 
   return (
     <div>
-      <button onClick={() => setIsOsmModalOpen(true)}>Import from OSM</button>
+      <div className="fixed bottom-4 left-4 z-10">
+        <Button onClick={() => setIsOsmModalOpen(true)} color="rose">
+          Import from OSM
+        </Button>
+      </div>
 
       {isOsmModalOpen && (
         <OsmModal
