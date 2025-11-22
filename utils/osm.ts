@@ -37,7 +37,7 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const deltaLat = maxLat - minLat;
   const deltaLon = maxLon - minLon;
   const aspectRatio = deltaLon / deltaLat;
-  const height = deltaLat * 111000;
+  const height = deltaLat * 111000 * 4;
   const width = height * aspectRatio * Math.cos(degToRad(maxLat));
 
   // 2. Create Nodes
