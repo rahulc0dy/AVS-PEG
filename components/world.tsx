@@ -222,7 +222,6 @@ export default function WorldComponent({
       // If the graph has changed since the last frame, regenerate world
       // geometry (envelopes, unions) and redraw.
       if (changes !== previousGraphChanges) {
-        // camera.lookAt(graph.getNodes()[100].x, 0, graph.getNodes()[100].y);
         world.generate();
         previousGraphChanges = changes;
         world.draw();

@@ -33,12 +33,30 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const maxLat = Math.max(...lats);
   const minLon = Math.min(...lons);
   const maxLon = Math.max(...lons);
-
   const deltaLat = maxLat - minLat;
   const deltaLon = maxLon - minLon;
+
+  // Handle degenerate bounding boxes (single point or line)
+  if (deltaLat === 0 || deltaLon === 0) {
+    // Can't create a proper 2D graph from a line or point
+    console.warn(
+      "Degenerate bounding box: all nodes are collinear or coincident"
+    );
+    return new Graph([], []);
+  }
+
   const aspectRatio = deltaLon / deltaLat;
-  const height = deltaLat * 111000 * 4;
-  const width = height * aspectRatio * Math.cos(degToRad(maxLat));
+
+  // Approximate meters per degree latitude: ~111km
+  const METERS_PER_DEGREE_LAT = 111000;
+  // Scale factor to convert to reasonable world coordinates (adjustable)
+  const SCALE_FACTOR = 4;
+
+  const height = deltaLat * METERS_PER_DEGREE_LAT * SCALE_FACTOR;
+
+  // Use center latitude for more accurate cosine correction
+  const centerLat = (minLat + maxLat) / 2;
+  const width = height * aspectRatio * Math.cos(degToRad(centerLat));
 
   // 2. Create Nodes
   for (const node of nodes) {

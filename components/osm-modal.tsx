@@ -6,7 +6,6 @@ import Button from "@/components/ui/button";
 import { getRoadData } from "@/services/osm-service";
 import { Graph } from "@/lib/primitives/graph";
 import { parseRoadsFromOsmData } from "@/utils/osm";
-import { Node } from "@/lib/primitives/node";
 import Link from "next/link";
 
 interface OsmModalProps {
@@ -127,7 +126,10 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
               type="number"
               step="any"
               value={maxLat}
-              onChange={(e) => setMaxLat(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.valueAsNumber;
+                if (!isNaN(val)) setMaxLat(val);
+              }}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>
@@ -140,7 +142,10 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
               type="number"
               step="any"
               value={minLong}
-              onChange={(e) => setMinLong(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.valueAsNumber;
+                if (!isNaN(val)) setMinLong(val);
+              }}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>
@@ -153,7 +158,10 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
               type="number"
               step="any"
               value={maxLong}
-              onChange={(e) => setMaxLong(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.valueAsNumber;
+                if (!isNaN(val)) setMaxLong(val);
+              }}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>
@@ -166,7 +174,10 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
               type="number"
               step="any"
               value={minLat}
-              onChange={(e) => setMinLat(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.valueAsNumber;
+                if (!isNaN(val)) setMinLat(val);
+              }}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>

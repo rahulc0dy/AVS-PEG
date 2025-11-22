@@ -28,11 +28,13 @@ const Modal = ({
   closeOnOutsideClick = true,
   className = "",
 }: ModalProps) => {
-  const [isMounted, setIsMounted] = useState(false);
+  const isMountedRef = useRef(false);
   const modalRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    setIsMounted(true);
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ const Modal = ({
     }
   };
 
-  if (!isMounted) return null;
+  if (typeof window === "undefined") return null;
 
   if (!isOpen) return null;
 

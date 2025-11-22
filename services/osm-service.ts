@@ -56,21 +56,25 @@ export async function getRoadData(
             out skel;
         `;
 
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    body: "data=" + encodeURIComponent(query),
-    headers: {
-      // Indicate form-encoded payload; Overpass accepts plain body too,
-      // but adding content-type helps some proxies.
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-  if (!res.ok) throw new Error("Failed to fetch OSM data");
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: "data=" + encodeURIComponent(query),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "User-Agent": "AVS-PEG/1.0 (github.com/rahulc0dy/AVS-PEG)", // Replace with actual contact
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  const json = await res.json();
-
-  console.log("OSM data fetched:", json);
-
-  return json;
+    if (!res.ok) throw new Error("Failed to fetch OSM data");
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
 }

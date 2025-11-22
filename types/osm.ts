@@ -38,7 +38,7 @@ export interface NodeElement extends BaseElement {
   lat: number;
   lon: number;
   // Accept extra properties that may be present in some responses.
-  [extra: string]: any;
+  [extra: string]: unknown;
 }
 
 /**
