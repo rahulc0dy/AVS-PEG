@@ -257,7 +257,7 @@ export default function WorldComponent({
   return (
     <div>
       <div className="fixed bottom-4 left-4 z-10">
-        <Button onClick={() => setIsOsmModalOpen(true)} color="rose">
+        <Button onClick={() => setIsOsmModalOpen(true)} color="teal">
           Import from OSM
         </Button>
       </div>

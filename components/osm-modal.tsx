@@ -15,20 +15,57 @@ interface OsmModalProps {
   graphRef: React.RefObject<Graph | null>;
 }
 
+interface BoundingBox {
+  minLat: number;
+  minLong: number;
+  maxLat: number;
+  maxLong: number;
+}
+
 const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
-  const [minLat, setMinLat] = useState(22.576851981848424);
-  const [minLon, setMinLon] = useState(88.4058666229248);
-  const [maxLat, setMaxLat] = useState(22.593168369979654);
-  const [maxLon, setMaxLon] = useState(88.42663764953615);
+  const [minLat, setMinLat] = useState(22.574181);
+  const [minLong, setMinLong] = useState(88.410046);
+  const [maxLat, setMaxLat] = useState(22.57859);
+  const [maxLong, setMaxLong] = useState(88.418468);
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const saveBbox = () => {
+    localStorage.setItem(
+      "b-box",
+      JSON.stringify({
+        minLat,
+        minLong,
+        maxLat,
+        maxLong,
+      })
+    );
+  };
+
+  const loadBbox = () => {
+    const bBoxStr = localStorage.getItem("b-box");
+    if (bBoxStr) {
+      try {
+        const bBox = JSON.parse(bBoxStr) as BoundingBox;
+        setMinLat(bBox.minLat);
+        setMinLong(bBox.minLong);
+        setMaxLat(bBox.maxLat);
+        setMaxLong(bBox.maxLong);
+      } catch (e) {
+        console.error("Failed to parse bounding box from local storage", e);
+      }
+    }
+  };
+
   const handleGetRoadData = async () => {
     setError(null);
     setIsLoading(true);
+
+    saveBbox();
+
     try {
-      const res = await getRoadData(minLat, minLon, maxLat, maxLon);
+      const res = await getRoadData(minLat, minLong, maxLat, maxLong);
       const newGraph = parseRoadsFromOsmData(res);
 
       if (graphRef.current) {
@@ -44,6 +81,10 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadBbox();
+  }, []);
 
   return (
     <Modal
@@ -98,8 +139,8 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
             <input
               type="number"
               step="any"
-              value={minLon}
-              onChange={(e) => setMinLon(parseFloat(e.target.value))}
+              value={minLong}
+              onChange={(e) => setMinLong(parseFloat(e.target.value))}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>
@@ -111,8 +152,8 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
             <input
               type="number"
               step="any"
-              value={maxLon}
-              onChange={(e) => setMaxLon(parseFloat(e.target.value))}
+              value={maxLong}
+              onChange={(e) => setMaxLong(parseFloat(e.target.value))}
               className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             />
           </div>

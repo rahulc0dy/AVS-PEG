@@ -1,17 +1,33 @@
 import { Edge } from "@/lib/primitives/edge";
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { isNode, NodeElement, OsmResponse } from "@/types/osm";
+import { isNode, NodeElement, OsmResponse, WayElement } from "@/types/osm";
 import { degToRad, invLerp } from "@/utils/math";
 
 export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
-  const osmNodes: Map<number, { node: Node }> = new Map();
-  const osmEdges: Map<number, { edge: Edge }> = new Map();
+  const osmNodes: Map<number, Node> = new Map();
+  const segments: Edge[] = [];
 
-  const nodes = osmData.elements.filter((e) => isNode(e)) as NodeElement[];
+  const rawNodes = osmData.elements.filter((e) => isNode(e)) as NodeElement[];
+  const ways = osmData.elements.filter((e) => e.type === "way") as WayElement[];
+
+  // 1. Filter out nodes that aren't part of any way (road)
+  // This prevents rendering thousands of unrelated points (trees, buildings, etc.)
+  const usedNodeIds = new Set<number>();
+  for (const way of ways) {
+    for (const id of way.nodes) {
+      usedNodeIds.add(id);
+    }
+  }
+
+  const nodes = rawNodes.filter((n) => usedNodeIds.has(n.id));
 
   const lats = nodes.map((n) => n.lat);
   const lons = nodes.map((n) => n.lon);
+
+  if (lats.length === 0 || lons.length === 0) {
+    return new Graph([], []);
+  }
 
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
@@ -21,23 +37,30 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const deltaLat = maxLat - minLat;
   const deltaLon = maxLon - minLon;
   const aspectRatio = deltaLon / deltaLat;
-  const height = deltaLat * 111000 * 10;
+  const height = deltaLat * 111000;
   const width = height * aspectRatio * Math.cos(degToRad(maxLat));
 
+  // 2. Create Nodes
   for (const node of nodes) {
-    const y = invLerp(maxLat, minLat, node.lat) * height;
-    const x = invLerp(minLon, maxLon, node.lon) * width;
+    // Center the graph at (0,0) by offsetting by half width/height
+    const y = invLerp(maxLat, minLat, node.lat) * height - height / 2;
+    const x = invLerp(minLon, maxLon, node.lon) * width - width / 2;
 
-    osmNodes.set(node.id, { node: new Node(x, y) });
+    osmNodes.set(node.id, new Node(x, y));
   }
 
-  osmNodes.set(0, { node: new Node(0, 0) }); // Add origin for testing
+  // 3. Create Segments from Ways
+  for (const way of ways) {
+    const wayIds = way.nodes;
+    for (let i = 1; i < wayIds.length; i++) {
+      const prevNode = osmNodes.get(wayIds[i - 1]);
+      const currNode = osmNodes.get(wayIds[i]);
 
-  const graph = new Graph(
-    Array.from(osmNodes.values()).map((v) => v.node),
-    []
-  );
+      if (prevNode && currNode) {
+        segments.push(new Edge(prevNode, currNode));
+      }
+    }
+  }
 
-  console.log(graph);
-  return graph;
+  return new Graph(Array.from(osmNodes.values()), segments);
 }
