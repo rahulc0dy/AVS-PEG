@@ -5,6 +5,8 @@ import { Polygon } from "./primitives/polygon";
 import { Graph } from "./primitives/graph";
 import { Car } from "./car/car";
 import { ControlType } from "./car/controls";
+import { TrafficLight } from "./markings/traffic-light";
+import { Node } from "./primitives/node";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -23,6 +25,7 @@ export class World {
   roads: Envelope[];
 
   cars: Car[];
+  trafficLights: TrafficLight[];
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -65,6 +68,8 @@ export class World {
       ),
     ];
 
+    this.trafficLights = [new TrafficLight(new Node(50, 50), this.worldGroup)];
+
     // Build derived geometry immediately
     this.generate();
   }
@@ -76,6 +81,9 @@ export class World {
   update() {
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
+    }
+    for (const light of this.trafficLights) {
+      light.update();
     }
   }
 
