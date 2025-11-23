@@ -28,14 +28,7 @@ const Modal = ({
   closeOnOutsideClick = true,
   className = "",
 }: ModalProps) => {
-  const isMountedRef = useRef(false);
   const modalRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

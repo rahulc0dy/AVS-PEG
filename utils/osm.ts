@@ -1,7 +1,13 @@
 import { Edge } from "@/lib/primitives/edge";
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { isNode, NodeElement, OsmResponse, WayElement } from "@/types/osm";
+import {
+  isNode,
+  isWay,
+  NodeElement,
+  OsmResponse,
+  WayElement,
+} from "@/types/osm";
 import { degToRad, invLerp } from "@/utils/math";
 
 /**
@@ -29,7 +35,7 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const segments: Edge[] = [];
 
   const rawNodes = osmData.elements.filter((e) => isNode(e)) as NodeElement[];
-  const ways = osmData.elements.filter((e) => e.type === "way") as WayElement[];
+  const ways = osmData.elements.filter((e) => isWay(e)) as WayElement[];
 
   // 1. Filter out nodes that aren't part of any way (road)
   // This prevents rendering thousands of unrelated points (trees, buildings, etc.)

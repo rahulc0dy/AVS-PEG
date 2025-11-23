@@ -119,7 +119,7 @@ export function lerp(a: number, b: number, t: number): number {
  * @returns normalized parameter between -Infinity..+Infinity (commonly 0..1)
  */
 export function invLerp(a: number, b: number, v: number): number {
-  if (a == b) return 0;
+  if (a === b) return 0;
   return (v - a) / (b - a);
 }
 
