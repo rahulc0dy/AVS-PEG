@@ -17,6 +17,7 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
 import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
 import Image from "next/image";
+import { EditorMode } from "@/types/editor";
 
 /**
  * Props for the `WorldComponent` React component.
