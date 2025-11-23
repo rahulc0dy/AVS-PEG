@@ -3,6 +3,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 
 /**
  * Euclidean distance between two nodes.
+ *
  * @param n1 - first point
  * @param n2 - second point
  */
@@ -10,34 +11,67 @@ export function distance(n1: Node, n2: Node): number {
   return Math.hypot(n1.x - n2.x, n1.y - n2.y);
 }
 
-/** Component-wise addition of two nodes. */
+/**
+ * Component-wise addition of two nodes.
+ *
+ * @param n1 - first node
+ * @param n2 - second node
+ * @returns a new `Node` representing `n1 + n2`
+ */
 export function add(n1: Node, n2: Node): Node {
   return new Node(n1.x + n2.x, n1.y + n2.y);
 }
 
-/** Component-wise subtraction (n1 - n2). */
+/**
+ * Component-wise subtraction (n1 - n2).
+ *
+ * @param n1 - minuend node
+ * @param n2 - subtrahend node
+ * @returns a new `Node` representing `n1 - n2`
+ */
 export function subtract(n1: Node, n2: Node): Node {
   return new Node(n1.x - n2.x, n1.y - n2.y);
 }
 
-/** Midpoint between two nodes. */
+/**
+ * Midpoint between two nodes.
+ *
+ * @param n1 - first point
+ * @param n2 - second point
+ * @returns a new `Node` at the midpoint of `n1` and `n2`
+ */
 export function average(n1: Node, n2: Node): Node {
   return new Node((n1.x + n2.x) / 2, (n1.y + n2.y) / 2);
 }
 
-/** Magnitude (length) of a node vector. */
+/**
+ * Magnitude (length) of a node vector.
+ *
+ * @param n - vector node
+ * @returns the Euclidean length of `n`
+ */
 export function magnitude(n: Node): number {
   return Math.hypot(n.x, n.y);
 }
 
-/** Scale a node vector by a scalar. */
+/**
+ * Scale a node vector by a scalar.
+ *
+ * @param n - input vector
+ * @param scaler - scalar multiplier
+ * @returns a new `Node` scaled by `scaler`
+ */
 export function scale(n: Node, scaler: number): Node {
   return new Node(n.x * scaler, n.y * scaler);
 }
 
 /**
- * Normalize a vector to unit length.
- * Returns the zero vector when input has zero length (safe fallback).
+ * Normalize a vector to unit length. Returns the zero vector when input has
+ * zero length (safe fallback).
+ *
+ * @param n - input vector
+ * @returns a new `Node` normalized to length 1, or the zero vector if input
+ * has zero magnitude
  */
 export function normalize(n: Node): Node {
   const mag = magnitude(n);
@@ -48,22 +82,75 @@ export function normalize(n: Node): Node {
   return scale(n, 1 / mag);
 }
 
-/** Dot product of two node vectors. */
+/**
+ * Dot product of two node vectors.
+ *
+ * @param n1 - first vector
+ * @param n2 - second vector
+ * @returns the scalar dot product `n1 · n2`
+ */
 export function dot(n1: Node, n2: Node): number {
   return n1.x * n2.x + n1.y * n2.y;
 }
 
-/** Linear interpolation between two scalar values. */
+/**
+ * Linear interpolation between two scalar values.
+ *
+ * @param a - start value
+ * @param b - end value
+ * @param t - interpolation parameter (commonly 0..1)
+ * @returns interpolated value at `t`
+ */
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-/** Angle (radians) of a node vector measured from +X axis. */
+/**
+ * Inverse linear interpolation.
+ *
+ * Given a range `[a, b]` and a value `v`, returns the normalized parameter
+ * `t` such that `lerp(a, b, t) === v` when `a !== b`.
+ *
+ * Returns `0` when `a === b` to avoid division by zero.
+ *
+ * @param a - start of range
+ * @param b - end of range
+ * @param v - value within the range
+ * @returns normalized parameter between -Infinity..+Infinity (commonly 0..1)
+ */
+export function invLerp(a: number, b: number, v: number): number {
+  if (a === b) return 0;
+  return (v - a) / (b - a);
+}
+
+/**
+ * Angle (radians) of a node vector measured from the +X axis.
+ *
+ * @param node - input vector
+ * @returns angle in radians (range -PI..PI)
+ */
 export function angle(node: Node): number {
   return Math.atan2(node.y, node.x);
 }
 
-/** Translate a point by angle (radians) and distance (offset). */
+/**
+ * Convert degrees to radians.
+ *
+ * @param degree - angle in degrees
+ * @returns angle in radians
+ */
+export function degToRad(degree: number): number {
+  return (degree * Math.PI) / 180;
+}
+
+/**
+ * Translate a point by an angle (radians) and distance (offset).
+ *
+ * @param loc - starting location
+ * @param angle - direction in radians
+ * @param offset - distance to translate
+ * @returns a new `Node` translated from `loc` by the given angle and offset
+ */
 export function translate(loc: Node, angle: number, offset: number): Node {
   return new Node(
     loc.x + Math.cos(angle) * offset,
@@ -83,6 +170,12 @@ export type Intersection = { x: number; y: number; offset: number };
  * Returns `null` when segments are parallel, coincident, or do not intersect
  * within their finite ranges. Uses a small EPSILON to tolerate floating-point
  * imprecision when testing for parallelism.
+ *
+ * @param A - first endpoint of segment AB
+ * @param B - second endpoint of segment AB
+ * @param C - first endpoint of segment CD
+ * @param D - second endpoint of segment CD
+ * @returns an `Intersection` object when segments intersect, otherwise `null`
  */
 export function getIntersection(
   A: Node,
@@ -115,6 +208,20 @@ export function getIntersection(
   return { x, y, offset: t };
 }
 
+/**
+ * Test whether two polygons intersect.
+ *
+ * This performs an edge-edge intersection test by checking every segment of
+ * `polyA` against every segment of `polyB`. The function returns `true` as
+ * soon as any pair of segments intersect. This is a conservative and simple
+ * test; it does not check for polygon containment without edge intersections
+ * (use additional winding/point-in-polygon checks if containment must be
+ * detected).
+ *
+ * @param polyA - first polygon
+ * @param polyB - second polygon
+ * @returns `true` when any edges intersect, otherwise `false`
+ */
 export function doPolygonsIntersect(polyA: Polygon, polyB: Polygon): boolean {
   for (let i = 0; i < polyA.nodes.length; i++) {
     const a1 = polyA.nodes[i];
@@ -132,7 +239,13 @@ export function doPolygonsIntersect(polyA: Polygon, polyB: Polygon): boolean {
 
 /**
  * Find the nearest node to `loc` within an optional `threshold`.
+ *
  * Returns the matching `Node` or `null` when none is found within the threshold.
+ *
+ * @param loc - query location
+ * @param nodes - candidate nodes to search
+ * @param threshold - maximum allowed distance (defaults to a very large value)
+ * @returns the nearest `Node` within `threshold`, or `null` if none found
  */
 export function getNearestNode(
   loc: Node,

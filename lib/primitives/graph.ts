@@ -45,6 +45,22 @@ export class Graph {
   }
 
   /**
+   * Load new nodes and edges, replacing the current state.
+   * Disposes of existing Three.js resources to prevent memory leaks.
+   * @param nodes New nodes
+   * @param edges New edges
+   */
+  load(nodes: Node[], edges: Edge[]) {
+    // Dispose old resources
+    for (const node of this.nodes) node.dispose();
+    for (const edge of this.edges) edge.dispose();
+
+    this.nodes = nodes;
+    this.edges = edges;
+    this.incChanges();
+  }
+
+  /**
    * Mark the graph as modified (increment change count).
    */
   touch() {
