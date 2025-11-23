@@ -8,12 +8,36 @@ import { Graph } from "@/lib/primitives/graph";
 import { parseRoadsFromOsmData } from "@/utils/osm";
 import Link from "next/link";
 
+/**
+ * OsmModal component
+ *
+ * This modal allows the user to enter a geographic bounding box (min/max
+ * latitude and longitude) and load OpenStreetMap (OSM) road data for that
+ * region. The modal persists the last-used bounding box to `localStorage`
+ * under the key `b-box` and will load it when the component mounts.
+ *
+ * The loaded OSM data is parsed into a `Graph` instance and applied to the
+ * `graphRef` passed by the parent. The existing graph instance is updated in
+ * place to ensure references held elsewhere in the app remain intact.
+ */
+
+/**
+ * Props for `OsmModal`.
+ *
+ * - `isOpen`: whether the modal is visible.
+ * - `onClose`: callback to close the modal.
+ * - `graphRef`: a React ref pointing to the current `Graph` instance; used
+ *   to load parsed OSM data without replacing the object reference.
+ */
 interface OsmModalProps {
   isOpen: boolean;
   onClose: () => void;
   graphRef: React.RefObject<Graph | null>;
 }
 
+/**
+ * A simple bounding-box shape persisted to `localStorage`.
+ */
 interface BoundingBox {
   minLat: number;
   minLong: number;
@@ -31,29 +55,48 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const saveBbox = () => {
-    localStorage.setItem(
-      "b-box",
-      JSON.stringify({
-        minLat,
-        minLong,
-        maxLat,
-        maxLong,
-      })
-    );
+    // Persist the current bounding box so the user doesn't have to re-enter
+    // values on the next visit.
+    try {
+      localStorage.setItem(
+        "b-box",
+        JSON.stringify({
+          minLat,
+          minLong,
+          maxLat,
+          maxLong,
+        })
+      );
+    } catch (e) {
+      // localStorage may throw (private mode, quota exceeded); fail silently
+      // but log for debugging.
+      // eslint-disable-next-line no-console
+      console.warn("Could not save bounding box to localStorage", e);
+    }
   };
 
   const loadBbox = () => {
-    const bBoxStr = localStorage.getItem("b-box");
-    if (bBoxStr) {
-      try {
-        const bBox = JSON.parse(bBoxStr) as BoundingBox;
+    // Attempt to restore the saved bounding box. If parsing fails, ignore and
+    // keep defaults so the modal is still usable.
+    try {
+      const bBoxStr = localStorage.getItem("b-box");
+      if (!bBoxStr) return;
+      const bBox = JSON.parse(bBoxStr) as BoundingBox;
+      // Basic validation: ensure numbers exist before applying
+      if (
+        typeof bBox.minLat === "number" &&
+        typeof bBox.minLong === "number" &&
+        typeof bBox.maxLat === "number" &&
+        typeof bBox.maxLong === "number"
+      ) {
         setMinLat(bBox.minLat);
         setMinLong(bBox.minLong);
         setMaxLat(bBox.maxLat);
         setMaxLong(bBox.maxLong);
-      } catch (e) {
-        console.error("Failed to parse bounding box from local storage", e);
       }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to parse bounding box from local storage", e);
     }
   };
 
@@ -64,18 +107,25 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
     saveBbox();
 
     try {
+      // Fetch raw OSM data for the bounding box and parse it into the project's
+      // Graph format. The service function `getRoadData` handles the network
+      // request; `parseRoadsFromOsmData` converts the response into a Graph.
       const res = await getRoadData(minLat, minLong, maxLat, maxLong);
       const newGraph = parseRoadsFromOsmData(res);
 
       if (graphRef.current) {
-        // Update the existing graph instance to maintain references held by World/Editor
+        // Update the existing graph instance in-place so other components
+        // holding the same reference continue to work without re-mounts.
         graphRef.current.load(newGraph.getNodes(), newGraph.getEdges());
-        // Trigger an update in the WorldComponent loop
-        graphRef.current.touch();
       }
       onClose();
     } catch (err) {
-      setError("An error occurred: " + (err as Error).message);
+      // Surface a human-readable message to the user while logging details
+      // to the console for debugging.
+      const message = err instanceof Error ? err.message : String(err);
+      setError("An error occurred: " + message);
+      // eslint-disable-next-line no-console
+      console.error("Error loading OSM data", err);
     } finally {
       setIsLoading(false);
     }
@@ -112,11 +162,19 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       }
     >
       <div className="space-y-4">
+        {/* Error banner: shown when an error message exists */}
         {error && (
           <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
             {error}
           </div>
         )}
+
+        {/*
+          Input grid for bounding box values. The layout is three columns:
+          - left: Min Lon (West)
+          - center: Max Lat (North) and Min Lat (South)
+          - right: Max Lon (East)
+        */}
         <div className="grid grid-cols-3 gap-4 items-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="col-start-2 space-y-1">
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
@@ -182,8 +240,12 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
             />
           </div>
         </div>
+
+        {/* Helpful external link for exporting a bounding box from OSM */}
         <Link
           href={"https://www.openstreetmap.org/export"}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-xs text-gray-400 float-right align-bottom"
         >
           Export from OpenStreetMaps

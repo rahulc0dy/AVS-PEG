@@ -4,6 +4,26 @@ import { Node } from "@/lib/primitives/node";
 import { isNode, NodeElement, OsmResponse, WayElement } from "@/types/osm";
 import { degToRad, invLerp } from "@/utils/math";
 
+/**
+ * Parse OpenStreetMap (OSM) JSON response into the project's `Graph` format.
+ *
+ * The function performs the following steps:
+ * 1. Extract node elements and way elements from the `osmData.elements` array.
+ * 2. Filter nodes to only those referenced by any way (reduces noise).
+ * 3. Compute a bounding box and convert lat/lon coordinates to centered
+ *    world coordinates (meters) using a simple equirectangular approximation
+ *    with a cosine correction for longitude at the center latitude.
+ * 4. Create `Node` instances for each used OSM node and `Edge` instances
+ *    for consecutive node pairs in each way.
+ *
+ * Notes:
+ * - Uses a fixed approximate value for meters-per-degree latitude (~111km).
+ * - Returns an empty Graph when the data is empty or when the bounding box
+ *   is degenerate (all nodes collinear or coincident).
+ *
+ * @param osmData - parsed OSM JSON response (with `elements` array)
+ * @returns a `Graph` containing nodes and edges derived from OSM ways
+ */
 export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const osmNodes: Map<number, Node> = new Map();
   const segments: Edge[] = [];
