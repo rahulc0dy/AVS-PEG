@@ -16,6 +16,7 @@ import {
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
+import Image from "next/image";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -45,6 +46,8 @@ export default function WorldComponent({
 
   const graphRef = useRef<Graph | null>(null);
 
+  const modeRef = useRef<EditorMode>("graph");
+
   /** Mutable ref holding the current `Graph` instance (used across effects). */
   const worldRef = useRef<World | null>(null);
   /** Mutable ref holding the editor instance responsible for editing the graph. */
@@ -62,6 +65,41 @@ export default function WorldComponent({
   const gridRef = useRef<GridHelper | null>(null);
   /** requestAnimationFrame id returned by `requestAnimationFrame`. */
   const frameRef = useRef<number | null>(null);
+
+  /* Button refs */
+  const graphButton = useRef<HTMLButtonElement | null>(null);
+  const trafficSignalButton = useRef<HTMLButtonElement | null>(null);
+
+  const setMode = (mode: EditorMode) => {
+    disableEditors();
+    modeRef.current = mode;
+
+    // Reset button styles (grayscale all)
+    if (graphButton.current)
+      graphButton.current.style.filter = "grayscale(100%)";
+    if (trafficSignalButton.current)
+      trafficSignalButton.current.style.filter = "grayscale(100%)";
+
+    // Enable specific editor and highlight button
+    switch (mode) {
+      case "graph":
+        if (graphButton.current) graphButton.current.style.filter = "";
+        graphEditorRef.current?.enable();
+        break;
+      case "stop":
+        if (trafficSignalButton.current)
+          trafficSignalButton.current.style.filter = "";
+        // stopEditorRef.current?.enable();
+        break;
+      case "crossing":
+        // crossingEditorRef.current?.enable();
+        break;
+    }
+  };
+
+  const disableEditors = () => {
+    graphEditorRef.current?.disable();
+  };
 
   // Setup OrbitControls, Visual Grid
   useEffect(() => {
@@ -154,33 +192,59 @@ export default function WorldComponent({
     const world = new World(graph, scene);
     worldRef.current = world;
 
+    setMode("graph");
+
     const handlePointerMove = (evt: PointerEvent) => {
       updatePointer(evt);
-      graphEditor.handlePointerMove(getIntersectPoint());
+      const point = getIntersectPoint();
+
+      switch (modeRef.current) {
+        case "graph":
+          graphEditor.handlePointerMove(point);
+          break;
+        case "stop":
+          // stopEditor.handlePointerMove(point);
+          break;
+      }
     };
 
     const handlePointerDown = (evt: PointerEvent) => {
       updatePointer(evt);
       const intersectionPoint = getIntersectPoint();
 
-      switch (evt.button) {
-        case 0: // Left button
-          graphEditor.handleLeftClick(intersectionPoint);
-          break;
-        case 2: // Right button
-          graphEditor.handleRightClick(intersectionPoint);
-          break;
+      if (evt.button === 0) {
+        // Left button
+        switch (modeRef.current) {
+          case "graph":
+            graphEditor.handleLeftClick(intersectionPoint);
+            break;
+          case "stop":
+            // stopEditor.handleLeftClick(intersectionPoint);
+            break;
+        }
+      } else if (evt.button === 2) {
+        // Right button
+        switch (modeRef.current) {
+          case "graph":
+            graphEditor.handleRightClick(intersectionPoint);
+            break;
+          case "stop":
+            // stopEditor.handleRightClick(intersectionPoint);
+            break;
+        }
       }
     };
 
     const handlePointerUp = (evt: PointerEvent) => {
       updatePointer(evt);
       const intersectionPoint = getIntersectPoint();
-      graphEditor.handleClickRelease(intersectionPoint);
+      // Usually only graph editor needs drag release, but others might too
+      if (modeRef.current === "graph") {
+        graphEditor.handleClickRelease(intersectionPoint);
+      }
     };
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
-
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
@@ -256,8 +320,40 @@ export default function WorldComponent({
   return (
     <div>
       <div className="fixed bottom-4 left-4 z-10">
-        <Button onClick={() => setIsOsmModalOpen(true)} color="teal">
+        <Button
+          onClick={() => setIsOsmModalOpen(true)}
+          color="teal"
+          className="text-xs"
+        >
           Import from OSM
+        </Button>
+      </div>
+      <div className="fixed bottom-4 left-0 right-0 flex items-center justify-center gap-5">
+        <Button
+          onClick={() => setMode("graph")}
+          color="white"
+          ref={graphButton}
+        >
+          <Image
+            src={"/icons/graph.png"}
+            alt="graph"
+            width={30}
+            height={50}
+            className="size-6"
+          />
+        </Button>
+        <Button
+          onClick={() => setMode("traffic-lights")}
+          color="white"
+          ref={trafficSignalButton}
+        >
+          <Image
+            src={"/icons/traffic-lights.png"}
+            alt="graph"
+            width={30}
+            height={50}
+            className="size-6 rotate-90"
+          />
         </Button>
       </div>
 

@@ -55,6 +55,17 @@ export class GraphEditor {
     this.lastGraphChanges = -1;
   }
 
+  enable() {
+    this.graphEditorGroup.visible = true;
+  }
+
+  disable() {
+    this.graphEditorGroup.visible = false;
+    this.selectedNode = null;
+    this.hoveredNode = null;
+    this.dragging = false;
+  }
+
   /**
    * Select `node`. If another node was already selected, attempt to create
    * an edge between them.
