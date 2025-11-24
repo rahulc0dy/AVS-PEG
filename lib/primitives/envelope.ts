@@ -3,6 +3,7 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Color, Group } from "three";
+import { EnvelopeJson } from "@/types/save";
 
 /**
  * The Envelope class generates a polygon that represents a "thickened"
@@ -83,5 +84,17 @@ export class Envelope {
    */
   draw(group: Group, config: { fillColor: Color }) {
     this.poly.draw(group, config);
+  }
+
+  toJson() {
+    return {
+      skeleton: this.skeleton.toJson(),
+      poly: this.poly.toJson(),
+    };
+  }
+
+  fromJson(json: EnvelopeJson) {
+    this.skeleton.fromJson(json.skeleton);
+    this.poly.fromJson(json.poly);
   }
 }

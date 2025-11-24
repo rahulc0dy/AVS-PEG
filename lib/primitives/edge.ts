@@ -1,4 +1,5 @@
 import { Node } from "@/lib/primitives/node";
+import { EdgeJson } from "@/types/save";
 import {
   distance,
   subtract,
@@ -237,5 +238,21 @@ export class Edge {
       this.line.material.dispose();
       this.line = null;
     }
+  }
+
+  toJson() {
+    return {
+      n1: this.n1.toJson(),
+      n2: this.n2.toJson(),
+      isDirected: this.isDirected,
+    };
+  }
+
+  fromJson(json: EdgeJson) {
+    this.dispose();
+
+    this.n1.fromJson(json.n1);
+    this.n2.fromJson(json.n2);
+    this.isDirected = json.isDirected ?? false;
   }
 }

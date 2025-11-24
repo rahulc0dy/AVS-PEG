@@ -44,6 +44,7 @@ export default function WorldComponent({
   dom,
 }: WorldComponentProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState<EditorMode>("graph");
 
   const graphRef = useRef<Graph | null>(null);
 
@@ -74,6 +75,7 @@ export default function WorldComponent({
   const setMode = (mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;
+    setActiveMode(mode);
 
     // Reset button styles (grayscale all)
     if (graphButton.current)
@@ -318,15 +320,73 @@ export default function WorldComponent({
     };
   }, []);
 
+  const saveToJson = () => {
+    const world = worldRef.current;
+    if (!world) return;
+
+    const json = JSON.stringify(world.toJson());
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "world.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const loadFromJson = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json, .json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev: ProgressEvent<FileReader>) => {
+        try {
+          const text = ev.target?.result as string;
+          const parsed = JSON.parse(text);
+          const world = worldRef.current;
+          if (!world) return;
+
+          // Let the world parse and load the JSON (will update its graph)
+          world.fromJson(parsed);
+
+          // Ensure graphRef points to the same Graph instance used by World
+          graphRef.current = world.graph;
+
+          // Redraw
+          world.draw();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to load world JSON:", err);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   return (
-    <div>
-      <div className="fixed bottom-4 left-4 z-10">
+    <>
+      <div className="fixed bottom-4 right-4 z-100 text-gray-200">
+        <p className="font-bold text-gray-100">
+          Mode: <span className="text-green-300 uppercase">{activeMode}</span>
+        </p>
+      </div>
+      <div className="flex flex-col space-y-2 fixed top-4 right-4 z-10">
         <Button
           onClick={() => setIsOsmModalOpen(true)}
           color="teal"
           className="text-xs"
         >
           Import from OSM
+        </Button>
+        <Button onClick={loadFromJson} color="teal" className="text-xs">
+          Import from JSON
+        </Button>
+        <Button onClick={saveToJson} color="teal" className="text-xs">
+          Save to JSON
         </Button>
       </div>
       <div className="fixed bottom-4 left-0 right-0 flex items-center justify-center gap-5">
@@ -365,6 +425,6 @@ export default function WorldComponent({
           graphRef={graphRef}
         />
       )}
-    </div>
+    </>
   );
 }

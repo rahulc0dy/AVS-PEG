@@ -1,3 +1,4 @@
+import { NodeJson } from "@/types/save";
 import { Color, Group, Mesh, MeshBasicMaterial, SphereGeometry } from "three";
 
 /**
@@ -76,5 +77,19 @@ export class Node {
       this.mesh.material.dispose();
       this.mesh = null;
     }
+  }
+
+  toJson() {
+    return {
+      x: this.x,
+      y: this.y,
+    };
+  }
+
+  fromJson(json: NodeJson) {
+    this.dispose();
+
+    this.x = json.x;
+    this.y = json.y;
   }
 }

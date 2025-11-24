@@ -1,6 +1,7 @@
 import { Group, PointLight, PointLightHelper, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Node } from "../primitives/node";
+import { TrafficLightJson } from "@/types/save";
 
 export enum LightState {
   RED,
@@ -44,14 +45,18 @@ export class TrafficLight {
 
   private lights: PointLight[] = [];
 
-  private redLight: PointLight;
-  private yellowLight: PointLight;
-  private greenLight: PointLight;
+  private redLight: PointLight | undefined;
+  private yellowLight: PointLight | undefined;
+  private greenLight: PointLight | undefined;
 
   constructor(position: Node, group: Group) {
     this.position = position;
     this.group = group;
 
+    this.initLights();
+  }
+
+  private initLights() {
     this.redLight = new PointLight(
       trafficLight.RED.color,
       TRAFFIC_LIGHT_INTENSITY,
@@ -86,6 +91,10 @@ export class TrafficLight {
     );
   }
 
+  setState(state: LightState) {
+    this.lightState = state;
+  }
+
   update() {
     this.draw(this.group, this.modelUrl);
   }
@@ -114,28 +123,30 @@ export class TrafficLight {
     }
     let pointLightHelper: PointLightHelper;
 
-    switch (this.lightState) {
-      case LightState.RED:
-        this.group.add(this.redLight);
-        this.group.remove(this.yellowLight);
-        this.group.remove(this.greenLight);
+    if (this.redLight && this.yellowLight && this.greenLight) {
+      switch (this.lightState) {
+        case LightState.RED:
+          this.group.add(this.redLight);
+          this.group.remove(this.yellowLight);
+          this.group.remove(this.greenLight);
 
-        pointLightHelper = new PointLightHelper(this.redLight, 1); // sphereSize determines helper's visual size
-        break;
-      case LightState.YELLOW:
-        this.group.add(this.yellowLight);
-        this.group.remove(this.redLight);
-        this.group.remove(this.greenLight);
+          pointLightHelper = new PointLightHelper(this.redLight, 1); // sphereSize determines helper's visual size
+          break;
+        case LightState.YELLOW:
+          this.group.add(this.yellowLight);
+          this.group.remove(this.redLight);
+          this.group.remove(this.greenLight);
 
-        pointLightHelper = new PointLightHelper(this.yellowLight, 1); // sphereSize determines helper's visual size
-        break;
-      case LightState.GREEN:
-        this.group.add(this.greenLight);
-        this.group.remove(this.redLight);
-        this.group.remove(this.yellowLight);
+          pointLightHelper = new PointLightHelper(this.yellowLight, 1); // sphereSize determines helper's visual size
+          break;
+        case LightState.GREEN:
+          this.group.add(this.greenLight);
+          this.group.remove(this.redLight);
+          this.group.remove(this.yellowLight);
 
-        pointLightHelper = new PointLightHelper(this.greenLight, 1); // sphereSize determines helper's visual size
-        break;
+          pointLightHelper = new PointLightHelper(this.greenLight, 1); // sphereSize determines helper's visual size
+          break;
+      }
     }
     // this.group.add(pointLightHelper);
 
@@ -143,5 +154,19 @@ export class TrafficLight {
     if (!target.children.includes(this.model)) {
       target.add(this.model);
     }
+  }
+
+  toJson() {
+    return {
+      position: this.position.toJson(),
+      lightState: this.lightState,
+    };
+  }
+
+  fromJson(json: TrafficLightJson) {
+    this.position.fromJson(json.position);
+    this.lightState = json.lightState;
+
+    this.initLights();
   }
 }

@@ -7,6 +7,7 @@ import { Car } from "./car/car";
 import { ControlType } from "./car/controls";
 import { TrafficLight } from "./markings/traffic-light";
 import { Node } from "./primitives/node";
+import { WorldJson, NodeJson, EdgeJson, TrafficLightJson } from "@/types/save";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -137,5 +138,43 @@ export class World {
     if (this.worldGroup.parent) {
       this.worldGroup.parent.remove(this.worldGroup);
     }
+  }
+
+  toJson() {
+    return {
+      graph: this.graph.toJson(),
+      roadWidth: this.roadWidth,
+      roadRoundness: this.roadRoundness,
+      roadBorders: this.roadBorders.map((rb) => rb.toJson()),
+      roads: this.roads.map((r) => r.toJson()),
+      trafficLights: this.trafficLights.map((tl) => tl.toJson()),
+    };
+  }
+
+  fromJson(json: WorldJson) {
+    this.dispose();
+
+    this.graph.fromJson(json.graph);
+    this.roadWidth = json.roadWidth;
+    this.roadRoundness = json.roadRoundness;
+    this.roadBorders = json.roadBorders.map((rbj) => {
+      const edge = new Edge(new Node(0, 0), new Node(0, 0));
+      edge.fromJson(rbj);
+      return edge;
+    });
+    this.roads = json.roads.map((rj) => {
+      const envelope = new Envelope(
+        new Edge(new Node(0, 0), new Node(0, 0)),
+        this.roadWidth,
+        this.roadRoundness
+      );
+      envelope.fromJson(rj);
+      return envelope;
+    });
+    this.trafficLights = json.trafficLights.map((tlj) => {
+      const tl = new TrafficLight(new Node(0, 0), this.worldGroup);
+      tl.fromJson(tlj);
+      return tl;
+    });
   }
 }

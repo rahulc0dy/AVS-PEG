@@ -10,6 +10,7 @@ import {
   Shape,
   BackSide,
 } from "three";
+import { PolygonJson } from "@/types/save";
 
 /**
  * Represents a closed polygon defined by ordered nodes.
@@ -280,5 +281,28 @@ export class Polygon {
       this.mesh.material.dispose();
       this.mesh = null;
     }
+  }
+
+  toJson() {
+    return {
+      nodes: this.nodes.map((n) => n.toJson()),
+      edges: this.edges.map((e) => e.toJson()),
+    };
+  }
+
+  fromJson(json: PolygonJson) {
+    this.dispose();
+
+    this.nodes = json.nodes.map((n) => {
+      const node = new Node(0, 0);
+      node.fromJson(n);
+      return node;
+    });
+
+    this.edges = json.edges.map((e) => {
+      const edge = new Edge(new Node(0, 0), new Node(0, 0));
+      edge.fromJson(e);
+      return edge;
+    });
   }
 }
