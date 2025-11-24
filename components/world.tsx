@@ -18,6 +18,7 @@ import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
 import Image from "next/image";
 import { EditorMode } from "@/types/editor";
+import { TrafficLightEditor } from "@/lib/editors/traffic-lights-editor";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -54,6 +55,7 @@ export default function WorldComponent({
   const worldRef = useRef<World | null>(null);
   /** Mutable ref holding the editor instance responsible for editing the graph. */
   const graphEditorRef = useRef<GraphEditor | null>(null);
+  const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
 
   /**
    * Pointer coordinates in normalized device coordinates (NDC) used by the
@@ -89,10 +91,10 @@ export default function WorldComponent({
         if (graphButton.current) graphButton.current.style.filter = "";
         graphEditorRef.current?.enable();
         break;
-      case "stop":
+      case "traffic-lights":
         if (trafficSignalButton.current)
           trafficSignalButton.current.style.filter = "";
-        // stopEditorRef.current?.enable();
+        trafficLightEditorRef.current?.enable();
         break;
       case "crossing":
         // crossingEditorRef.current?.enable();
@@ -102,6 +104,7 @@ export default function WorldComponent({
 
   const disableEditors = () => {
     graphEditorRef.current?.disable();
+    trafficLightEditorRef.current?.disable();
   };
 
   // Setup OrbitControls, Visual Grid
@@ -192,6 +195,9 @@ export default function WorldComponent({
     });
     graphEditorRef.current = graphEditor;
 
+    const trafficLightEditor = new TrafficLightEditor(scene, graph.getEdges());
+    trafficLightEditorRef.current = trafficLightEditor;
+
     const world = new World(graph, scene);
     worldRef.current = world;
 
@@ -205,8 +211,8 @@ export default function WorldComponent({
         case "graph":
           graphEditor.handlePointerMove(point);
           break;
-        case "stop":
-          // stopEditor.handlePointerMove(point);
+        case "traffic-lights":
+          trafficLightEditor.handlePointerMove(point);
           break;
       }
     };
@@ -221,8 +227,8 @@ export default function WorldComponent({
           case "graph":
             graphEditor.handleLeftClick(intersectionPoint);
             break;
-          case "stop":
-            // stopEditor.handleLeftClick(intersectionPoint);
+          case "traffic-lights":
+            trafficLightEditor.handleLeftClick(intersectionPoint);
             break;
         }
       } else if (evt.button === 2) {
@@ -231,8 +237,8 @@ export default function WorldComponent({
           case "graph":
             graphEditor.handleRightClick(intersectionPoint);
             break;
-          case "stop":
-            // stopEditor.handleRightClick(intersectionPoint);
+          case "traffic-lights":
+            trafficLightEditor.handleRightClick(intersectionPoint);
             break;
         }
       }
@@ -275,10 +281,13 @@ export default function WorldComponent({
 
       controlsRef.current?.update();
 
-      const editor = graphEditorRef.current;
+      const gEditor = graphEditorRef.current;
+      const tlEditor = trafficLightEditorRef.current;
       const world = worldRef.current;
       const graph = graphRef.current;
-      const editorChanged = editor?.draw() ?? false;
+
+      const editorChanged =
+        (gEditor?.draw() ?? false) || (tlEditor?.draw() ?? false);
 
       if (!world || !graph) {
         return;
@@ -292,6 +301,9 @@ export default function WorldComponent({
         world.generate();
         previousGraphChanges = changes;
         world.draw();
+        if (tlEditor) {
+          tlEditor.targetSegments = graph.getEdges();
+        }
         return;
       }
 
