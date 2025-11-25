@@ -201,7 +201,13 @@ export default function WorldComponent({
     const world = new World(graph, scene);
     worldRef.current = world;
 
-    setMode("graph");
+    modeRef.current = "graph";
+    graphEditor.enable();
+
+    // Initialize button styles
+    if (graphButton.current) graphButton.current.style.filter = "";
+    if (trafficSignalButton.current)
+      trafficSignalButton.current.style.filter = "grayscale(100%)";
 
     const handlePointerMove = (evt: PointerEvent) => {
       updatePointer(evt);

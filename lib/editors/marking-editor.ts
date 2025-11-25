@@ -130,7 +130,7 @@ export class MarkingEditor extends BaseEditor {
       this.scene.remove(this.hover.mesh);
       if (this.hover.mesh instanceof Mesh) {
         this.hover.mesh.geometry.dispose();
-        (this.hover.mesh.material as any).dispose?.();
+        this.hover.mesh.material.dispose();
       }
       this.hover = undefined;
     }
