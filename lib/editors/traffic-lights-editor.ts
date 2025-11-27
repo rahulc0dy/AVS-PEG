@@ -33,7 +33,7 @@ export class TrafficLightEditor extends MarkingEditor {
       new Node(ROAD_WIDTH, 0),
       container
     );
-    previewTrafficLight.setState(LightState.GREEN);
+    previewTrafficLight.setState("green");
     previewTrafficLight.update();
 
     // Set all materials in the container to low opacity for preview
@@ -69,7 +69,7 @@ export class TrafficLightEditor extends MarkingEditor {
 
     // RENDERING LIGHT
     this.trafficLight = new TrafficLight(new Node(ROAD_WIDTH, 0), container);
-    this.trafficLight.setState(LightState.GREEN);
+    this.trafficLight.setState("green");
     this.trafficLight.update();
 
     committed.mesh = container;

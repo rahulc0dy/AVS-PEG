@@ -1,3 +1,6 @@
+import { LightState } from "@/lib/markings/traffic-light";
+import { MarkingType } from "./marking";
+
 export interface WorldJson {
   graph: GraphJson;
   roadWidth: number;
@@ -23,9 +26,8 @@ export interface EdgeJson {
   isDirected: boolean;
 }
 
-export interface TrafficLightJson {
-  position: NodeJson;
-  lightState: number;
+export interface TrafficLightJson extends MarkingJson {
+  lightState: LightState;
 }
 
 export interface EnvelopeJson {
@@ -36,4 +38,10 @@ export interface EnvelopeJson {
 export interface PolygonJson {
   nodes: NodeJson[];
   edges: EdgeJson[];
+}
+
+export interface MarkingJson {
+  position: NodeJson;
+  direction: EdgeJson;
+  type: MarkingType;
 }
