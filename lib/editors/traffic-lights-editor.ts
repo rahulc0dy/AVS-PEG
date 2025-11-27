@@ -9,34 +9,44 @@ import {
 } from "three";
 import { Edge } from "../primitives/edge";
 import { MarkingEditor } from "./marking-editor";
-import { TrafficLight } from "../markings/traffic-light";
+import { LightState, TrafficLight } from "../markings/traffic-light";
 import { Node } from "../primitives/node";
+import { ROAD_WIDTH } from "@/env";
 
 export class TrafficLightEditor extends MarkingEditor {
-  private static BOX_WIDTH = 2;
-  private static BOX_HEIGHT = 5;
-  private static BOX_DEPTH = 2;
-  private static TRAFFIC_LIGHT_POSITION_OFFSET = 20;
+  private trafficLight: TrafficLight;
 
   constructor(scene: Scene, targetSegments: Edge[]) {
     super(scene, targetSegments);
+    this.trafficLight = new TrafficLight(new Node(0, 0), new Group());
   }
 
   // Preview
   override createMarking(point: Vector3, direction: Vector3): Object3D {
-    const geometry = new BoxGeometry(
-      TrafficLightEditor.BOX_WIDTH,
-      TrafficLightEditor.BOX_HEIGHT,
-      TrafficLightEditor.BOX_DEPTH
+    const container = new Group();
+    container.position.copy(point);
+    container.lookAt(point.clone().add(direction));
+    container.position.y += 0.3;
+
+    // Create a preview TrafficLight
+    const previewTrafficLight = new TrafficLight(
+      new Node(ROAD_WIDTH, 0),
+      container
     );
-    const material = new MeshBasicMaterial({ color: 0x00ff00 });
-    const mesh = new Mesh(geometry, material);
+    previewTrafficLight.setState(LightState.GREEN);
+    previewTrafficLight.update();
 
-    mesh.position.copy(point);
-    mesh.lookAt(point.clone().add(direction));
-    mesh.position.y += 0.3;
+    // Set all materials in the container to low opacity for preview
+    container.traverse((child) => {
+      if ((child as Mesh).material) {
+        const mat = (child as Mesh).material as MeshBasicMaterial;
+        mat.transparent = true;
+        mat.opacity = 0.3;
+        mat.depthWrite = false;
+      }
+    });
 
-    return mesh;
+    return container;
   }
 
   override handleLeftClick(_point: Vector3): void {
@@ -58,15 +68,13 @@ export class TrafficLightEditor extends MarkingEditor {
     this.scene.add(container);
 
     // RENDERING LIGHT
-    const trafficLight = new TrafficLight(
-      new Node(TrafficLightEditor.TRAFFIC_LIGHT_POSITION_OFFSET, 0),
-      container
-    );
-    trafficLight.update();
+    this.trafficLight = new TrafficLight(new Node(ROAD_WIDTH, 0), container);
+    this.trafficLight.setState(LightState.GREEN);
+    this.trafficLight.update();
 
     committed.mesh = container;
 
-    committed.mesh.userData = { trafficLight };
+    committed.mesh.userData = { trafficLight: this.trafficLight };
 
     this.markings.push(committed);
     this.hover = undefined;

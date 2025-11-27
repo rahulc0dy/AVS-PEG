@@ -95,7 +95,7 @@ export class MarkingEditor extends BaseEditor {
       return;
     }
 
-    const maxdistSq = 2 * 2;
+    const maxdistSq = 20 * 20;
     if (best.distanceSq > maxdistSq) {
       this.clearHover();
       return;
