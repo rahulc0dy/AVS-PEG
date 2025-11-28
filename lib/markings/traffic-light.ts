@@ -50,7 +50,7 @@ export class TrafficLight extends Marking {
     this.setLightPosition();
   }
 
-  setLightPosition() {
+  private setLightPosition() {
     if (this.activeLight) {
       // Rotate the configured relative XZ offset by the marking's direction
       // so the light follows the marking orientation.
