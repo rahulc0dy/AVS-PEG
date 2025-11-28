@@ -12,7 +12,6 @@ import Image from "next/image";
 import { EditorMode } from "@/types/editor";
 import { TrafficLightEditor } from "@/lib/traffic-light-editor";
 import {
-  MINICAM_ASPECT,
   MINICAM_FAR,
   MINICAM_FORWARD,
   MINICAM_FOV,
@@ -135,7 +134,7 @@ export default function WorldComponent({
 
     const miniCam = new PerspectiveCamera(
       MINICAM_FOV,
-      MINICAM_ASPECT,
+      16 / 9,
       MINICAM_NEAR,
       MINICAM_FAR,
     );
