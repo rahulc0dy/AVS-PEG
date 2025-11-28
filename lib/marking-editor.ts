@@ -76,12 +76,10 @@ export class MarkingEditor extends BaseEditor {
       // (Do NOT dispose here; disposing would destroy meshes/lights like the
       // traffic light glow. Adding to a new parent will auto-reparent in Three.js.)
       this.intent.group = this.commitGroup;
-      this.intent.update();
       this.markings.push(this.intent);
       this.intent = null;
       this.addMarkingOnRelease = false;
     }
-    console.log(this.markings);
   }
 
   draw(): boolean {
