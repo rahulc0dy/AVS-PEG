@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FC, RefObject, useEffect, useState } from "react";
 import Modal from "@/components/ui/modal";
 import Button from "@/components/ui/button";
 import { getRoadData } from "@/services/osm-service";
@@ -32,7 +32,7 @@ import Link from "next/link";
 interface OsmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  graphRef: React.RefObject<Graph | null>;
+  graphRef: RefObject<Graph | null>;
 }
 
 /**
@@ -45,7 +45,7 @@ interface BoundingBox {
   maxLong: number;
 }
 
-const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
+const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
   const [minLat, setMinLat] = useState(22.574181);
   const [minLong, setMinLong] = useState(88.410046);
   const [maxLat, setMaxLat] = useState(22.57859);
@@ -65,12 +65,12 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
           minLong,
           maxLat,
           maxLong,
-        })
+        }),
       );
     } catch (e) {
       // localStorage may throw (private mode, quota exceeded); fail silently
       // but log for debugging.
-      // eslint-disable-next-line no-console
+
       console.warn("Could not save bounding box to localStorage", e);
     }
   };
@@ -83,19 +83,11 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       if (!bBoxStr) return;
       const bBox = JSON.parse(bBoxStr) as BoundingBox;
       // Basic validation: ensure numbers exist before applying
-      if (
-        typeof bBox.minLat === "number" &&
-        typeof bBox.minLong === "number" &&
-        typeof bBox.maxLat === "number" &&
-        typeof bBox.maxLong === "number"
-      ) {
-        setMinLat(bBox.minLat);
-        setMinLong(bBox.minLong);
-        setMaxLat(bBox.maxLat);
-        setMaxLong(bBox.maxLong);
-      }
+      setMinLat(bBox.minLat);
+      setMinLong(bBox.minLong);
+      setMaxLat(bBox.maxLat);
+      setMaxLong(bBox.maxLong);
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error("Failed to parse bounding box from local storage", e);
     }
   };
@@ -124,7 +116,7 @@ const OsmModal: React.FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       // to the console for debugging.
       const message = err instanceof Error ? err.message : String(err);
       setError("An error occurred: " + message);
-      // eslint-disable-next-line no-console
+
       console.error("Error loading OSM data", err);
     } finally {
       setIsLoading(false);

@@ -1,8 +1,8 @@
 import { Group, Scene, Vector3 } from "three";
-import { BaseEditor } from "./editors/base-editor";
-import { Marking } from "./markings/marking";
-import { Edge } from "./primitives/edge";
-import { Node } from "./primitives/node";
+import { BaseEditor } from "@/lib/editors/base-editor";
+import { Marking } from "@/lib/markings/marking";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
 import { getNearestEdge } from "@/utils/math";
 
 export class MarkingEditor extends BaseEditor {

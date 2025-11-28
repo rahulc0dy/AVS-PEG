@@ -1,14 +1,14 @@
 import { Color, Group, Scene, Vector2 } from "three";
-import { Edge } from "./primitives/edge";
-import { Envelope } from "./primitives/envelope";
-import { Polygon } from "./primitives/polygon";
-import { Graph } from "./primitives/graph";
-import { Car } from "./car/car";
-import { ControlType } from "./car/controls";
-import { TrafficLight } from "./markings/traffic-light";
-import { Node } from "./primitives/node";
+import { Edge } from "@/lib/primitives/edge";
+import { Envelope } from "@/lib/primitives/envelope";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Graph } from "@/lib/primitives/graph";
+import { Car } from "@/lib/car/car";
+import { ControlType } from "@/lib/car/controls";
+import { TrafficLight } from "@/lib/markings/traffic-light";
+import { Node } from "@/lib/primitives/node";
 import { WorldJson } from "@/types/save";
-import { Marking } from "./markings/marking";
+import { Marking } from "@/lib/markings/marking";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -43,7 +43,7 @@ export class World {
     graph: Graph,
     scene: Scene,
     roadWidth: number = 40,
-    roadRoundness: number = 8
+    roadRoundness: number = 8,
   ) {
     this.graph = graph;
     this.scene = scene;
@@ -60,7 +60,7 @@ export class World {
         17.5,
         7,
         ControlType.HUMAN,
-        this.worldGroup
+        this.worldGroup,
       ),
       new Car(
         new Vector2(20, 0),
@@ -68,7 +68,7 @@ export class World {
         17.5,
         7,
         ControlType.NONE,
-        this.worldGroup
+        this.worldGroup,
       ),
     ];
 
@@ -175,7 +175,7 @@ export class World {
       const envelope = new Envelope(
         new Edge(new Node(0, 0), new Node(0, 0)),
         this.roadWidth,
-        this.roadRoundness
+        this.roadRoundness,
       );
       envelope.fromJson(rj);
       return envelope;
@@ -184,7 +184,7 @@ export class World {
       const tl = new TrafficLight(
         new Node(0, 0),
         new Node(0, 0),
-        this.worldGroup
+        this.worldGroup,
       );
       tl.fromJson(tlj);
       return tl;

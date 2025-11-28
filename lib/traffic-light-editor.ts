@@ -1,9 +1,9 @@
-import { Group, Scene } from "three";
-import { MarkingEditor } from "./marking-editor";
-import { Marking } from "./markings/marking";
-import { TrafficLight } from "./markings/traffic-light";
-import { Node } from "./primitives/node";
-import { Edge } from "./primitives/edge";
+import { Scene } from "three";
+import { MarkingEditor } from "@/lib/marking-editor";
+import { Marking } from "@/lib/markings/marking";
+import { TrafficLight } from "@/lib/markings/traffic-light";
+import { Node } from "@/lib/primitives/node";
+import { Edge } from "@/lib/primitives/edge";
 
 export class TrafficLightEditor extends MarkingEditor {
   constructor(scene: Scene, targetEdges: Edge[], markings: Marking[] = []) {
