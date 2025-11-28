@@ -31,6 +31,9 @@ export class TrafficLight extends Marking {
   private activeLight!: PointLight | null;
   private activeLightHelper!: PointLightHelper | null;
 
+  // Toggle to show/hide the PointLightHelper for debugging/visualization
+  private showHelper: boolean = true;
+
   constructor(position: Node, direction: Node, group: Group) {
     super(position, direction, group, "traffic-light");
     this.setState("red");
@@ -93,11 +96,17 @@ export class TrafficLight extends Marking {
       if (!target.children.includes(this.activeLight)) {
         target.add(this.activeLight);
       }
-      if (
-        this.activeLightHelper &&
-        !target.children.includes(this.activeLightHelper)
-      ) {
-        target.add(this.activeLightHelper);
+      // Add or remove the helper according to `showHelper` flag
+      if (this.activeLightHelper) {
+        if (this.showHelper) {
+          if (!target.children.includes(this.activeLightHelper)) {
+            target.add(this.activeLightHelper);
+          }
+        } else {
+          if (this.activeLightHelper.parent) {
+            this.activeLightHelper.parent.remove(this.activeLightHelper);
+          }
+        }
       }
     }
   }
