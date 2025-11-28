@@ -11,7 +11,19 @@ import Button from "@/components/ui/button";
 import Image from "next/image";
 import { EditorMode } from "@/types/editor";
 import { TrafficLightEditor } from "@/lib/traffic-light-editor";
-import { MINICAM_FORWARD, MINICAM_HEIGHT, MINICAM_LOOKAHEAD } from "@/env";
+import {
+  MINICAM_ASPECT,
+  MINICAM_FAR,
+  MINICAM_FORWARD,
+  MINICAM_FOV,
+  MINICAM_HEIGHT,
+  MINICAM_LOOKAHEAD,
+  MINICAM_NEAR,
+  MINIVIEW_HEIGHT,
+  MINIVIEW_WIDTH,
+  MINIVIEW_X,
+  MINIVIEW_Y
+} from "@/env";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -44,7 +56,12 @@ export default function WorldComponent({
 
   /* Mini Camera and Viewport */
   const miniCamRef = useRef<PerspectiveCamera | null>(null);
-  const miniViewPortRef = useRef({ x: 16, y: 16, width: 320, height: 180 });
+  const miniViewPortRef = useRef({
+    x: MINIVIEW_X,
+    y: MINIVIEW_Y,
+    width: MINIVIEW_WIDTH,
+    height: MINIVIEW_HEIGHT,
+  });
 
   const graphRef = useRef<Graph | null>(null);
 
@@ -116,7 +133,12 @@ export default function WorldComponent({
 
     scene.add(grid);
 
-    const miniCam = new PerspectiveCamera(60, 16 / 9, 3, 10000);
+    const miniCam = new PerspectiveCamera(
+      MINICAM_FOV,
+      MINICAM_ASPECT,
+      MINICAM_NEAR,
+      MINICAM_FAR,
+    );
     miniCamRef.current = miniCam;
 
     return () => {
