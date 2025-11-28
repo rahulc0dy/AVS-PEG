@@ -7,7 +7,8 @@ import { Car } from "./car/car";
 import { ControlType } from "./car/controls";
 import { TrafficLight } from "./markings/traffic-light";
 import { Node } from "./primitives/node";
-import { WorldJson, NodeJson, EdgeJson, TrafficLightJson } from "@/types/save";
+import { WorldJson } from "@/types/save";
+import { Marking } from "./markings/marking";
 
 export class World {
   /** Underlying road graph (nodes and edges). */
@@ -27,6 +28,8 @@ export class World {
 
   cars: Car[];
   trafficLights: TrafficLight[];
+
+  markings: Marking[];
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -69,7 +72,10 @@ export class World {
       ),
     ];
 
-    this.trafficLights = [new TrafficLight(new Node(50, 50), this.worldGroup)];
+    this.trafficLights = [
+      new TrafficLight(new Node(50, 50), new Node(0, 0), this.worldGroup),
+    ];
+    this.markings = [];
 
     // Build derived geometry immediately
     this.generate();
@@ -83,8 +89,11 @@ export class World {
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
     }
-    for (const light of this.trafficLights) {
-      light.update();
+    // for (const light of this.trafficLights) {
+    //   light.update();
+    // }
+    for (const marking of this.markings) {
+      // marking.update();
     }
   }
 
@@ -172,7 +181,11 @@ export class World {
       return envelope;
     });
     this.trafficLights = json.trafficLights.map((tlj) => {
-      const tl = new TrafficLight(new Node(0, 0), this.worldGroup);
+      const tl = new TrafficLight(
+        new Node(0, 0),
+        new Node(0, 0),
+        this.worldGroup
+      );
       tl.fromJson(tlj);
       return tl;
     });

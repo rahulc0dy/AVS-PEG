@@ -1,13 +1,13 @@
 import { MarkingType } from "@/types/marking";
-import { Edge } from "../primitives/edge";
 import { Node } from "../primitives/node";
-import { Group } from "three";
+import { Group, Material, Mesh, Object3D } from "three";
 import { MarkingJson } from "@/types/save";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { angle } from "@/utils/math";
 
 export class Marking {
   position: Node;
-  direction: Edge;
+  direction: Node;
   type: MarkingType;
 
   group: Group;
@@ -18,7 +18,7 @@ export class Marking {
 
   constructor(
     position: Node,
-    direction: Edge,
+    direction: Node,
     group: Group,
     type: MarkingType = "default"
   ) {
@@ -27,6 +27,10 @@ export class Marking {
     this.group = group;
     this.type = type;
     this.modelUrl = `/models/${this.type}.gltf`;
+  }
+
+  update() {
+    this.draw(this.group, this.modelUrl);
   }
 
   draw(target: Group, url: string, loader?: GLTFLoader) {
@@ -52,10 +56,32 @@ export class Marking {
       return;
     }
 
+    const ang = angle(this.direction);
+    this.model.rotation.set(0, -ang + Math.PI / 2, 0);
     this.model.position.set(this.position.x, 0, this.position.y);
+
     if (!target.children.includes(this.model)) {
       target.add(this.model);
     }
+  }
+
+  dispose() {
+    if (!this.model) return;
+    if (this.model.parent) {
+      this.model.parent.remove(this.model);
+    }
+    this.model.traverse((child: Object3D) => {
+      if (child instanceof Mesh) {
+        child.geometry.dispose();
+        const material = child.material as Material | Material[];
+        if (Array.isArray(material)) {
+          material.forEach((mat) => mat.dispose());
+        } else {
+          material.dispose();
+        }
+      }
+    });
+    this.model = null;
   }
 
   toJson() {

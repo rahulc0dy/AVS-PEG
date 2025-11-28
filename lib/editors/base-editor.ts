@@ -26,8 +26,8 @@ export abstract class BaseEditor implements Editor {
   }
 
   abstract draw(): boolean;
-  abstract handlePointerMove(point: Vector3): void;
-  abstract handleLeftClick(point: Vector3): void;
-  abstract handleRightClick(point: Vector3): void;
-  abstract handleClickRelease(point: Vector3): void;
+  abstract handlePointerMove(pointer: Vector3): void;
+  abstract handleLeftClick(pointer: Vector3): void;
+  abstract handleRightClick(pointer: Vector3): void;
+  abstract handleClickRelease(pointer: Vector3): void;
 }

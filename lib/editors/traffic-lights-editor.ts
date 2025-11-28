@@ -18,7 +18,11 @@ export class TrafficLightEditor extends MarkingEditor {
 
   constructor(scene: Scene, targetSegments: Edge[]) {
     super(scene, targetSegments);
-    this.trafficLight = new TrafficLight(new Node(0, 0), new Group());
+    this.trafficLight = new TrafficLight(
+      new Node(0, 0),
+      new Node(0, 0),
+      new Group()
+    );
   }
 
   // Preview
@@ -31,6 +35,7 @@ export class TrafficLightEditor extends MarkingEditor {
     // Create a preview TrafficLight
     const previewTrafficLight = new TrafficLight(
       new Node(ROAD_WIDTH, 0),
+      new Node(0, 0),
       container
     );
     previewTrafficLight.setState("green");
@@ -68,7 +73,11 @@ export class TrafficLightEditor extends MarkingEditor {
     this.scene.add(container);
 
     // RENDERING LIGHT
-    this.trafficLight = new TrafficLight(new Node(ROAD_WIDTH, 0), container);
+    this.trafficLight = new TrafficLight(
+      new Node(ROAD_WIDTH, 0),
+      new Node(0, 0),
+      container
+    );
     this.trafficLight.setState("green");
     this.trafficLight.update();
 

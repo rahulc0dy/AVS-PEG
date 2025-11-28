@@ -42,6 +42,6 @@ export interface PolygonJson {
 
 export interface MarkingJson {
   position: NodeJson;
-  direction: EdgeJson;
+  direction: NodeJson;
   type: MarkingType;
 }

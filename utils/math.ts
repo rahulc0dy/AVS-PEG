@@ -1,3 +1,4 @@
+import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 
@@ -262,4 +263,21 @@ export function getNearestNode(
     }
   }
   return nearestNode;
+}
+
+export function getNearestEdge(
+  loc: Node,
+  edges: Edge[],
+  threshold = Number.MAX_SAFE_INTEGER
+) {
+  let minDist = Number.MAX_SAFE_INTEGER;
+  let nearest = null;
+  for (const seg of edges) {
+    const dist = seg.distanceToNode(loc);
+    if (dist < minDist && dist < threshold) {
+      minDist = dist;
+      nearest = seg;
+    }
+  }
+  return nearest;
 }

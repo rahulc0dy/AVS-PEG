@@ -18,7 +18,7 @@ import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
 import Image from "next/image";
 import { EditorMode } from "@/types/editor";
-import { TrafficLightEditor } from "@/lib/editors/traffic-lights-editor";
+import { TrafficLightEditor } from "@/lib/traffic-light-editor";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -195,11 +195,15 @@ export default function WorldComponent({
     });
     graphEditorRef.current = graphEditor;
 
-    const trafficLightEditor = new TrafficLightEditor(scene, graph.getEdges());
-    trafficLightEditorRef.current = trafficLightEditor;
-
     const world = new World(graph, scene);
     worldRef.current = world;
+
+    const trafficLightEditor = new TrafficLightEditor(
+      scene,
+      world.roadBorders,
+      world.markings
+    );
+    trafficLightEditorRef.current = trafficLightEditor;
 
     modeRef.current = "graph";
     graphEditor.enable();
@@ -253,9 +257,13 @@ export default function WorldComponent({
     const handlePointerUp = (evt: PointerEvent) => {
       updatePointer(evt);
       const intersectionPoint = getIntersectPoint();
-      // Usually only graph editor needs drag release, but others might too
-      if (modeRef.current === "graph") {
-        graphEditor.handleClickRelease(intersectionPoint);
+      switch (modeRef.current) {
+        case "graph":
+          graphEditor.handleClickRelease(intersectionPoint);
+          break;
+        case "traffic-lights":
+          trafficLightEditor.handleClickRelease(intersectionPoint);
+          break;
       }
     };
 
@@ -308,7 +316,7 @@ export default function WorldComponent({
         previousGraphChanges = changes;
         world.draw();
         if (tlEditor) {
-          tlEditor.targetSegments = graph.getEdges();
+          tlEditor.targetEdges = world.roadBorders;
         }
         return;
       }
