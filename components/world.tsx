@@ -4,21 +4,14 @@ import { GraphEditor } from "@/lib/editors/graph-editor";
 import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Camera,
-  GridHelper,
-  Plane,
-  Raycaster,
-  Scene,
-  Vector2,
-  Vector3,
-} from "three";
+import { Camera, GridHelper, PerspectiveCamera, Plane, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
 import Image from "next/image";
 import { EditorMode } from "@/types/editor";
 import { TrafficLightEditor } from "@/lib/traffic-light-editor";
+import { MINICAM_FORWARD, MINICAM_HEIGHT, MINICAM_LOOKAHEAD } from "@/env";
 
 /**
  * Props for the `WorldComponent` React component.
@@ -29,6 +22,7 @@ import { TrafficLightEditor } from "@/lib/traffic-light-editor";
 interface WorldComponentProps {
   scene: Scene;
   camera: Camera;
+  renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
@@ -42,10 +36,15 @@ interface WorldComponentProps {
 export default function WorldComponent({
   scene,
   camera,
+  renderer,
   dom,
 }: WorldComponentProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
+
+  /* Mini Camera and Viewport */
+  const miniCamRef = useRef<PerspectiveCamera | null>(null);
+  const miniViewPortRef = useRef({ x: 16, y: 16, width: 320, height: 180 });
 
   const graphRef = useRef<Graph | null>(null);
 
@@ -117,6 +116,9 @@ export default function WorldComponent({
 
     scene.add(grid);
 
+    const miniCam = new PerspectiveCamera(60, 16 / 9, 3, 10000);
+    miniCamRef.current = miniCam;
+
     return () => {
       if (controlsRef.current) {
         controlsRef.current.dispose();
@@ -128,6 +130,8 @@ export default function WorldComponent({
         gridRef.current.dispose();
         gridRef.current = null;
       }
+
+      miniCamRef.current = null;
     };
   }, [scene, camera, dom]);
 
@@ -154,7 +158,7 @@ export default function WorldComponent({
       // into the 3D scene, which can be used for detecting intersections.
       raycasterRef.current.setFromCamera(pointerRef.current, camera);
     },
-    [camera, dom]
+    [camera, dom],
   );
 
   /**
@@ -201,7 +205,7 @@ export default function WorldComponent({
     const trafficLightEditor = new TrafficLightEditor(
       scene,
       world.roadBorders,
-      world.markings
+      world.markings,
     );
     trafficLightEditorRef.current = trafficLightEditor;
 
@@ -346,6 +350,86 @@ export default function WorldComponent({
     };
   }, []);
 
+  // Mini camera follow + rendering into inset via scissor/viewport
+  useEffect(() => {
+    if (!renderer) return;
+
+    const updateMiniCam = () => {
+      const miniCam = miniCamRef.current;
+      if (!miniCam) return;
+
+      // Prefer first car (player) if available
+      const world = worldRef.current;
+      const car = world?.cars?.[0];
+
+      if (car) {
+        // Car space: x -> X, y -> Z, angle around Y
+        const height = MINICAM_HEIGHT; // camera height above ground
+        const forward = MINICAM_FORWARD; // distance ahead of car
+        const lookAhead = MINICAM_LOOKAHEAD; // look target ahead
+
+        const sin = Math.sin(car.angle);
+        const cos = Math.cos(car.angle);
+
+        // Position camera slightly above and ahead of bumper
+        const camX = car.position.x - sin * forward;
+        const camZ = car.position.y - cos * forward;
+        miniCam.position.set(camX, height, camZ);
+
+        // Look further ahead along the car heading
+        const targetX = car.position.x - sin * lookAhead;
+        const targetZ = car.position.y - cos * lookAhead;
+        miniCam.lookAt(targetX, height * 0.7, targetZ);
+      } else {
+        // Fallback: show origin from a low angle
+        miniCam.position.set(0, 15, 25);
+        miniCam.lookAt(0, 3, 0);
+      }
+    };
+
+    const renderFrame = () => {
+      // Main view render happens in this loop now; keep simple
+      renderer.setScissorTest(false);
+      renderer.setViewport(
+        0,
+        0,
+        renderer.domElement.width,
+        renderer.domElement.height,
+      );
+      renderer.render(scene, camera);
+
+      // Mini view
+      const vp = miniViewPortRef.current; // CSS pixels
+      const dpr = renderer.getPixelRatio();
+      const x = Math.floor(vp.x * dpr);
+      const y = Math.floor(vp.y * dpr);
+      const w = Math.floor(vp.width * dpr);
+      const h = Math.floor(vp.height * dpr);
+
+      const miniCam = miniCamRef.current;
+      if (miniCam) {
+        const aspect = vp.width / vp.height;
+        if (Math.abs(miniCam.aspect - aspect) > 1e-3) {
+          miniCam.aspect = aspect;
+          miniCam.updateProjectionMatrix();
+        }
+        updateMiniCam();
+        renderer.setScissorTest(true);
+        renderer.setScissor(x, y, w, h);
+        renderer.setViewport(x, y, w, h);
+        renderer.render(scene, miniCam);
+        renderer.setScissorTest(false);
+      }
+    };
+
+    // Hand over render control to this component
+    renderer.setAnimationLoop(renderFrame);
+
+    return () => {
+      renderer.setAnimationLoop(null);
+    };
+  }, [renderer, scene, camera]);
+
   const saveToJson = () => {
     const world = worldRef.current;
     if (!world) return;
@@ -384,7 +468,6 @@ export default function WorldComponent({
           // Redraw
           world.draw();
         } catch (err) {
-          // eslint-disable-next-line no-console
           console.error("Failed to load world JSON:", err);
         }
       };
@@ -400,6 +483,8 @@ export default function WorldComponent({
           Mode: <span className="text-green-300 uppercase">{activeMode}</span>
         </p>
       </div>
+      {/* Mini viewport border overlay (visual only) */}
+      <div className="pointer-events-none fixed left-4 bottom-4 z-10 border-gray-200 border" />
       <div className="flex flex-col space-y-2 fixed top-4 right-4 z-10">
         <Button
           onClick={() => setIsOsmModalOpen(true)}
