@@ -21,14 +21,12 @@ export class Marking {
     direction: Node,
     group: Group,
     type: MarkingType = "default",
-    modelUrl?: string,
   ) {
     this.position = position;
     this.direction = direction;
     this.group = group;
     this.type = type;
-    // Allow explicit model URL; otherwise default by type
-    this.modelUrl = modelUrl ?? `/models/${this.type}.gltf`;
+    this.modelUrl = `/models/${this.type}.gltf`;
   }
 
   update() {
@@ -52,7 +50,7 @@ export class Marking {
         undefined,
         () => {
           this.loadingModel = false;
-        }
+        },
       );
 
       return;
@@ -91,7 +89,6 @@ export class Marking {
       position: this.position.toJson(),
       direction: this.direction.toJson(),
       type: this.type,
-      modelUrl: this.modelUrl,
     };
   }
 
@@ -99,6 +96,6 @@ export class Marking {
     this.position.fromJson(json.position);
     this.direction.fromJson(json.direction);
     this.type = json.type;
-    this.modelUrl = json.modelUrl ?? `/models/${this.type}.gltf`;
+    1;
   }
 }

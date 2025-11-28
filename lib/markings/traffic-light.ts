@@ -32,7 +32,7 @@ export class TrafficLight extends Marking {
   private activeLightHelper!: PointLightHelper | null;
 
   // Toggle to show/hide the PointLightHelper for debugging/visualization
-  private showHelper: boolean = true;
+  private showHelper: boolean = false;
 
   constructor(position: Node, direction: Node, group: Group) {
     super(position, direction, group, "traffic-light");
@@ -44,7 +44,7 @@ export class TrafficLight extends Marking {
     this.activeLight = new PointLight(
       TRAFFIC_LIGHT_CONFIG[state].color,
       TRAFFIC_LIGHT_INTENSITY,
-      TRAFFIC_LIGHT_DISTANCE
+      TRAFFIC_LIGHT_DISTANCE,
     );
     this.activeLightHelper = new PointLightHelper(this.activeLight);
     this.setLightPosition();
@@ -62,19 +62,19 @@ export class TrafficLight extends Marking {
       const relativeNodeTranslatedOnX = translate(
         this.position,
         ang - Math.PI / 2, // perpendicular to the forward direction
-        relativePosition.x
+        relativePosition.x,
       );
 
       const relativeNodeTranslatedOnXZ = translate(
         relativeNodeTranslatedOnX,
         ang,
-        relativePosition.y
+        relativePosition.y,
       );
 
       this.activeLight.position.set(
         relativeNodeTranslatedOnXZ.x,
         TRAFFIC_LIGHT_HEIGHT,
-        relativeNodeTranslatedOnXZ.y
+        relativeNodeTranslatedOnXZ.y,
       );
       if (this.activeLightHelper) {
         this.activeLightHelper.position.copy(this.activeLight.position);
