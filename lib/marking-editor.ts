@@ -9,19 +9,30 @@ export class MarkingEditor extends BaseEditor {
   intent: Marking | null;
   targetEdges: Edge[];
   markings: Marking[];
+  /** Group where committed markings should be added (typically World.worldGroup). */
+  commitGroup: Group;
 
   private addMarkingOnRelease: boolean = false;
 
-  constructor(scene: Scene, targetEdges: Edge[], markings: Marking[] = []) {
+  constructor(
+    scene: Scene,
+    targetEdges: Edge[],
+    markings: Marking[] = [],
+    commitGroup?: Group,
+  ) {
     super(scene);
 
     this.intent = null;
     this.targetEdges = targetEdges;
     this.markings = markings;
+    // Default commit group to the editor group if not provided (backward compat),
+    // but ideally the World.worldGroup should be passed in.
+    this.commitGroup = commitGroup ?? this.editorGroup;
   }
 
   createMarking(position: Node, direction: Node): Marking {
-    return new Marking(position, direction, new Group());
+    // Use editorGroup for preview by default; we'll switch to commitGroup on commit.
+    return new Marking(position, direction, this.editorGroup);
   }
 
   handlePointerMove(pointer: Vector3): void {
@@ -61,8 +72,12 @@ export class MarkingEditor extends BaseEditor {
 
   handleClickRelease(_pointer: Vector3): void {
     if (this.addMarkingOnRelease && this.intent) {
-      this.markings.push(this.intent);
+      // Reparent preview objects from the editor overlay to the world group
+      // (Do NOT dispose here; disposing would destroy meshes/lights like the
+      // traffic light glow. Adding to a new parent will auto-reparent in Three.js.)
+      this.intent.group = this.commitGroup;
       this.intent.update();
+      this.markings.push(this.intent);
       this.intent = null;
       this.addMarkingOnRelease = false;
     }

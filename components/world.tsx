@@ -227,6 +227,7 @@ export default function WorldComponent({
       scene,
       world.roadBorders,
       world.markings,
+      world.worldGroup,
     );
     trafficLightEditorRef.current = trafficLightEditor;
 

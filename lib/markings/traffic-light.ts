@@ -129,9 +129,7 @@ export class TrafficLight extends Marking {
 
   toJson() {
     return {
-      position: this.position.toJson(),
-      direction: this.direction.toJson(),
-      type: this.type,
+      ...super.toJson(),
       lightState: this.lightState,
     };
   }

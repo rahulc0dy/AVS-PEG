@@ -7,7 +7,7 @@ import { Car } from "@/lib/car/car";
 import { ControlType } from "@/lib/car/controls";
 import { TrafficLight } from "@/lib/markings/traffic-light";
 import { Node } from "@/lib/primitives/node";
-import { WorldJson } from "@/types/save";
+import { MarkingJson, WorldJson } from "@/types/save";
 import { Marking } from "@/lib/markings/marking";
 
 export class World {
@@ -27,8 +27,6 @@ export class World {
   roads: Envelope[];
 
   cars: Car[];
-  trafficLights: TrafficLight[];
-
   markings: Marking[];
 
   /**
@@ -72,10 +70,11 @@ export class World {
       ),
     ];
 
-    this.trafficLights = [
-      new TrafficLight(new Node(50, 50), new Node(0, 0), this.worldGroup),
-    ];
     this.markings = [];
+    // Sample initial traffic light lives in the unified markings array
+    this.markings.push(
+      new TrafficLight(new Node(50, 50), new Node(0, 0), this.worldGroup),
+    );
 
     // Build derived geometry immediately
     this.generate();
@@ -132,6 +131,11 @@ export class World {
       edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
     }
 
+    // Draw markings (including TrafficLights) after roads so they appear on top
+    for (const m of this.markings) {
+      m.draw(this.worldGroup, m.modelUrl);
+    }
+
     this.scene.add(this.worldGroup);
   }
 
@@ -156,7 +160,7 @@ export class World {
       roadRoundness: this.roadRoundness,
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
       roads: this.roads.map((r) => r.toJson()),
-      trafficLights: this.trafficLights.map((tl) => tl.toJson()),
+      markings: this.markings.map((m) => m.toJson()),
     };
   }
 
@@ -180,14 +184,32 @@ export class World {
       envelope.fromJson(rj);
       return envelope;
     });
-    this.trafficLights = json.trafficLights.map((tlj) => {
-      const tl = new TrafficLight(
-        new Node(0, 0),
-        new Node(0, 0),
-        this.worldGroup,
-      );
-      tl.fromJson(tlj);
-      return tl;
-    });
+    // Restore unified markings: prefer new `markings` array; fallback to legacy `trafficLights`
+    const hasMarkings =
+      Array.isArray(json.markings) && json.markings.length > 0;
+    if (hasMarkings) {
+      this.markings = (json.markings ?? []).map((mj: MarkingJson) => {
+        const m = new Marking(
+          new Node(0, 0),
+          new Node(0, 0),
+          this.worldGroup,
+          mj.type,
+          mj.modelUrl,
+        );
+        m.fromJson(mj);
+        return m;
+      });
+    } else {
+      // Legacy files: only trafficLights
+      this.markings = (json.trafficLights ?? []).map((tlj) => {
+        const tl = new TrafficLight(
+          new Node(0, 0),
+          new Node(0, 0),
+          this.worldGroup,
+        );
+        tl.fromJson(tlj);
+        return tl;
+      });
+    }
   }
 }

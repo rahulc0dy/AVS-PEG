@@ -6,6 +6,7 @@ export interface WorldJson {
   roadWidth: number;
   roadRoundness: number;
   trafficLights: TrafficLightJson[];
+  markings: MarkingJson[];
   roadBorders: EdgeJson[];
   roads: EnvelopeJson[];
 }
@@ -44,4 +45,5 @@ export interface MarkingJson {
   position: NodeJson;
   direction: NodeJson;
   type: MarkingType;
+  modelUrl?: string;
 }
