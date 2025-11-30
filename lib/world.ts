@@ -171,7 +171,10 @@ export class World {
    * @param json - Deserialized `WorldJson` object to load
    */
   fromJson(json: WorldJson) {
-    this.dispose();
+    for (const marking of this.markings) {
+      marking.dispose();
+    }
+    this.markings = [];
 
     this.graph.fromJson(json.graph);
     this.roadWidth = json.roadWidth;
@@ -192,7 +195,7 @@ export class World {
     });
     this.markings = (json.markings ?? []).map((mj: MarkingJson) => {
       switch (mj.type) {
-        case "traffic-light":
+        case "traffic-light": {
           const tl = new TrafficLight(
             new Node(0, 0),
             new Node(0, 0),
@@ -200,7 +203,8 @@ export class World {
           );
           tl.fromJson(mj as TrafficLightJson);
           return tl;
-        default:
+        }
+        default: {
           const m = new Marking(
             new Node(0, 0),
             new Node(0, 0),
@@ -209,6 +213,7 @@ export class World {
           );
           m.fromJson(mj);
           return m;
+        }
       }
     });
   }

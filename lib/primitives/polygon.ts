@@ -308,8 +308,18 @@ export class Polygon {
     });
 
     this.edges = json.edges.map((e) => {
-      const edge = new Edge(new Node(0, 0), new Node(0, 0));
-      edge.fromJson(e);
+      // Find matching nodes from this.nodes by coordinates
+      const n1 = this.nodes.find((n) => n.x === e.n1.x && n.y === e.n1.y);
+      const n2 = this.nodes.find((n) => n.x === e.n2.x && n.y === e.n2.y);
+
+      if (!n1 || !n2) {
+        throw new Error("Edge references node not found in polygon");
+      }
+
+      const edge = new Edge(n1, n2);
+      if (e.isDirected !== undefined) {
+        edge.isDirected = e.isDirected;
+      }
       return edge;
     });
   }

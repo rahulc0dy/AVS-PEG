@@ -54,6 +54,19 @@ export class TrafficLight extends Marking {
    * internal `PointLight` with appropriate color and positions it.
    */
   setState(state: LightState) {
+    // Dispose old lights if they exist
+    if (this.activeLight) {
+      if (this.activeLight.parent) {
+        this.activeLight.parent.remove(this.activeLight);
+      }
+      this.activeLight.dispose();
+    }
+    if (this.activeLightHelper) {
+      if (this.activeLightHelper.parent) {
+        this.activeLightHelper.parent.remove(this.activeLightHelper);
+      }
+      this.activeLightHelper.dispose();
+    }
     this.lightState = state;
     this.activeLight = new PointLight(
       TRAFFIC_LIGHT_CONFIG[state].color,

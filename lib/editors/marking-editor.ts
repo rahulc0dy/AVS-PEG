@@ -95,7 +95,7 @@ export class MarkingEditor extends BaseEditor {
 
   /** Right-click behavior is intentionally unimplemented for now. */
   handleRightClick(_pointer: Vector3): void {
-    throw new Error("Method not implemented.");
+    // throw new Error("Method not implemented.");
   }
 
   /**

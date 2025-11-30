@@ -513,7 +513,15 @@ export default function WorldComponent({
         </p>
       </div>
       {/* Mini viewport border overlay (visual only) */}
-      <div className="pointer-events-none fixed bottom-4 left-4 z-10 border border-gray-200" />
+      <div
+        className="pointer-events-none fixed bottom-4 left-4 z-10 border border-gray-200"
+        style={{
+          left: MINIVIEW_X,
+          bottom: MINIVIEW_Y,
+          width: MINIVIEW_WIDTH,
+          height: MINIVIEW_HEIGHT,
+        }}
+      />
       <div className="fixed top-4 right-4 z-10 flex flex-col space-y-2">
         <Button
           onClick={() => setIsOsmModalOpen(true)}
