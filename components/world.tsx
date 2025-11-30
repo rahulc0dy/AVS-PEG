@@ -4,13 +4,23 @@ import { GraphEditor } from "@/lib/editors/graph-editor";
 import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, GridHelper, PerspectiveCamera, Plane, Raycaster, Scene, Vector2, Vector3, WebGLRenderer } from "three";
+import {
+  Camera,
+  GridHelper,
+  PerspectiveCamera,
+  Plane,
+  Raycaster,
+  Scene,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import OsmModal from "@/components/osm-modal";
 import Button from "@/components/ui/button";
 import Image from "next/image";
 import { EditorMode } from "@/types/editor";
-import { TrafficLightEditor } from "@/lib/traffic-light-editor";
+import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import {
   MINICAM_FAR,
   MINICAM_FORWARD,
@@ -21,7 +31,7 @@ import {
   MINIVIEW_HEIGHT,
   MINIVIEW_WIDTH,
   MINIVIEW_X,
-  MINIVIEW_Y
+  MINIVIEW_Y,
 } from "@/env";
 
 /**
@@ -110,9 +120,6 @@ export default function WorldComponent({
         if (trafficSignalButton.current)
           trafficSignalButton.current.style.filter = "";
         trafficLightEditorRef.current?.enable();
-        break;
-      case "crossing":
-        // crossingEditorRef.current?.enable();
         break;
     }
   };
@@ -500,14 +507,14 @@ export default function WorldComponent({
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-100 text-gray-200">
+      <div className="fixed right-4 bottom-4 z-100 text-gray-200">
         <p className="font-bold text-gray-100">
           Mode: <span className="text-green-300 uppercase">{activeMode}</span>
         </p>
       </div>
       {/* Mini viewport border overlay (visual only) */}
-      <div className="pointer-events-none fixed left-4 bottom-4 z-10 border-gray-200 border" />
-      <div className="flex flex-col space-y-2 fixed top-4 right-4 z-10">
+      <div className="pointer-events-none fixed bottom-4 left-4 z-10 border border-gray-200" />
+      <div className="fixed top-4 right-4 z-10 flex flex-col space-y-2">
         <Button
           onClick={() => setIsOsmModalOpen(true)}
           color="teal"
@@ -522,7 +529,7 @@ export default function WorldComponent({
           Save to JSON
         </Button>
       </div>
-      <div className="fixed bottom-4 left-0 right-0 flex items-center justify-center gap-5">
+      <div className="fixed right-0 bottom-4 left-0 flex items-center justify-center gap-5">
         <Button
           onClick={() => setMode("graph")}
           color="white"

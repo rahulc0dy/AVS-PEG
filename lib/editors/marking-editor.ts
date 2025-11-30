@@ -1,197 +1,125 @@
-import {
-  Color,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-  Scene,
-  SphereGeometry,
-  Vector3,
-} from "three";
-import { Edge } from "../primitives/edge";
-import { BaseEditor } from "./base-editor";
+import { Group, Scene, Vector3 } from "three";
+import { BaseEditor } from "@/lib/editors/base-editor";
+import { Marking } from "@/lib/markings/marking";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { getNearestEdge } from "@/utils/math";
 
-interface Marking {
-  edge: Edge;
-  t: number; // parametric
-  point: Vector3;
-  direction: Vector3;
-  mesh: Object3D;
-  isPreview?: boolean;
-}
-
-function makeSphere(point: Vector3, color: Color | string, scale = 0.03): Mesh {
-  const geo = new SphereGeometry(1, 12, 8);
-  const mat = new MeshBasicMaterial({ color });
-  const mesh = new Mesh(geo, mat);
-  mesh.position.copy(point);
-  mesh.scale.setScalar(scale);
-  return mesh;
-}
-
-function edgeEndpoints(edge: Edge): { a: Vector3; b: Vector3 } {
-  const a = new Vector3(edge.n1.x, 0, edge.n1.y);
-  const b = new Vector3(edge.n2.x, 0, edge.n2.y);
-  return { a, b };
-}
-
-function projectPointOnEdge(edge: Edge, point: Vector3) {
-  const { a, b } = edgeEndpoints(edge);
-  const ab = new Vector3().subVectors(b, a);
-  const direction = ab.clone().normalize();
-  const ap = new Vector3().subVectors(point, a);
-  const lenSq = ab.lengthSq();
-  if (lenSq === 0) {
-    return {
-      projected: a.clone(),
-      t: 0,
-      distanceSq: ap.lengthSq(),
-      direction: new Vector3(1, 0, 0),
-    };
-  }
-  let t = ap.dot(ab) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-  const projected = new Vector3().copy(a).add(ab.multiplyScalar(t));
-  const distanceSq = projected.distanceToSquared(point);
-  return { projected, t, distanceSq, direction };
-}
-
+/**
+ * Editor for placing and previewing markings in the world.
+ *
+ * The editor maintains a transient `intent` marking used for previewing
+ * placement while the user moves the pointer. On commit the preview is
+ * reparented into `commitGroup` and added to `markings`.
+ */
 export class MarkingEditor extends BaseEditor {
-  markings: Marking[] = [];
-  targetSegments: Edge[];
-  protected hover?: Marking;
-  constructor(scene: Scene, targetSegments: Edge[]) {
+  /** Preview marking currently following the pointer, or `null`. */
+  intent: Marking | null;
+  /** Edges that are valid targets for marking placement. */
+  targetEdges: Edge[];
+  /** Array storing committed markings managed by the caller. */
+  markings: Marking[];
+  /** Group where committed markings should be added (typically World.worldGroup). */
+  commitGroup: Group;
+
+  /** Internal flag indicating a pending commit on click release. */
+  private addMarkingOnRelease: boolean = false;
+
+  /**
+   * Create a new MarkingEditor.
+   * @param scene Three.js scene to attach editor visuals to.
+   * @param targetEdges Edges considered valid for placement (used for snapping).
+   * @param markings Optional array to collect committed markings.
+   * @param commitGroup Optional group to parent committed markings into.
+   */
+  constructor(
+    scene: Scene,
+    targetEdges: Edge[],
+    markings: Marking[] = [],
+    commitGroup?: Group,
+  ) {
     super(scene);
-    this.targetSegments = targetSegments;
+
+    this.intent = null;
+    this.targetEdges = targetEdges;
+    this.markings = markings;
+    // Default commit group to the editor group if not provided (backward compat),
+    // but ideally the World.worldGroup should be passed in.
+    this.commitGroup = commitGroup ?? this.editorGroup;
   }
 
-  createMarking(
-    point: Vector3,
-    direction: Vector3,
-    color = new Color(0x00ffff),
-    scale = 1
-  ): Object3D {
-    return makeSphere(point, color, scale);
+  /**
+   * Create a new marking instance used for preview. Subclasses may override
+   * to construct specific marking types (e.g. `TrafficLight`).
+   */
+  createMarking(position: Node, direction: Node): Marking {
+    // Use editorGroup for preview by default; we'll switch to commitGroup on commit.
+    return new Marking(position, direction, this.editorGroup);
   }
 
-  private updateHover(point: Vector3) {
-    let best: {
-      edge: Edge;
-      t: number;
-      point: Vector3;
-      distanceSq: number;
-      direction: Vector3;
-    } | null = null;
-
-    for (const edge of this.targetSegments) {
-      const { projected, t, distanceSq, direction } = projectPointOnEdge(
-        edge,
-        point
-      );
-      if (!best || distanceSq < best.distanceSq)
-        best = { edge, t, point: projected, distanceSq, direction };
-    }
-    if (!best) {
-      this.clearHover();
-      return;
-    }
-
-    const maxdistSq = 20 * 20;
-    if (best.distanceSq > maxdistSq) {
-      this.clearHover();
-      return;
-    }
-
-    if (this.hover) {
-      this.hover.point.copy(best.point);
-      this.hover.direction.copy(best.direction);
-      this.hover.mesh.position.copy(best.point);
-      this.hover.mesh.lookAt(best.point.clone().add(best.direction));
-      this.hover.t = best.t;
-      this.hover.edge = best.edge;
-      return;
-    }
-
-    const mesh = this.createMarking(best.point, best.direction);
-    mesh.lookAt(best.point.clone().add(best.direction));
-    const marking: Marking = {
-      edge: best.edge,
-      t: best.t,
-      point: best.point.clone(),
-      direction: best.direction.clone(),
-      mesh,
-      isPreview: true,
-    };
-    this.scene.add(mesh);
-    this.hover = marking;
-  }
-
-  protected clearHover() {
-    if (this.hover) {
-      this.scene.remove(this.hover.mesh);
-      if (this.hover.mesh instanceof Mesh) {
-        this.hover.mesh.geometry.dispose();
-        this.hover.mesh.material.dispose();
+  /**
+   * Track pointer movement and update the preview `intent` when the pointer
+   * is near a valid target edge.
+   */
+  handlePointerMove(pointer: Vector3): void {
+    const pointerNode = new Node(pointer.x, pointer.z);
+    const nearestEdge = getNearestEdge(pointerNode, this.targetEdges, 20);
+    if (nearestEdge) {
+      const projected = nearestEdge.projectNode(pointerNode);
+      if (projected.offset >= 0 && projected.offset <= 1) {
+        const direction = nearestEdge.directionVector();
+        if (this.intent) {
+          this.intent.position = projected.point;
+          this.intent.direction = direction;
+        } else {
+          this.intent = this.createMarking(projected.point, direction);
+        }
+      } else {
+        // pointer moved outside valid range — dispose previous intent (if any)
+        this.intent?.dispose();
+        this.intent = null;
       }
-      this.hover = undefined;
+    } else {
+      // no nearest edge — dispose previous intent (if any)
+      this.intent?.dispose();
+      this.intent = null;
     }
   }
 
+  /** On left click, prepare to commit the preview on release. */
+  handleLeftClick(_pointer: Vector3): void {
+    if (this.intent) {
+      this.addMarkingOnRelease = true;
+    }
+  }
+
+  /** Right-click behavior is intentionally unimplemented for now. */
+  handleRightClick(_pointer: Vector3): void {
+    throw new Error("Method not implemented.");
+  }
+
+  /**
+   * Commit the preview marking to the `commitGroup` when the click is released.
+   * The preview is reparented (not disposed) so meshes/lights remain intact.
+   */
+  handleClickRelease(_pointer: Vector3): void {
+    if (this.addMarkingOnRelease && this.intent) {
+      // Reparent preview objects from the editor overlay to the world group
+      // (Do NOT dispose here; disposing would destroy meshes/lights like the
+      // traffic light glow. Adding to a new parent will auto-reparent in Three.js.)
+      this.intent.group = this.commitGroup;
+      this.markings.push(this.intent);
+      this.intent = null;
+      this.addMarkingOnRelease = false;
+    }
+  }
+
+  /** Draw the preview marking into the editor overlay. Returns `true` when visuals changed. */
   draw(): boolean {
-    return !!this.hover;
-  }
-
-  handlePointerMove(point: Vector3): void {
-    this.updateHover(point);
-  }
-
-  handleLeftClick(_point: Vector3): void {
-    if (!this.hover) return;
-    const committed = this.hover;
-    committed.isPreview = false;
-    this.scene.remove(committed.mesh);
-
-    // Maybe mesh on other markings
-    if (committed.mesh instanceof Mesh) {
-      committed.mesh.geometry.dispose();
-      committed.mesh.material.dispose?.();
+    if (this.intent) {
+      this.intent.draw(this.editorGroup, this.intent.modelUrl);
+      return true;
     }
-
-    committed.mesh = makeSphere(committed.point, new Color(0xffff00), 0.04);
-    committed.mesh.lookAt(committed.point.clone().add(committed.direction));
-
-    this.scene.add(committed.mesh);
-    this.markings.push(committed);
-    this.hover = undefined;
-  }
-
-  handleRightClick(point: Vector3): void {
-    let bestIndex = -1;
-    let minDistanceSq = Infinity;
-    const thresholdSq = 2 * 2;
-
-    for (let i = 0; i < this.markings.length; i++) {
-      const marking = this.markings[i];
-      const distSq = marking.point.distanceToSquared(point);
-      if (distSq < minDistanceSq && distSq < thresholdSq) {
-        minDistanceSq = distSq;
-        bestIndex = i;
-      }
-    }
-
-    if (bestIndex !== -1) {
-      const toRemove = this.markings[bestIndex];
-      this.scene.remove(toRemove.mesh);
-      if (toRemove.mesh instanceof Mesh) {
-        toRemove.mesh.geometry.dispose();
-        toRemove.mesh.material.dispose?.();
-      }
-      this.markings.splice(bestIndex, 1);
-    }
-
-    this.clearHover();
-  }
-
-  handleClickRelease(_point: Vector3): void {
-    // No-op
+    return false;
   }
 }
