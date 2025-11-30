@@ -10,6 +10,12 @@ import { Node } from "@/lib/primitives/node";
 import { MarkingJson, TrafficLightJson, WorldJson } from "@/types/save";
 import { Marking } from "@/lib/markings/marking";
 
+/**
+ * Responsible for generating visual road geometry from a `Graph`, managing
+ * world objects (cars, markings), and providing serialization helpers for
+ * save/load. The `World` owns a Three.js `Group` (`worldGroup`) which is
+ * re-created each draw and attached to the provided `Scene`.
+ */
 export class World {
   /** Underlying road graph (nodes and edges). */
   graph: Graph;
@@ -144,6 +150,10 @@ export class World {
     }
   }
 
+  /**
+   * Serialize the world state to a plain JSON object suitable for saving.
+   * @returns world JSON containing graph, roads, borders and markings
+   */
   toJson() {
     return {
       graph: this.graph.toJson(),
@@ -155,6 +165,11 @@ export class World {
     };
   }
 
+  /**
+   * Populate the world from serialized JSON. Existing scene resources are
+   * disposed before loading to avoid leaking GPU resources.
+   * @param json - Deserialized `WorldJson` object to load
+   */
   fromJson(json: WorldJson) {
     this.dispose();
 
