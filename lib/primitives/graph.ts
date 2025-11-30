@@ -205,6 +205,9 @@ export class Graph {
     }
   }
 
+  /**
+   * Serialize the graph to a plain JSON object containing nodes and edges.
+   */
   toJson() {
     return {
       nodes: this.nodes.map((n) => n.toJson()),
@@ -212,6 +215,11 @@ export class Graph {
     };
   }
 
+  /**
+   * Populate the graph from serialized JSON. Reconstructs `Node` and `Edge`
+   * instances and replaces the current graph state.
+   * @param json Serialized graph data
+   */
   fromJson(json: GraphJson) {
     const nodes: Node[] = json.nodes.map((n) => new Node(n.x, n.y));
     const edges: Edge[] = json.edges.map((e) => {

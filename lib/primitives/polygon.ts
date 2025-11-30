@@ -136,7 +136,7 @@ export class Polygon {
           edges1[i].n1,
           edges1[i].n2,
           edges2[j].n1,
-          edges2[j].n2
+          edges2[j].n2,
         );
 
         // If a valid intersection occurs not exactly at endpoints
@@ -179,7 +179,7 @@ export class Polygon {
    */
   distanceToPoly(polygon: Polygon): number {
     return Math.min(
-      ...this.edges.map((edge) => polygon.distanceToNode(edge.n1))
+      ...this.edges.map((edge) => polygon.distanceToNode(edge.n1)),
     );
   }
 
@@ -283,6 +283,9 @@ export class Polygon {
     }
   }
 
+  /**
+   * Serialize the polygon to JSON (nodes and edges).
+   */
   toJson() {
     return {
       nodes: this.nodes.map((n) => n.toJson()),
@@ -290,6 +293,11 @@ export class Polygon {
     };
   }
 
+  /**
+   * Restore polygon geometry from JSON. Disposes any cached mesh so the
+   * visual is recreated on the next draw.
+   * @param json Serialized polygon data
+   */
   fromJson(json: PolygonJson) {
     this.dispose();
 

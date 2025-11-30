@@ -86,6 +86,9 @@ export class Envelope {
     this.poly.draw(group, config);
   }
 
+  /**
+   * Serialize the envelope to JSON including its skeleton edge and polygon.
+   */
   toJson() {
     return {
       skeleton: this.skeleton.toJson(),
@@ -93,6 +96,11 @@ export class Envelope {
     };
   }
 
+  /**
+   * Restore envelope state from JSON. This updates the skeleton and polygon
+   * structures in-place.
+   * @param json Serialized envelope data
+   */
   fromJson(json: EnvelopeJson) {
     this.skeleton.fromJson(json.skeleton);
     this.poly.fromJson(json.poly);

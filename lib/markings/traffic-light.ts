@@ -5,8 +5,10 @@ import { Marking } from "./marking";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { angle, add, translate, distance } from "@/utils/math";
 
+/** Possible states for a traffic light. */
 export type LightState = "red" | "yellow" | "green";
 
+/** Configuration for each light color: color and relative offset from the marking. */
 const TRAFFIC_LIGHT_CONFIG = {
   red: {
     color: 0xff0000,
@@ -26,6 +28,10 @@ const TRAFFIC_LIGHT_INTENSITY = 100;
 const TRAFFIC_LIGHT_DISTANCE = 1.1;
 const TRAFFIC_LIGHT_HEIGHT = 15.9;
 
+/**
+ * A traffic light marking. Extends `Marking` by adding a `PointLight` for the
+ * currently active lamp (red/yellow/green) and optional helpers for debugging.
+ */
 export class TrafficLight extends Marking {
   private lightState!: LightState;
   private activeLight!: PointLight | null;
@@ -34,11 +40,19 @@ export class TrafficLight extends Marking {
   // Toggle to show/hide the PointLightHelper for debugging/visualization
   private showHelper: boolean = false;
 
+  /**
+   * Construct a traffic light at `position` with `direction` and attach visuals
+   * to the provided `group`.
+   */
   constructor(position: Node, direction: Node, group: Group) {
     super(position, direction, group, "traffic-light");
     this.setState("red");
   }
 
+  /**
+   * Set the visible light state (red/yellow/green). This recreates the
+   * internal `PointLight` with appropriate color and positions it.
+   */
   setState(state: LightState) {
     this.lightState = state;
     this.activeLight = new PointLight(
@@ -50,6 +64,11 @@ export class TrafficLight extends Marking {
     this.setLightPosition();
   }
 
+  /**
+   * Compute and set the world position of the active light based on the
+   * marking's position and direction. Uses the configured relative offsets
+   * from `TRAFFIC_LIGHT_CONFIG`.
+   */
   private setLightPosition() {
     if (this.activeLight) {
       // Rotate the configured relative XZ offset by the marking's direction
@@ -82,10 +101,15 @@ export class TrafficLight extends Marking {
     }
   }
 
+  /** Convenience update called by the world loop. */
   update() {
     this.draw(this.group, this.modelUrl);
   }
 
+  /**
+   * Draw the traffic light (including its model) and ensure the `PointLight`
+   * and optional helper are attached to the provided `target` group.
+   */
   draw(target: Group, url: string, loader?: GLTFLoader) {
     super.draw(target, url, loader);
 
@@ -111,6 +135,9 @@ export class TrafficLight extends Marking {
     }
   }
 
+  /**
+   * Dispose of any lights/helpers in addition to the base model disposal.
+   */
   dispose(): void {
     super.dispose();
     if (this.activeLight) {
@@ -127,6 +154,7 @@ export class TrafficLight extends Marking {
     }
   }
 
+  /** Serialize to JSON (includes lightState). */
   toJson() {
     return {
       ...super.toJson(),
@@ -134,6 +162,10 @@ export class TrafficLight extends Marking {
     };
   }
 
+  /**
+   * Populate fields from JSON and restore state (recreate lights).
+   * @param json TrafficLight JSON loaded from disk or network.
+   */
   fromJson(json: TrafficLightJson) {
     super.fromJson(json);
     this.setState(json.lightState);

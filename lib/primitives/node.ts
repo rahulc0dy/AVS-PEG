@@ -79,6 +79,10 @@ export class Node {
     }
   }
 
+  /**
+   * Serialize this node to a plain JSON object.
+   * @returns Object with `x` and `y` numeric coordinates
+   */
   toJson() {
     return {
       x: this.x,
@@ -86,6 +90,11 @@ export class Node {
     };
   }
 
+  /**
+   * Restore node coordinates from JSON. Disposes any cached mesh so the
+   * rendering state will be recreated on the next draw.
+   * @param json Serialized node data
+   */
   fromJson(json: NodeJson) {
     this.dispose();
 
