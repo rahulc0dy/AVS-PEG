@@ -50,7 +50,7 @@ export function ModeControls({ activeMode, setMode }: ModeControlsProps) {
         >
           <Image
             src={"/icons/traffic-lights.png"}
-            alt="graph"
+            alt="traffic-lights"
             width={30}
             height={50}
             className="size-6 rotate-90"
