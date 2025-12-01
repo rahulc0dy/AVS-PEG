@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
 import OsmModal from "@/components/osm-modal";
-import { useWorldInput } from "./hooks/use-world-input";
-import { useWorldEditors } from "./hooks/use-world-editors";
-import { useWorldAnimation } from "./hooks/use-world-animation";
-import { useMiniCamera } from "./hooks/use-mini-camera";
-import { useWorldPersistence } from "./hooks/use-world-persistence";
-import { MiniMapOverlay } from "./world-ui/mini-map-overlay";
-import { FileToolbar } from "./world-ui/file-toolbar";
-import { ModeControls } from "./world-ui/mode-controls";
+import { useWorldInput } from "@/components/hooks/use-world-input";
+import { useWorldEditors } from "@/components/hooks/use-world-editors";
+import { useWorldAnimation } from "@/components/hooks/use-world-animation";
+import { useMiniCamera } from "@/components/hooks/use-mini-camera";
+import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
+import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
+import { FileToolbar } from "@/components/world-ui/file-toolbar";
+import { ModeControls } from "@/components/world-ui/mode-controls";
 
 interface WorldComponentProps {
   scene: Scene;
