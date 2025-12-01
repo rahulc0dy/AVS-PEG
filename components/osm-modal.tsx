@@ -9,19 +9,6 @@ import { parseRoadsFromOsmData } from "@/utils/osm";
 import Link from "next/link";
 
 /**
- * OsmModal component
- *
- * This modal allows the user to enter a geographic bounding box (min/max
- * latitude and longitude) and load OpenStreetMap (OSM) road data for that
- * region. The modal persists the last-used bounding box to `localStorage`
- * under the key `b-box` and will load it when the component mounts.
- *
- * The loaded OSM data is parsed into a `Graph` instance and applied to the
- * `graphRef` passed by the parent. The existing graph instance is updated in
- * place to ensure references held elsewhere in the app remain intact.
- */
-
-/**
  * Props for `OsmModal`.
  *
  * - `isOpen`: whether the modal is visible.
@@ -45,6 +32,16 @@ interface BoundingBox {
   maxLong: number;
 }
 
+/**
+ * This modal allows the user to enter a geographic bounding box (min/max
+ * latitude and longitude) and load OpenStreetMap (OSM) road data for that
+ * region. The modal persists the last-used bounding box to `localStorage`
+ * under the key `b-box` and will load it when the component mounts.
+ *
+ * The loaded OSM data is parsed into a `Graph` instance and applied to the
+ * `graphRef` passed by the parent. The existing graph instance is updated in
+ * place to ensure references held elsewhere in the app remain intact.
+ */
 const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
   const [minLat, setMinLat] = useState(22.574181);
   const [minLong, setMinLong] = useState(88.410046);
@@ -156,7 +153,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       <div className="space-y-4">
         {/* Error banner: shown when an error message exists */}
         {error && (
-          <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
             {error}
           </div>
         )}
@@ -167,9 +164,9 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
           - center: Max Lat (North) and Min Lat (South)
           - right: Max Lon (East)
         */}
-        <div className="grid grid-cols-3 gap-4 items-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-3 items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <div className="col-start-2 space-y-1">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
+            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
               Max Lat (North)
             </label>
             <input
@@ -180,12 +177,12 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMaxLat(val);
               }}
-              className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div className="col-start-1 space-y-1">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
+            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
               Min Lon (West)
             </label>
             <input
@@ -196,12 +193,12 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMinLong(val);
               }}
-              className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div className="col-start-3 space-y-1">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
+            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
               Max Lon (East)
             </label>
             <input
@@ -212,12 +209,12 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMaxLong(val);
               }}
-              className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
 
           <div className="col-start-2 space-y-1">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
+            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
               Min Lat (South)
             </label>
             <input
@@ -228,7 +225,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMinLat(val);
               }}
-              className="w-full px-2 py-1 text-sm text-center border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
             />
           </div>
         </div>
@@ -238,7 +235,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
           href={"https://www.openstreetmap.org/export"}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-gray-400 float-right align-bottom"
+          className="float-right align-bottom text-xs text-gray-400"
         >
           Export from OpenStreetMaps
         </Link>

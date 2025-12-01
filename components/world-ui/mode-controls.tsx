@@ -7,6 +7,18 @@ interface ModeControlsProps {
   setMode: (mode: EditorMode) => void;
 }
 
+/**
+ * Controls to switch between editor modes and show the active mode.
+ *
+ * Displays the current `activeMode` and renders two buttons to toggle
+ * between the "graph" and "traffic-lights" editors. The active button
+ * is shown in full color while the inactive one is grayscaled.
+ *
+ * @param {object} props - Component props.
+ * @param {EditorMode} props.activeMode - Currently selected editor mode.
+ * @param {(mode: EditorMode) => void} props.setMode - Setter to change the active mode.
+ * @returns {JSX.Element} Mode controls UI.
+ */
 export function ModeControls({ activeMode, setMode }: ModeControlsProps) {
   return (
     <>
