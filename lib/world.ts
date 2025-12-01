@@ -1,11 +1,21 @@
 import { Color, Group, Scene, Vector2 } from "three";
-import { Edge } from "./primitives/edge";
-import { Envelope } from "./primitives/envelope";
-import { Polygon } from "./primitives/polygon";
-import { Graph } from "./primitives/graph";
-import { Car } from "./car/car";
-import { ControlType } from "./car/controls";
+import { Edge } from "@/lib/primitives/edge";
+import { Envelope } from "@/lib/primitives/envelope";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Graph } from "@/lib/primitives/graph";
+import { Car } from "@/lib/car/car";
+import { ControlType } from "@/lib/car/controls";
+import { TrafficLight } from "@/lib/markings/traffic-light";
+import { Node } from "@/lib/primitives/node";
+import { MarkingJson, TrafficLightJson, WorldJson } from "@/types/save";
+import { Marking } from "@/lib/markings/marking";
 
+/**
+ * Responsible for generating visual road geometry from a `Graph`, managing
+ * world objects (cars, markings), and providing serialization helpers for
+ * save/load. The `World` owns a Three.js `Group` (`worldGroup`) which is
+ * re-created each draw and attached to the provided `Scene`.
+ */
 export class World {
   /** Underlying road graph (nodes and edges). */
   graph: Graph;
@@ -23,6 +33,7 @@ export class World {
   roads: Envelope[];
 
   cars: Car[];
+  markings: Marking[];
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -36,7 +47,7 @@ export class World {
     graph: Graph,
     scene: Scene,
     roadWidth: number = 40,
-    roadRoundness: number = 8
+    roadRoundness: number = 8,
   ) {
     this.graph = graph;
     this.scene = scene;
@@ -53,7 +64,7 @@ export class World {
         17.5,
         7,
         ControlType.HUMAN,
-        this.worldGroup
+        this.worldGroup,
       ),
       new Car(
         new Vector2(20, 0),
@@ -61,9 +72,11 @@ export class World {
         17.5,
         7,
         ControlType.NONE,
-        this.worldGroup
+        this.worldGroup,
       ),
     ];
+
+    this.markings = [];
 
     // Build derived geometry immediately
     this.generate();
@@ -76,6 +89,9 @@ export class World {
   update() {
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
+    }
+    for (const marking of this.markings) {
+      marking.update();
     }
   }
 
@@ -125,9 +141,80 @@ export class World {
     for (const car of this.cars) {
       car.dispose();
     }
+    for (const marking of this.markings) {
+      marking.dispose();
+    }
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
       this.worldGroup.parent.remove(this.worldGroup);
     }
+  }
+
+  /**
+   * Serialize the world state to a plain JSON object suitable for saving.
+   * @returns world JSON containing graph, roads, borders and markings
+   */
+  toJson() {
+    return {
+      graph: this.graph.toJson(),
+      roadWidth: this.roadWidth,
+      roadRoundness: this.roadRoundness,
+      roadBorders: this.roadBorders.map((rb) => rb.toJson()),
+      roads: this.roads.map((r) => r.toJson()),
+      markings: this.markings.map((m) => m.toJson()),
+    };
+  }
+
+  /**
+   * Populate the world from serialized JSON. Existing scene resources are
+   * disposed before loading to avoid leaking GPU resources.
+   * @param json - Deserialized `WorldJson` object to load
+   */
+  fromJson(json: WorldJson) {
+    for (const marking of this.markings) {
+      marking.dispose();
+    }
+    this.markings = [];
+
+    this.graph.fromJson(json.graph);
+    this.roadWidth = json.roadWidth;
+    this.roadRoundness = json.roadRoundness;
+    this.roadBorders = json.roadBorders.map((rbj) => {
+      const edge = new Edge(new Node(0, 0), new Node(0, 0));
+      edge.fromJson(rbj);
+      return edge;
+    });
+    this.roads = json.roads.map((rj) => {
+      const envelope = new Envelope(
+        new Edge(new Node(0, 0), new Node(0, 0)),
+        this.roadWidth,
+        this.roadRoundness,
+      );
+      envelope.fromJson(rj);
+      return envelope;
+    });
+    this.markings = (json.markings ?? []).map((mj: MarkingJson) => {
+      switch (mj.type) {
+        case "traffic-light": {
+          const tl = new TrafficLight(
+            new Node(0, 0),
+            new Node(0, 0),
+            this.worldGroup,
+          );
+          tl.fromJson(mj as TrafficLightJson);
+          return tl;
+        }
+        default: {
+          const m = new Marking(
+            new Node(0, 0),
+            new Node(0, 0),
+            this.worldGroup,
+            mj.type,
+          );
+          m.fromJson(mj);
+          return m;
+        }
+      }
+    });
   }
 }

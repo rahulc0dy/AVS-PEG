@@ -3,8 +3,9 @@ import { Color, Group, Scene, Vector3 } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
+import { BaseEditor } from "./base-editor";
 
-export class GraphEditor {
+export class GraphEditor extends BaseEditor {
   /** Underlying graph being edited. */
   graph: Graph;
   /** Currently selected node (null when none). */
@@ -17,10 +18,6 @@ export class GraphEditor {
   /** Callback invoked when drag state changes. */
   private onDragStateChanged: (isDragging: boolean) => void = () => {};
 
-  /** Three.js scene used for rendering editor visuals. */
-  scene: Scene;
-  /** Group that contains editor visuals (node meshes). */
-  graphEditorGroup: Group;
   /** Whether a redraw is required on next `draw()` call. */
   private needsRedraw: boolean;
   /** Last observed graph change counter to avoid redundant redraws. */
@@ -39,6 +36,8 @@ export class GraphEditor {
     scene: Scene,
     onDragStateChanged: (isDragging: boolean) => void
   ) {
+    super(scene);
+
     // Initialize state
     this.graph = graph;
     this.selectedNode = null;
@@ -46,13 +45,16 @@ export class GraphEditor {
     this.dragging = false;
     this.onDragStateChanged = onDragStateChanged;
 
-    this.scene = scene;
-    this.graphEditorGroup = new Group();
-    this.scene.add(this.graphEditorGroup);
-
     // Force an initial draw
     this.needsRedraw = true;
     this.lastGraphChanges = -1;
+  }
+
+  disable() {
+    super.disable();
+    this.selectedNode = null;
+    this.hoveredNode = null;
+    this.dragging = false;
   }
 
   /**
@@ -182,32 +184,32 @@ export class GraphEditor {
     if (!this.needsRedraw && currentChanges === this.lastGraphChanges) {
       return false;
     }
-    this.graphEditorGroup.clear();
+    this.editorGroup.clear();
 
     this.graph.getNodes().forEach((node) => {
       switch (node) {
         case this.hoveredNode:
-          node.draw(this.graphEditorGroup, {
+          node.draw(this.editorGroup, {
             size: 1.2,
             color: GraphEditor.hoveredColor,
           });
           break;
         case this.selectedNode:
-          node.draw(this.graphEditorGroup, {
+          node.draw(this.editorGroup, {
             size: 1,
             color: GraphEditor.selectedColor,
           });
           break;
 
         default:
-          node.draw(this.graphEditorGroup, {
+          node.draw(this.editorGroup, {
             size: 1,
             color: GraphEditor.baseColor,
           });
       }
     });
 
-    this.scene.add(this.graphEditorGroup);
+    this.scene.add(this.editorGroup);
     this.lastGraphChanges = currentChanges;
     this.needsRedraw = false;
     return true;

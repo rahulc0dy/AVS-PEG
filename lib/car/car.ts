@@ -264,7 +264,7 @@ export class Car {
       const carMaterial = new MeshBasicMaterial({
         color: new Color(0x00ff00),
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.1,
       });
       const carMesh = new Mesh(carGeometry, carMaterial);
       this.carColliderMesh = carMesh;

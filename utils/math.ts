@@ -1,3 +1,4 @@
+import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 
@@ -154,7 +155,7 @@ export function degToRad(degree: number): number {
 export function translate(loc: Node, angle: number, offset: number): Node {
   return new Node(
     loc.x + Math.cos(angle) * offset,
-    loc.y + Math.sin(angle) * offset
+    loc.y + Math.sin(angle) * offset,
   );
 }
 
@@ -181,7 +182,7 @@ export function getIntersection(
   A: Node,
   B: Node,
   C: Node,
-  D: Node
+  D: Node,
 ): Intersection | null {
   // Compute determinants for intersection formulas
   const tNumerator = (D.x - C.x) * (A.y - C.y) - (D.y - C.y) * (A.x - C.x);
@@ -250,7 +251,7 @@ export function doPolygonsIntersect(polyA: Polygon, polyB: Polygon): boolean {
 export function getNearestNode(
   loc: Node,
   nodes: Node[],
-  threshold: number = Number.MAX_SAFE_INTEGER
+  threshold: number = Number.MAX_SAFE_INTEGER,
 ): Node | null {
   let minDistance = Number.MAX_SAFE_INTEGER;
   let nearestNode: Node | null = null;
@@ -262,4 +263,33 @@ export function getNearestNode(
     }
   }
   return nearestNode;
+}
+
+/**
+ * Find the nearest edge to `loc` within an optional `threshold`.
+ *
+ * Searches `edges` and returns the closest `Edge` whose distance to `loc`
+ * is less than `threshold`. Returns `null` when no edge is within the
+ * threshold.
+ *
+ * @param loc - query location
+ * @param edges - candidate edges to search
+ * @param threshold - maximum allowed distance (defaults to `Number.MAX_SAFE_INTEGER`)
+ * @returns nearest `Edge` within `threshold`, or `null` if none found
+ */
+export function getNearestEdge(
+  loc: Node,
+  edges: Edge[],
+  threshold = Number.MAX_SAFE_INTEGER,
+): Edge | null {
+  let minDist = Number.MAX_SAFE_INTEGER;
+  let nearest: Edge | null = null;
+  for (const seg of edges) {
+    const dist = seg.distanceToNode(loc);
+    if (dist < minDist && dist < threshold) {
+      minDist = dist;
+      nearest = seg;
+    }
+  }
+  return nearest;
 }

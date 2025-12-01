@@ -1,0 +1,61 @@
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+const posInt = (def: number) => z.coerce.number().int().positive().default(def);
+const posNum = (def: number) => z.coerce.number().positive().default(def);
+const nonNegInt = (def: number) =>
+  z.coerce.number().int().nonnegative().default(def);
+
+export const {
+  // Road config
+  NEXT_PUBLIC_ROAD_WIDTH: ROAD_WIDTH,
+
+  // Mini camera (driver view) config
+  NEXT_PUBLIC_MINICAM_HEIGHT: MINICAM_HEIGHT,
+  NEXT_PUBLIC_MINICAM_FORWARD: MINICAM_FORWARD,
+  NEXT_PUBLIC_MINICAM_LOOKAHEAD: MINICAM_LOOKAHEAD,
+  NEXT_PUBLIC_MINICAM_FOV: MINICAM_FOV,
+  NEXT_PUBLIC_MINICAM_NEAR: MINICAM_NEAR,
+  NEXT_PUBLIC_MINICAM_FAR: MINICAM_FAR,
+
+  // Mini viewport (inset) rectangle in CSS pixels
+  NEXT_PUBLIC_MINIVIEW_X: MINIVIEW_X,
+  NEXT_PUBLIC_MINIVIEW_Y: MINIVIEW_Y,
+  NEXT_PUBLIC_MINIVIEW_WIDTH: MINIVIEW_WIDTH,
+  NEXT_PUBLIC_MINIVIEW_HEIGHT: MINIVIEW_HEIGHT,
+} = createEnv({
+  client: {
+    // Roads
+    NEXT_PUBLIC_ROAD_WIDTH: posInt(40),
+
+    // Mini camera (numbers reflect your current hardcoded values)
+    NEXT_PUBLIC_MINICAM_HEIGHT: posNum(12),
+    NEXT_PUBLIC_MINICAM_FORWARD: posNum(18),
+    NEXT_PUBLIC_MINICAM_LOOKAHEAD: posNum(50),
+    NEXT_PUBLIC_MINICAM_FOV: posNum(60),
+    // Aspect is derived from viewport at runtime, so we omit it from env
+    NEXT_PUBLIC_MINICAM_NEAR: posNum(3),
+    NEXT_PUBLIC_MINICAM_FAR: posNum(10000),
+
+    // Mini viewport rectangle (bottom-left inset)
+    NEXT_PUBLIC_MINIVIEW_X: nonNegInt(16),
+    NEXT_PUBLIC_MINIVIEW_Y: nonNegInt(16),
+    NEXT_PUBLIC_MINIVIEW_WIDTH: posInt(320),
+    NEXT_PUBLIC_MINIVIEW_HEIGHT: posInt(180),
+  },
+  experimental__runtimeEnv: {
+    NEXT_PUBLIC_ROAD_WIDTH: process.env.NEXT_PUBLIC_ROAD_WIDTH,
+
+    NEXT_PUBLIC_MINICAM_HEIGHT: process.env.NEXT_PUBLIC_MINICAM_HEIGHT,
+    NEXT_PUBLIC_MINICAM_FORWARD: process.env.NEXT_PUBLIC_MINICAM_FORWARD,
+    NEXT_PUBLIC_MINICAM_LOOKAHEAD: process.env.NEXT_PUBLIC_MINICAM_LOOKAHEAD,
+    NEXT_PUBLIC_MINICAM_FOV: process.env.NEXT_PUBLIC_MINICAM_FOV,
+    NEXT_PUBLIC_MINICAM_NEAR: process.env.NEXT_PUBLIC_MINICAM_NEAR,
+    NEXT_PUBLIC_MINICAM_FAR: process.env.NEXT_PUBLIC_MINICAM_FAR,
+
+    NEXT_PUBLIC_MINIVIEW_X: process.env.NEXT_PUBLIC_MINIVIEW_X,
+    NEXT_PUBLIC_MINIVIEW_Y: process.env.NEXT_PUBLIC_MINIVIEW_Y,
+    NEXT_PUBLIC_MINIVIEW_WIDTH: process.env.NEXT_PUBLIC_MINIVIEW_WIDTH,
+    NEXT_PUBLIC_MINIVIEW_HEIGHT: process.env.NEXT_PUBLIC_MINIVIEW_HEIGHT,
+  },
+});

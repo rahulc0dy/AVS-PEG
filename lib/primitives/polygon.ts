@@ -10,6 +10,7 @@ import {
   Shape,
   BackSide,
 } from "three";
+import { PolygonJson } from "@/types/save";
 
 /**
  * Represents a closed polygon defined by ordered nodes.
@@ -135,7 +136,7 @@ export class Polygon {
           edges1[i].n1,
           edges1[i].n2,
           edges2[j].n1,
-          edges2[j].n2
+          edges2[j].n2,
         );
 
         // If a valid intersection occurs not exactly at endpoints
@@ -178,7 +179,7 @@ export class Polygon {
    */
   distanceToPoly(polygon: Polygon): number {
     return Math.min(
-      ...this.edges.map((edge) => polygon.distanceToNode(edge.n1))
+      ...this.edges.map((edge) => polygon.distanceToNode(edge.n1)),
     );
   }
 
@@ -280,5 +281,46 @@ export class Polygon {
       this.mesh.material.dispose();
       this.mesh = null;
     }
+  }
+
+  /**
+   * Serialize the polygon to JSON (nodes and edges).
+   */
+  toJson() {
+    return {
+      nodes: this.nodes.map((n) => n.toJson()),
+      edges: this.edges.map((e) => e.toJson()),
+    };
+  }
+
+  /**
+   * Restore polygon geometry from JSON. Disposes any cached mesh so the
+   * visual is recreated on the next draw.
+   * @param json Serialized polygon data
+   */
+  fromJson(json: PolygonJson) {
+    this.dispose();
+
+    this.nodes = json.nodes.map((n) => {
+      const node = new Node(0, 0);
+      node.fromJson(n);
+      return node;
+    });
+
+    this.edges = json.edges.map((e) => {
+      // Find matching nodes from this.nodes by coordinates
+      const n1 = this.nodes.find((n) => n.x === e.n1.x && n.y === e.n1.y);
+      const n2 = this.nodes.find((n) => n.x === e.n2.x && n.y === e.n2.y);
+
+      if (!n1 || !n2) {
+        throw new Error("Edge references node not found in polygon");
+      }
+
+      const edge = new Edge(n1, n2);
+      if (e.isDirected !== undefined) {
+        edge.isDirected = e.isDirected;
+      }
+      return edge;
+    });
   }
 }

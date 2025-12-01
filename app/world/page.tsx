@@ -3,7 +3,7 @@
 import WorldComponent from "@/components/world";
 import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Scene } from "three";
+import { Camera, Scene, WebGLRenderer } from "three";
 
 export default function WorldPage() {
   /**
@@ -20,6 +20,7 @@ export default function WorldPage() {
   const [renderContext, setRenderContext] = useState<{
     scene: Scene;
     camera: Camera;
+    renderer: WebGLRenderer;
     dom: HTMLElement;
   } | null>(null);
 
@@ -34,7 +35,7 @@ export default function WorldPage() {
     // Expose the scene/camera/dom to the WorldComponent by storing them
     // in state. `renderer.domElement` is the actual canvas element used for input
     // coordinate calculations (raycasting) in the editor.
-    setRenderContext({ scene, camera, dom: renderer.domElement });
+    setRenderContext({ scene, camera, renderer, dom: renderer.domElement });
 
     return () => {
       setRenderContext(null);
@@ -56,6 +57,7 @@ export default function WorldPage() {
         <WorldComponent
           scene={renderContext.scene}
           camera={renderContext.camera}
+          renderer={renderContext.renderer}
           dom={renderContext.dom}
         />
       )}

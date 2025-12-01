@@ -1,4 +1,5 @@
 import { Node } from "@/lib/primitives/node";
+import { EdgeJson } from "@/types/save";
 import {
   distance,
   subtract,
@@ -158,7 +159,7 @@ export class Edge {
    */
   draw(
     group: Group,
-    config: { width: number; color: Color; dashed?: boolean }
+    config: { width: number; color: Color; dashed?: boolean },
   ) {
     // Lazy-create geometry + material on first draw. We store two points
     // (start and end) in a single Float32 buffer attribute with 3 components
@@ -170,8 +171,8 @@ export class Edge {
         "position",
         new Float32BufferAttribute(
           [this.n1.x, 0, this.n1.y, this.n2.x, 0, this.n2.y],
-          3
-        )
+          3,
+        ),
       );
 
       // Create the line material. Some renderers ignore `linewidth`, so
@@ -206,7 +207,7 @@ export class Edge {
       // (index 0 -> start, index 1 -> end), and `needsUpdate` signals Three.js
       // to upload the changed buffer to the GPU.
       const positionAttribute = this.line.geometry.getAttribute(
-        "position"
+        "position",
       ) as Float32BufferAttribute;
       positionAttribute.setXYZ(0, this.n1.x, 0, this.n1.y);
       positionAttribute.setXYZ(1, this.n2.x, 0, this.n2.y);
@@ -237,5 +238,30 @@ export class Edge {
       this.line.material.dispose();
       this.line = null;
     }
+  }
+
+  /**
+   * Serialize the edge to a JSON-friendly object containing its endpoints
+   * and direction flag.
+   */
+  toJson() {
+    return {
+      n1: this.n1.toJson(),
+      n2: this.n2.toJson(),
+      isDirected: this.isDirected,
+    };
+  }
+
+  /**
+   * Restore edge data from JSON. Disposes any cached rendering resources so
+   * the edge will recreate its line when next drawn.
+   * @param json Serialized edge data
+   */
+  fromJson(json: EdgeJson) {
+    this.dispose();
+
+    this.n1.fromJson(json.n1);
+    this.n2.fromJson(json.n2);
+    this.isDirected = json.isDirected ?? false;
   }
 }

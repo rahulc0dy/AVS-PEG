@@ -1,3 +1,4 @@
+import { NodeJson } from "@/types/save";
 import { Color, Group, Mesh, MeshBasicMaterial, SphereGeometry } from "three";
 
 /**
@@ -76,5 +77,28 @@ export class Node {
       this.mesh.material.dispose();
       this.mesh = null;
     }
+  }
+
+  /**
+   * Serialize this node to a plain JSON object.
+   * @returns Object with `x` and `y` numeric coordinates
+   */
+  toJson() {
+    return {
+      x: this.x,
+      y: this.y,
+    };
+  }
+
+  /**
+   * Restore node coordinates from JSON. Disposes any cached mesh so the
+   * rendering state will be recreated on the next draw.
+   * @param json Serialized node data
+   */
+  fromJson(json: NodeJson) {
+    this.dispose();
+
+    this.x = json.x;
+    this.y = json.y;
   }
 }
