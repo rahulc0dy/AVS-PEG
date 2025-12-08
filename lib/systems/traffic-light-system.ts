@@ -4,7 +4,7 @@ import { TrafficLight, LightState } from "@/lib/markings/traffic-light";
 
 const GREEN_DURATION = 2; // seconds
 const YELLOW_DURATION = 1; // seconds
-const RED_DURATION = 2; // seconds
+const RED_DURATION = 0; // seconds
 
 type Phase = "green" | "yellow" | "red";
 
