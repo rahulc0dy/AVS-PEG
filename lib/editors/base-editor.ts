@@ -47,11 +47,6 @@ export abstract class BaseEditor implements Editor {
   }
 
   /**
-   * Update editor visuals. Return `true` if the scene requires a re-render.
-   */
-  abstract draw(): boolean;
-
-  /**
    * Handle pointer movement in world coordinates.
    * @param pointer World position of the pointer as a `Vector3`.
    */
@@ -74,4 +69,9 @@ export abstract class BaseEditor implements Editor {
    * @param pointer World position of the release as a `Vector3`.
    */
   abstract handleClickRelease(pointer: Vector3): void;
+
+  /**
+   * Update editor visuals. Return `true` if the scene requires a re-render.
+   */
+  abstract draw(): boolean;
 }
