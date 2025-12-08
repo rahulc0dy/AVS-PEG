@@ -194,7 +194,7 @@ export class Graph {
   }
 
   /** Depth-first search over the current edge set to collect components. */
-  private getConnectedComponents(): Node[][] {
+  getConnectedComponents(): Node[][] {
     const visited: Set<Node> = new Set();
     const components: Node[][] = [];
     for (const node of this.nodes) {

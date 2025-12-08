@@ -1,6 +1,8 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
+import { TrafficLight } from "@/lib/markings/traffic-light";
 import { Graph } from "@/lib/primitives/graph";
+import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { World } from "@/lib/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
@@ -43,6 +45,7 @@ export function useWorldEditors(
   const trafficLightGraphRef = useRef<Graph | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
+  const trafficLightSystemRef = useRef<TrafficLightSystem | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
 
   // Disable both editors (safe to call even if an editor isn't initialized)
@@ -106,6 +109,13 @@ export function useWorldEditors(
     );
     trafficLightEditorRef.current = trafficLightEditor;
 
+    const trafficLightSystem = new TrafficLightSystem(trafficLightGraph, () =>
+      world.markings.filter(
+        (marking): marking is TrafficLight => marking instanceof TrafficLight,
+      ),
+    );
+    trafficLightSystemRef.current = trafficLightSystem;
+
     modeRef.current = "graph";
     graphEditor.enable();
 
@@ -119,6 +129,7 @@ export function useWorldEditors(
         worldRef.current.dispose();
         worldRef.current = null;
       }
+      trafficLightSystemRef.current = null;
       scene.remove(grid);
       grid.dispose();
     };
@@ -204,6 +215,7 @@ export function useWorldEditors(
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,
+    trafficLightSystemRef,
     controlsRef,
   };
 }

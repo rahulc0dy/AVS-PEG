@@ -36,6 +36,7 @@ export default function WorldComponent({
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,
+    trafficLightSystemRef,
     controlsRef,
   } = useWorldEditors(scene, camera, dom, updatePointer, getIntersectPoint);
 
@@ -45,6 +46,7 @@ export default function WorldComponent({
     trafficLightEditorRef,
     worldRef,
     graphRef,
+    trafficLightSystemRef,
   );
 
   useMiniCamera(renderer, scene, camera, worldRef);
