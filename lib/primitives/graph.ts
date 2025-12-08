@@ -88,10 +88,10 @@ export class Graph {
   /**
    * Find a node in the graph that equals the provided node.
    * @param node - Node to find
-   * @returns The matching node or `undefined` if not present
+   * @returns The matching node or `null` if not present
    */
-  containsNode(node: Node) {
-    return this.nodes.find((p) => p.equals(node));
+  containsNode(node: Node): Node | null {
+    return this.nodes.find((p) => p.equals(node)) ?? null;
   }
 
   /**
@@ -164,6 +164,55 @@ export class Graph {
       return true;
     }
     return false;
+  }
+
+  addAllEdges() {
+    for (let i = 0; i < this.nodes.length; i++) {
+      for (let j = i + 1; j < this.nodes.length; j++) {
+        const edge = new Edge(this.nodes[i], this.nodes[j]);
+        this.tryAddEdge(edge);
+      }
+    }
+  }
+
+  addAllEdgesAmongConnectedComponents() {
+    const visited: Set<Node> = new Set();
+
+    // TODO: create utility function for connected components
+    const components: Node[][] = [];
+    for (const node of this.nodes) {
+      if (!visited.has(node)) {
+        const component: Node[] = [];
+
+        // TODO: create utility function for DFS and BFS
+        const stack: Node[] = [node];
+        while (stack.length > 0) {
+          const current = stack.pop()!;
+          if (!visited.has(current)) {
+            visited.add(current);
+            component.push(current);
+            const neighbors = this.getEdgesWithNode(current).map((e) =>
+              e.n1.equals(current) ? e.n2 : e.n1,
+            );
+            for (const neighbor of neighbors) {
+              if (!visited.has(neighbor)) {
+                stack.push(neighbor);
+              }
+            }
+          }
+        }
+        components.push(component);
+      }
+    }
+
+    for (const component of components) {
+      for (let i = 0; i < component.length; i++) {
+        for (let j = i + 1; j < component.length; j++) {
+          const edge = new Edge(component[i], component[j]);
+          this.tryAddEdge(edge);
+        }
+      }
+    }
   }
 
   /**
