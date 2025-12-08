@@ -110,13 +110,81 @@ export function useTrafficDetector() {
     const results = await model.detect(predictions);
     predictions.dispose();
 
-    const trafficLights = results.filter((r) => r.class === "traffic light");
+    const trafficLights = results
+      .filter((r) => r.class === "traffic light")
+      .map((light) => {
+        const color = getTrafficLightColor(light.bbox, pixelData, AI_VIEW_SIZE);
+
+        return {
+          ...light,
+          color: color,
+        };
+      });
 
     if (trafficLights.length > 0) {
       setDetections(trafficLights);
-      // Optional: Check if Red or Green here
+
+      // Log purely for debugging
+      const redLight = trafficLights.find((l) => l.color === "RED");
+      if (redLight) console.log("🛑 Red Light Detected");
     }
   };
 
   return { scanTraffic, detections };
+}
+
+function getTrafficLightColor(
+  bbox: number[],
+  pixelData: Uint8Array,
+  viewSize: number,
+): "RED" | "GREEN" | "YELLOW" | "UNKNOWN" {
+  const [x, y, w, h] = bbox.map(Math.floor);
+
+  // Counters for bright pixels
+  let redScore = 0;
+  let greenScore = 0;
+  // let yellowScore = 0; // Optional if you have yellow lights
+
+  // Loop through the bounding box
+  for (let row = 0; row < h; row++) {
+    for (let col = 0; col < w; col++) {
+      // 1. Calculate Standard Coordinates (relative to image top-left)
+      const u = x + col;
+      const v = y + row;
+
+      // 2. Convert to WebGL Coordinates (flip Y)
+      // WebGL Row 0 is at the bottom, so we invert 'v'
+      const webGLRow = viewSize - 1 - v;
+
+      // Safety check to stay within bounds
+      if (u < 0 || u >= viewSize || webGLRow < 0 || webGLRow >= viewSize)
+        continue;
+
+      // 3. Get Pixel Index
+      const index = (webGLRow * viewSize + u) * 4;
+      const r = pixelData[index];
+      const g = pixelData[index + 1];
+      const b = pixelData[index + 2];
+
+      // 4. Color Logic
+      // Check if pixel is "Bright Red"
+      if (r > 150 && g < 100 && b < 100) {
+        // Red lights are physically in the TOP half of the box
+        if (row < h / 2) redScore++;
+      }
+      // Check if pixel is "Bright Green"
+      else if (g > 150 && r < 100 && b < 100) {
+        // Green lights are physically in the BOTTOM half of the box
+        if (row > h / 2) greenScore++;
+      }
+    }
+  }
+
+  // 5. Decision Threshold (requires e.g., >5% of pixels to match)
+  const threshold = w * h * 0.05;
+
+  if (redScore > threshold && redScore > greenScore) return "RED";
+  if (greenScore > threshold && greenScore > redScore) return "GREEN";
+
+  return "UNKNOWN";
 }
