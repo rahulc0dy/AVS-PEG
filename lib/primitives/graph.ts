@@ -23,7 +23,7 @@ export class Graph {
    * @param nodes - Initial list of nodes
    * @param edges - Initial list of edges
    */
-  constructor(nodes: Node[], edges: Edge[]) {
+  constructor(nodes: Node[] = [], edges: Edge[] = []) {
     this.nodes = nodes;
     this.edges = edges;
     this.changes = 0;
