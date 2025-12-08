@@ -23,7 +23,7 @@ export class MarkingEditor extends BaseEditor {
   commitGroup: Group;
 
   /** Internal flag indicating a pending commit on click release. */
-  private addMarkingOnRelease: boolean = false;
+  protected addMarkingOnRelease: boolean = false;
 
   /**
    * Create a new MarkingEditor.
@@ -35,7 +35,7 @@ export class MarkingEditor extends BaseEditor {
   constructor(
     scene: Scene,
     targetEdges: Edge[],
-    markings: Marking[] = [],
+    markings: Marking[],
     commitGroup?: Group,
   ) {
     super(scene);

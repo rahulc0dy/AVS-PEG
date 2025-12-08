@@ -164,7 +164,8 @@ export class GraphEditor extends BaseEditor {
     this.isDragging = false;
     this.onDragStateChanged(false);
     if (this.addNodeOnRelease) {
-      const node = this.graph.tryAddNode(new Node(pointer.x, pointer.z));
+      const node = new Node(pointer.x, pointer.z);
+      this.graph.tryAddNode(node);
       if (node) {
         this.selectNode(node);
         this.hoverNode(node);

@@ -30,6 +30,8 @@ export class Marking {
   model: Group | null = null;
   /** Internal flag indicating a model load is in progress. */
   protected loadingModel = false;
+  /** Tracks whether this marking has been disposed to avoid resurrecting it via async loads. */
+  private disposed = false;
 
   /**
    * Create a new `Marking`.
@@ -49,6 +51,7 @@ export class Marking {
     this.group = group;
     this.type = type;
     this.modelUrl = `/models/${this.type}.gltf`;
+    this.disposed = false;
   }
 
   /** Convenience update called by the world loop; draws the marking. */
@@ -64,6 +67,7 @@ export class Marking {
    * @param loader Optional GLTFLoader instance to reuse.
    */
   draw(target: Group, url: string, loader?: GLTFLoader) {
+    if (this.disposed) return;
     if (!this.model) {
       if (this.loadingModel) return;
       this.loadingModel = true;
@@ -71,8 +75,12 @@ export class Marking {
       loader.load(
         url,
         (gltf) => {
-          this.model = gltf.scene;
           this.loadingModel = false;
+          if (this.disposed) {
+            this.disposeModel(gltf.scene);
+            return;
+          }
+          this.model = gltf.scene;
           this.model.scale.set(3, 3, 3);
           this.model.position.set(this.position.x, 0, this.position.y);
           target.add(this.model);
@@ -99,11 +107,17 @@ export class Marking {
    * Dispose of the loaded model and free GPU resources (geometries/materials).
    */
   dispose() {
+    this.disposed = true;
     if (!this.model) return;
     if (this.model.parent) {
       this.model.parent.remove(this.model);
     }
-    this.model.traverse((child: Object3D) => {
+    this.disposeModel(this.model);
+    this.model = null;
+  }
+
+  private disposeModel(model: Group) {
+    model.traverse((child: Object3D) => {
       if (child instanceof Mesh) {
         child.geometry.dispose();
         const material = child.material as Material | Material[];
@@ -114,7 +128,6 @@ export class Marking {
         }
       }
     });
-    this.model = null;
   }
 
   /** Serialize this marking to JSON for saving. */

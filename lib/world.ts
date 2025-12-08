@@ -174,7 +174,7 @@ export class World {
     for (const marking of this.markings) {
       marking.dispose();
     }
-    this.markings = [];
+    this.markings.length = 0;
 
     this.graph.fromJson(json.graph);
     this.roadWidth = json.roadWidth;
@@ -193,7 +193,7 @@ export class World {
       envelope.fromJson(rj);
       return envelope;
     });
-    this.markings = (json.markings ?? []).map((mj: MarkingJson) => {
+    for (const mj of json.markings ?? []) {
       switch (mj.type) {
         case "traffic-light": {
           const tl = new TrafficLight(
@@ -202,7 +202,8 @@ export class World {
             this.worldGroup,
           );
           tl.fromJson(mj as TrafficLightJson);
-          return tl;
+          this.markings.push(tl);
+          break;
         }
         default: {
           const m = new Marking(
@@ -212,9 +213,10 @@ export class World {
             mj.type,
           );
           m.fromJson(mj);
-          return m;
+          this.markings.push(m);
+          break;
         }
       }
-    });
+    }
   }
 }

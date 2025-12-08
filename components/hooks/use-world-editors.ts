@@ -40,6 +40,7 @@ export function useWorldEditors(
 
   const graphRef = useRef<Graph | null>(null);
   const worldRef = useRef<World | null>(null);
+  const trafficLightGraphRef = useRef<Graph | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -77,8 +78,11 @@ export function useWorldEditors(
     grid.position.set(0, 0, 0);
     scene.add(grid);
 
-    const graph = new Graph([], []);
+    const graph = new Graph();
     graphRef.current = graph;
+
+    const trafficLightGraph = new Graph();
+    trafficLightGraphRef.current = trafficLightGraph;
 
     // GraphEditor receives a callback that reports whether the user is
     // actively dragging. While dragging, disable OrbitControls to avoid
@@ -97,6 +101,7 @@ export function useWorldEditors(
       scene,
       world.roadBorders,
       world.markings,
+      trafficLightGraphRef.current,
       world.worldGroup,
     );
     trafficLightEditorRef.current = trafficLightEditor;

@@ -99,12 +99,12 @@ export class Graph {
    * @param node - Node to insert
    * @returns The node when added, otherwise `null` when it already exists
    */
-  tryAddNode(node: Node): Node | null {
+  tryAddNode(node: Node): boolean {
     if (!this.containsNode(node)) {
       this.addNode(node);
-      return node;
+      return true;
     }
-    return null;
+    return false;
   }
 
   /**
@@ -158,7 +158,7 @@ export class Graph {
    * @param edge - Edge to insert
    * @returns `true` if the edge was added; `false` otherwise
    */
-  tryAddEdge(edge: Edge) {
+  tryAddEdge(edge: Edge): boolean {
     if (!this.containsEdge(edge) && !edge.n1.equals(edge.n2)) {
       this.addEdge(edge);
       return true;
@@ -175,44 +175,55 @@ export class Graph {
     }
   }
 
-  addAllEdgesAmongConnectedComponents() {
-    const visited: Set<Node> = new Set();
-
-    // TODO: create utility function for connected components
-    const components: Node[][] = [];
-    for (const node of this.nodes) {
-      if (!visited.has(node)) {
-        const component: Node[] = [];
-
-        // TODO: create utility function for DFS and BFS
-        const stack: Node[] = [node];
-        while (stack.length > 0) {
-          const current = stack.pop()!;
-          if (!visited.has(current)) {
-            visited.add(current);
-            component.push(current);
-            const neighbors = this.getEdgesWithNode(current).map((e) =>
-              e.n1.equals(current) ? e.n2 : e.n1,
-            );
-            for (const neighbor of neighbors) {
-              if (!visited.has(neighbor)) {
-                stack.push(neighbor);
-              }
-            }
-          }
-        }
-        components.push(component);
-      }
-    }
-
+  /**
+   * Discover disconnected components (using existing edges) and connect
+   * every node pair inside each component so it becomes a clique. Returns
+   * the discovered components for downstream processing.
+   */
+  completeDisconnectedComponents(): Node[][] {
+    const components = this.getConnectedComponents();
     for (const component of components) {
+      if (component.length <= 1) continue;
       for (let i = 0; i < component.length; i++) {
         for (let j = i + 1; j < component.length; j++) {
-          const edge = new Edge(component[i], component[j]);
-          this.tryAddEdge(edge);
+          this.tryAddEdge(new Edge(component[i], component[j]));
         }
       }
     }
+    return components;
+  }
+
+  /** Depth-first search over the current edge set to collect components. */
+  private getConnectedComponents(): Node[][] {
+    const visited: Set<Node> = new Set();
+    const components: Node[][] = [];
+    for (const node of this.nodes) {
+      if (visited.has(node)) continue;
+
+      const component: Node[] = [];
+
+      // TODO: create utility function for DFS and BFS
+      const stack: Node[] = [node];
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        if (visited.has(current)) continue;
+
+        visited.add(current);
+        component.push(current);
+        const neighbors = this.getEdgesWithNode(current).map((edge) =>
+          edge.n1.equals(current) ? edge.n2 : edge.n1,
+        );
+        for (const neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            stack.push(neighbor);
+          }
+        }
+      }
+
+      components.push(component);
+    }
+
+    return components;
   }
 
   /**
