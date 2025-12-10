@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
-import {
-  WebGLRenderer,
-  Scene,
-  Camera,
-  WebGLRenderTarget,
-  Vector3,
-} from "three";
+import { Camera, Scene, WebGLRenderer, WebGLRenderTarget } from "three";
 
 const AI_VIEW_SIZE = 300;
 const DETECTION_RATE = 20;
@@ -19,25 +13,6 @@ export function useTrafficDetector() {
   const renderTargetRef = useRef<WebGLRenderTarget | null>(null);
   const pixelBufferRef = useRef<Uint8Array | null>(null);
   const frameCountRef = useRef(0);
-  // const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // useEffect(() => {
-  //   // Create a visible canvas and append to body for debugging
-  //   const canvas = document.createElement("canvas");
-  //   canvas.width = 300;
-  //   canvas.height = 300;
-  //   canvas.style.position = "fixed";
-  //   canvas.style.top = "10px";
-  //   canvas.style.right = "10px";
-  //   canvas.style.zIndex = "1000";
-  //   canvas.style.border = "2px solid red"; // Red border to spot it easily
-  //   document.body.appendChild(canvas);
-  //   debugCanvasRef.current = canvas;
-
-  //   return () => {
-  //     document.body.removeChild(canvas);
-  //   };
-  // }, []);
 
   useEffect(() => {
     cocoSsd.load().then((loadedModel) => {
@@ -76,19 +51,6 @@ export function useTrafficDetector() {
       pixelBufferRef.current,
     );
 
-    // --- DEBUG: VISUALIZE BUFFER ---
-    // if (debugCanvasRef.current && pixelBufferRef.current) {
-    //   const ctx = debugCanvasRef.current.getContext("2d");
-    //   if (ctx) {
-    //     const imgData = ctx.createImageData(AI_VIEW_SIZE, AI_VIEW_SIZE);
-    //     // Copy buffer to ImageData
-    //     // NOTE: This copies raw WebGL data. If it draws upside down here,
-    //     // it confirms the AI sees it upside down.
-    //     imgData.data.set(pixelBufferRef.current);
-    //     ctx.putImageData(imgData, 0, 0);
-    //   }
-    // }
-
     renderer.setRenderTarget(originalTarget);
 
     detect(pixelBufferRef.current);
@@ -97,7 +59,7 @@ export function useTrafficDetector() {
   const detect = async (pixelData: Uint8Array) => {
     if (!model) return;
 
-    const predictions = await tf.tidy(() => {
+    const predictions = tf.tidy(() => {
       const imgTensor = tf.tensor3d(
         pixelData,
         [AI_VIEW_SIZE, AI_VIEW_SIZE, 4],
@@ -121,13 +83,7 @@ export function useTrafficDetector() {
         };
       });
 
-    if (trafficLights.length > 0) {
-      setDetections(trafficLights);
-
-      // Log purely for debugging
-      const redLight = trafficLights.find((l) => l.color === "RED");
-      if (redLight) console.log("🛑 Red Light Detected");
-    }
+    setDetections(trafficLights);
   };
 
   return { scanTraffic, detections };
