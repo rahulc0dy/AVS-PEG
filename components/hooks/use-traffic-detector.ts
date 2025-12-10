@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import { Camera, Scene, WebGLRenderer, WebGLRenderTarget } from "three";
+import { TRAFFIC_LIGHT_THRESHOLD } from "@/env";
 
 const AI_VIEW_SIZE = 300;
 const DETECTION_RATE = 20;
@@ -15,16 +16,22 @@ export function useTrafficDetector() {
   const frameCountRef = useRef(0);
 
   useEffect(() => {
-    cocoSsd.load().then((loadedModel) => {
-      console.log("🚦 Traffic Light Detector Loaded");
-      setModel(loadedModel);
-    });
+    cocoSsd
+      .load()
+      .then((loadedModel) => {
+        console.log("🚦 Traffic Light Detector Loaded");
+        setModel(loadedModel);
+      })
+      .catch((error) => {
+        console.error("Failed to load traffic light detector: ", error);
+      });
 
     renderTargetRef.current = new WebGLRenderTarget(AI_VIEW_SIZE, AI_VIEW_SIZE);
     pixelBufferRef.current = new Uint8Array(AI_VIEW_SIZE * AI_VIEW_SIZE * 4);
 
     return () => {
       renderTargetRef.current?.dispose();
+      pixelBufferRef.current = null;
     };
   }, []);
 
@@ -53,7 +60,7 @@ export function useTrafficDetector() {
 
     renderer.setRenderTarget(originalTarget);
 
-    detect(pixelBufferRef.current);
+    detect(pixelBufferRef.current).catch(console.error);
   };
 
   const detect = async (pixelData: Uint8Array) => {
@@ -96,51 +103,66 @@ function getTrafficLightColor(
 ): "RED" | "GREEN" | "YELLOW" | "UNKNOWN" {
   const [x, y, w, h] = bbox.map(Math.floor);
 
-  // Counters for bright pixels
   let redScore = 0;
   let greenScore = 0;
-  // let yellowScore = 0; // Optional if you have yellow lights
+  let yellowScore = 0;
 
-  // Loop through the bounding box
   for (let row = 0; row < h; row++) {
     for (let col = 0; col < w; col++) {
-      // 1. Calculate Standard Coordinates (relative to image top-left)
       const u = x + col;
       const v = y + row;
+      const webGLRow = viewSize - 1 - v; // Invert Y for WebGL reading
 
-      // 2. Convert to WebGL Coordinates (flip Y)
-      // WebGL Row 0 is at the bottom, so we invert 'v'
-      const webGLRow = viewSize - 1 - v;
-
-      // Safety check to stay within bounds
       if (u < 0 || u >= viewSize || webGLRow < 0 || webGLRow >= viewSize)
         continue;
 
-      // 3. Get Pixel Index
       const index = (webGLRow * viewSize + u) * 4;
       const r = pixelData[index];
       const g = pixelData[index + 1];
       const b = pixelData[index + 2];
 
-      // 4. Color Logic
-      // Check if pixel is "Bright Red"
-      if (r > 150 && g < 100 && b < 100) {
-        // Red lights are physically in the TOP half of the box
-        if (row < h / 2) redScore++;
+      // 1. Define Color Thresholds
+      // Red: High Red, Low Green/Blue
+      const isRed = r > 150 && g < 100 && b < 100;
+      // Green: High Green, Low Red/Blue
+      const isGreen = g > 150 && r < 100 && b < 100;
+      // Yellow: High Red AND High Green (Mixed), Low Blue
+      const isYellow = r > 150 && g > 150 && b < 100;
+
+      // 2. Define Position Logic (Split into thirds)
+      // Top 1/3 = RED region
+      if (row < h * 0.33) {
+        if (isRed) redScore++;
       }
-      // Check if pixel is "Bright Green"
-      else if (g > 150 && r < 100 && b < 100) {
-        // Green lights are physically in the BOTTOM half of the box
-        if (row > h / 2) greenScore++;
+      // Middle 1/3 = YELLOW region
+      else if (row >= h * 0.33 && row < h * 0.66) {
+        if (isYellow) yellowScore++;
+      }
+      // Bottom 1/3 = GREEN region
+      else {
+        if (isGreen) greenScore++;
       }
     }
   }
 
-  // 5. Decision Threshold (requires e.g., >5% of pixels to match)
-  const threshold = w * h * 0.05;
+  // 3. Decision
+  const threshold = w * h * TRAFFIC_LIGHT_THRESHOLD; // 5% of pixels must match
 
-  if (redScore > threshold && redScore > greenScore) return "RED";
-  if (greenScore > threshold && greenScore > redScore) return "GREEN";
+  // Prioritize by score to avoid noise
+  if (redScore > threshold && redScore > greenScore && redScore > yellowScore)
+    return "RED";
+  if (
+    greenScore > threshold &&
+    greenScore > redScore &&
+    greenScore > yellowScore
+  )
+    return "GREEN";
+  if (
+    yellowScore > threshold &&
+    yellowScore > redScore &&
+    yellowScore > greenScore
+  )
+    return "YELLOW";
 
   return "UNKNOWN";
 }
