@@ -54,7 +54,7 @@ export default function WorldComponent({
 
   useEffect(() => {
     if (detections.length > 0) {
-      console.log("Traffic Light Found!", detections);
+      console.log("Traffic Light Found!", detections[0]);
       // Logic to stop the car can go here
     }
   }, [detections]);
