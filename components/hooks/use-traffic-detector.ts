@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from "react";
-import * as tf from "@tensorflow/tfjs";
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import { Camera, Scene, WebGLRenderer, WebGLRenderTarget } from "three";
 import { TRAFFIC_LIGHT_THRESHOLD } from "@/env";
+import { tensor3d, tidy } from "@tensorflow/tfjs";
+import {
+  DetectedObject,
+  load,
+  ObjectDetection,
+} from "@tensorflow-models/coco-ssd";
 
 const AI_VIEW_SIZE = 300;
 const DETECTION_RATE = 20;
 
 export function useTrafficDetector() {
-  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
-  const [detections, setDetections] = useState<cocoSsd.DetectedObject[]>([]);
+  const [model, setModel] = useState<ObjectDetection | null>(null);
+  const [detections, setDetections] = useState<DetectedObject[]>([]);
 
   const renderTargetRef = useRef<WebGLRenderTarget | null>(null);
   const pixelBufferRef = useRef<Uint8Array | null>(null);
   const frameCountRef = useRef(0);
 
   useEffect(() => {
-    cocoSsd
-      .load()
+    load()
       .then((loadedModel) => {
         console.log("🚦 Traffic Light Detector Loaded");
         setModel(loadedModel);
@@ -66,8 +69,8 @@ export function useTrafficDetector() {
   const detect = async (pixelData: Uint8Array) => {
     if (!model) return;
 
-    const predictions = tf.tidy(() => {
-      const imgTensor = tf.tensor3d(
+    const predictions = tidy(() => {
+      const imgTensor = tensor3d(
         pixelData,
         [AI_VIEW_SIZE, AI_VIEW_SIZE, 4],
         "int32",
