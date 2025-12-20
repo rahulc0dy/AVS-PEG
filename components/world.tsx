@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
 import OsmModal from "@/components/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
@@ -11,6 +11,7 @@ import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
+import { useTrafficDetector } from "./hooks/use-traffic-detector";
 
 interface WorldComponentProps {
   scene: Scene;
@@ -47,7 +48,16 @@ export default function WorldComponent({
     graphRef,
   );
 
-  useMiniCamera(renderer, scene, camera, worldRef);
+  const { scanTraffic, detections } = useTrafficDetector();
+
+  useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
+
+  useEffect(() => {
+    if (detections.length > 0) {
+      console.log("Traffic Light Found!", detections);
+      // Logic to stop the car can go here
+    }
+  }, [detections]);
 
   const { saveToJson, loadFromJson } = useWorldPersistence(worldRef, graphRef);
 

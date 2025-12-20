@@ -1,5 +1,5 @@
 import { Graph } from "@/lib/primitives/graph";
-import { Color, Group, Scene, Vector3 } from "three";
+import { Color, Scene, Vector3 } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
@@ -34,7 +34,7 @@ export class GraphEditor extends BaseEditor {
   constructor(
     graph: Graph,
     scene: Scene,
-    onDragStateChanged: (isDragging: boolean) => void
+    onDragStateChanged: (isDragging: boolean) => void,
   ) {
     super(scene);
 
@@ -133,7 +133,7 @@ export class GraphEditor extends BaseEditor {
    */
   handlePointerMove(pointer: Vector3) {
     this.hoverNode(
-      getNearestNode(new Node(pointer.x, pointer.z), this.graph.getNodes(), 10)
+      getNearestNode(new Node(pointer.x, pointer.z), this.graph.getNodes(), 10),
     );
     if (
       this.dragging &&
