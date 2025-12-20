@@ -1,9 +1,9 @@
-import { Group, PointLight, PointLightHelper, Vector3 } from "three";
+import { Group, PointLight, PointLightHelper } from "three";
 import { Node } from "../primitives/node";
 import { TrafficLightJson } from "@/types/save";
 import { Marking } from "./marking";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { angle, add, translate, distance } from "@/utils/math";
+import { angle, translate } from "@/utils/math";
 
 /** Possible states for a traffic light. */
 export type LightState = "red" | "yellow" | "green";
