@@ -11,9 +11,13 @@ import {
 const AI_VIEW_SIZE = 300;
 const DETECTION_RATE = 20;
 
+type TrafficLightDetection = DetectedObject & {
+  color: "RED" | "GREEN" | "YELLOW" | "UNKNOWN";
+};
+
 export function useTrafficDetector() {
   const [model, setModel] = useState<ObjectDetection | null>(null);
-  const [detections, setDetections] = useState<DetectedObject[]>([]);
+  const [detections, setDetections] = useState<TrafficLightDetection[]>([]);
 
   const renderTargetRef = useRef<WebGLRenderTarget | null>(null);
   const pixelBufferRef = useRef<Uint8Array | null>(null);
@@ -96,7 +100,7 @@ export function useTrafficDetector() {
     setDetections(trafficLights);
   };
 
-  return { scanTraffic, detections };
+  return { scanTraffic, detections } as const;
 }
 
 function getTrafficLightColor(
