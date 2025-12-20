@@ -40,6 +40,7 @@ export function useMiniCamera(
   scene: Scene,
   camera: Camera,
   worldRef: RefObject<World | null>,
+  onFrame?: (renderer: WebGLRenderer, scene: Scene, camera: Camera) => void,
 ) {
   const miniCamRef = useRef<PerspectiveCamera | null>(null);
   const miniViewPortRef = useRef({
@@ -140,6 +141,8 @@ export function useMiniCamera(
         renderer.render(scene, miniCam);
         // Disable scissor test so subsequent frames start clean.
         renderer.setScissorTest(false);
+
+        if (onFrame) onFrame(renderer, scene, miniCam);
       }
     };
 
@@ -148,7 +151,7 @@ export function useMiniCamera(
     return () => {
       renderer.setAnimationLoop(null);
     };
-  }, [renderer, scene, camera, worldRef]);
+  }, [renderer, scene, camera, worldRef, onFrame]);
 
   return { miniCamRef, miniViewPortRef };
 }
