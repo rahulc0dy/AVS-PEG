@@ -151,21 +151,20 @@ function getTrafficLightColor(
   // 3. Decision
   const threshold = w * h * TRAFFIC_LIGHT_THRESHOLD; // 5% of pixels must match
 
-  // Prioritize by score to avoid noise
-  if (redScore > threshold && redScore > greenScore && redScore > yellowScore)
-    return "RED";
-  if (
-    greenScore > threshold &&
-    greenScore > redScore &&
-    greenScore > yellowScore
-  )
-    return "GREEN";
-  if (
-    yellowScore > threshold &&
-    yellowScore > redScore &&
-    yellowScore > greenScore
-  )
-    return "YELLOW";
+  let maxScore = Math.max(redScore, greenScore, yellowScore);
 
-  return "UNKNOWN";
+  if (maxScore < threshold) {
+    return "UNKNOWN";
+  }
+
+  switch (maxScore) {
+    case redScore:
+      return "RED";
+    case greenScore:
+      return "GREEN";
+    case yellowScore:
+      return "YELLOW";
+    default:
+      return "UNKNOWN";
+  }
 }
