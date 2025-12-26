@@ -73,7 +73,7 @@ export default function WorldComponent({
         <OsmModal
           isOpen={isOsmModalOpen}
           onClose={() => setIsOsmModalOpen(false)}
-          graph={worldRef.current?.graph || null}
+          worldRef={worldRef}
         />
       )}
     </>
