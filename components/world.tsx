@@ -47,7 +47,6 @@ export default function WorldComponent({
     trafficLightEditorRef,
     worldRef,
     graphRef,
-    trafficLightSystemRef,
   );
 
   const { scanTraffic, detections } = useTrafficDetector();

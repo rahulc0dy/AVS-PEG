@@ -7,8 +7,9 @@ import { Car } from "@/lib/car/car";
 import { ControlType } from "@/lib/car/controls";
 import { TrafficLight } from "@/lib/markings/traffic-light";
 import { Node } from "@/lib/primitives/node";
-import { MarkingJson, TrafficLightJson, WorldJson } from "@/types/save";
+import { TrafficLightJson, WorldJson } from "@/types/save";
 import { Marking } from "@/lib/markings/marking";
+import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -34,6 +35,11 @@ export class World {
 
   cars: Car[];
   markings: Marking[];
+
+  /** Optional traffic light graph used by the traffic light editor/system. */
+  trafficLightGraph: Graph | null = null;
+  /** Optional traffic light system that advances signal phases over time. */
+  trafficLightSystem: TrafficLightSystem | null = null;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -78,15 +84,32 @@ export class World {
 
     this.markings = [];
 
+    this.trafficLightGraph = null;
+    this.trafficLightSystem = null;
+
     // Build derived geometry immediately
     this.generate();
+  }
+
+  /**
+   * Attach the traffic light graph + system to this world.
+   * This also propagates the graph reference onto any existing TrafficLight markings.
+   */
+  attachTrafficLightSystem(
+    trafficLightGraph: Graph,
+    trafficLightSystem: TrafficLightSystem,
+  ) {
+    this.trafficLightGraph = trafficLightGraph;
+    this.trafficLightSystem = trafficLightSystem;
   }
 
   /**
    * Update the world state: move cars and update their sensors.
    * This function should be called once per frame.
    */
-  update() {
+  update(deltaSeconds: number = 0) {
+    this.trafficLightSystem?.update(deltaSeconds);
+
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
     }

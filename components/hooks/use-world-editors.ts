@@ -116,6 +116,8 @@ export function useWorldEditors(
     );
     trafficLightSystemRef.current = trafficLightSystem;
 
+    world.attachTrafficLightSystem(trafficLightGraph, trafficLightSystem);
+
     modeRef.current = "graph";
     graphEditor.enable();
 
