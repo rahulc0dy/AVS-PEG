@@ -19,7 +19,7 @@ import Link from "next/link";
 interface OsmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  graphRef: RefObject<Graph | null>;
+  graph: Graph | null;
 }
 
 /**
@@ -42,7 +42,7 @@ interface BoundingBox {
  * `graphRef` passed by the parent. The existing graph instance is updated in
  * place to ensure references held elsewhere in the app remain intact.
  */
-const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
+const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graph: graphRef }) => {
   const [minLat, setMinLat] = useState(22.574181);
   const [minLong, setMinLong] = useState(88.410046);
   const [maxLat, setMaxLat] = useState(22.57859);
@@ -102,10 +102,10 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       const res = await getRoadData(minLat, minLong, maxLat, maxLong);
       const newGraph = parseRoadsFromOsmData(res);
 
-      if (graphRef.current) {
+      if (graphRef) {
         // Update the existing graph instance in-place so other components
         // holding the same reference continue to work without re-mounts.
-        graphRef.current.load(newGraph.getNodes(), newGraph.getEdges());
+        graphRef.load(newGraph.getNodes(), newGraph.getEdges());
       }
       onClose();
     } catch (err) {

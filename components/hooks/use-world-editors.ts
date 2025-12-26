@@ -1,6 +1,5 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
@@ -38,7 +37,6 @@ export function useWorldEditors(
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
   const modeRef = useRef<EditorMode>("graph");
 
-  const graphRef = useRef<Graph | null>(null);
   const worldRef = useRef<World | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
@@ -77,21 +75,18 @@ export function useWorldEditors(
     grid.position.set(0, 0, 0);
     scene.add(grid);
 
-    const graph = new Graph();
-    graphRef.current = graph;
+    const world = new World(scene);
+    worldRef.current = world;
 
     // GraphEditor receives a callback that reports whether the user is
     // actively dragging. While dragging, disable OrbitControls to avoid
     // camera interference with editor interactions.
-    const graphEditor = new GraphEditor(graph, scene, (isDragging) => {
+    const graphEditor = new GraphEditor(world.graph, scene, (isDragging) => {
       if (controlsRef.current) {
         controlsRef.current.enabled = !isDragging;
       }
     });
     graphEditorRef.current = graphEditor;
-
-    const world = new World(graph, scene);
-    worldRef.current = world;
 
     const trafficLightEditor = new TrafficLightEditor(
       scene,
@@ -196,7 +191,6 @@ export function useWorldEditors(
   return {
     activeMode,
     setMode,
-    graphRef,
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,

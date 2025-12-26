@@ -39,23 +39,17 @@ export class World {
   /** Traffic light graph used by the traffic light editor/system. */
   trafficLightGraph: Graph;
   /** Traffic light system that advances signal phases over time. */
-  trafficLightSystem: TrafficLightSystem;
+  trafficLightSystem!: TrafficLightSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
    *
-   * @param graph - Road graph providing edges to thicken into roads
    * @param scene - Three.js scene where generated geometry will be added
    * @param roadWidth - Width used for road envelopes (default: 30)
    * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
    */
-  constructor(
-    graph: Graph,
-    scene: Scene,
-    roadWidth: number = 40,
-    roadRoundness: number = 8,
-  ) {
-    this.graph = graph;
+  constructor(scene: Scene, roadWidth: number = 40, roadRoundness: number = 8) {
+    this.graph = new Graph();
     this.scene = scene;
     this.roadWidth = roadWidth;
     this.roadRoundness = roadRoundness;
@@ -175,6 +169,7 @@ export class World {
   toJson() {
     return {
       graph: this.graph.toJson(),
+      trafficLightGraph: this.trafficLightGraph.toJson(),
       roadWidth: this.roadWidth,
       roadRoundness: this.roadRoundness,
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
@@ -195,6 +190,9 @@ export class World {
     this.markings.length = 0;
 
     this.graph.fromJson(json.graph);
+
+    this.trafficLightGraph.fromJson(json.trafficLightGraph);
+
     this.roadWidth = json.roadWidth;
     this.roadRoundness = json.roadRoundness;
     this.roadBorders = json.roadBorders.map((rbj) => {
