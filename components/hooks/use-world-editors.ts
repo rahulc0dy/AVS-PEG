@@ -1,8 +1,6 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { TrafficLight } from "@/lib/markings/traffic-light";
 import { Graph } from "@/lib/primitives/graph";
-import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { World } from "@/lib/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
@@ -42,10 +40,8 @@ export function useWorldEditors(
 
   const graphRef = useRef<Graph | null>(null);
   const worldRef = useRef<World | null>(null);
-  const trafficLightGraphRef = useRef<Graph | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
-  const trafficLightSystemRef = useRef<TrafficLightSystem | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
 
   // Disable both editors (safe to call even if an editor isn't initialized)
@@ -84,9 +80,6 @@ export function useWorldEditors(
     const graph = new Graph();
     graphRef.current = graph;
 
-    const trafficLightGraph = new Graph();
-    trafficLightGraphRef.current = trafficLightGraph;
-
     // GraphEditor receives a callback that reports whether the user is
     // actively dragging. While dragging, disable OrbitControls to avoid
     // camera interference with editor interactions.
@@ -104,19 +97,10 @@ export function useWorldEditors(
       scene,
       world.roadBorders,
       world.markings,
-      trafficLightGraphRef.current,
+      world.trafficLightGraph,
       world.worldGroup,
     );
     trafficLightEditorRef.current = trafficLightEditor;
-
-    const trafficLightSystem = new TrafficLightSystem(trafficLightGraph, () =>
-      world.markings.filter(
-        (marking): marking is TrafficLight => marking instanceof TrafficLight,
-      ),
-    );
-    trafficLightSystemRef.current = trafficLightSystem;
-
-    world.attachTrafficLightSystem(trafficLightGraph, trafficLightSystem);
 
     modeRef.current = "graph";
     graphEditor.enable();
@@ -131,7 +115,6 @@ export function useWorldEditors(
         worldRef.current.dispose();
         worldRef.current = null;
       }
-      trafficLightSystemRef.current = null;
       scene.remove(grid);
       grid.dispose();
     };
@@ -217,7 +200,6 @@ export function useWorldEditors(
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,
-    trafficLightSystemRef,
     controlsRef,
   };
 }

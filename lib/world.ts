@@ -36,10 +36,10 @@ export class World {
   cars: Car[];
   markings: Marking[];
 
-  /** Optional traffic light graph used by the traffic light editor/system. */
-  trafficLightGraph: Graph | null = null;
-  /** Optional traffic light system that advances signal phases over time. */
-  trafficLightSystem: TrafficLightSystem | null = null;
+  /** Traffic light graph used by the traffic light editor/system. */
+  trafficLightGraph: Graph;
+  /** Traffic light system that advances signal phases over time. */
+  trafficLightSystem: TrafficLightSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -84,23 +84,18 @@ export class World {
 
     this.markings = [];
 
-    this.trafficLightGraph = null;
-    this.trafficLightSystem = null;
+    // Traffic light graph + system are owned by the World.
+    this.trafficLightGraph = new Graph();
+    this.trafficLightSystem = new TrafficLightSystem(
+      this.trafficLightGraph,
+      () =>
+        this.markings.filter(
+          (marking): marking is TrafficLight => marking instanceof TrafficLight,
+        ),
+    );
 
     // Build derived geometry immediately
     this.generate();
-  }
-
-  /**
-   * Attach the traffic light graph + system to this world.
-   * This also propagates the graph reference onto any existing TrafficLight markings.
-   */
-  attachTrafficLightSystem(
-    trafficLightGraph: Graph,
-    trafficLightSystem: TrafficLightSystem,
-  ) {
-    this.trafficLightGraph = trafficLightGraph;
-    this.trafficLightSystem = trafficLightSystem;
   }
 
   /**
@@ -108,7 +103,7 @@ export class World {
    * This function should be called once per frame.
    */
   update(deltaSeconds: number = 0) {
-    this.trafficLightSystem?.update(deltaSeconds);
+    this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
