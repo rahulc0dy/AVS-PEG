@@ -191,7 +191,7 @@ export class Graph {
    * every node pair inside each component so it becomes a clique. Returns
    * the discovered components for downstream processing.
    */
-  completeDisconnectedComponents(): Node[][] {
+  makeComponentsComplete(): Node[][] {
     const components = this.getConnectedComponents();
     for (const component of components) {
       if (component.length <= 1) continue;

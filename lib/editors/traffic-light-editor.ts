@@ -76,7 +76,7 @@ export class TrafficLightEditor extends MarkingEditor {
     }
 
     if (edgeCreated) {
-      this.trafficLightGraph.completeDisconnectedComponents();
+      this.trafficLightGraph.makeComponentsComplete();
     }
 
     if (previousSelection === trafficLight) return;
@@ -111,7 +111,7 @@ export class TrafficLightEditor extends MarkingEditor {
     }
 
     this.trafficLightGraph.removeNode(node);
-    this.trafficLightGraph.completeDisconnectedComponents();
+    this.trafficLightGraph.makeComponentsComplete();
     if (this.hoveredTrafficLight === node) {
       this.hoverTrafficLight(null);
     }
@@ -187,7 +187,7 @@ export class TrafficLightEditor extends MarkingEditor {
       const addedNode = intentTrafficLight.position;
       const isAdded = this.trafficLightGraph.tryAddNode(addedNode);
       if (isAdded) {
-        this.trafficLightGraph.completeDisconnectedComponents();
+        this.trafficLightGraph.makeComponentsComplete();
         this.selectTrafficLight(addedNode);
         this.hoverTrafficLight(addedNode);
         this.needsRedraw = true;
