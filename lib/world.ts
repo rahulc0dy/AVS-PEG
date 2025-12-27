@@ -7,8 +7,9 @@ import { Car } from "@/lib/car/car";
 import { ControlType } from "@/lib/car/controls";
 import { TrafficLight } from "@/lib/markings/traffic-light";
 import { Node } from "@/lib/primitives/node";
-import { MarkingJson, TrafficLightJson, WorldJson } from "@/types/save";
+import { TrafficLightJson, WorldJson } from "@/types/save";
 import { Marking } from "@/lib/markings/marking";
+import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -31,25 +32,25 @@ export class World {
   roadBorders: Edge[];
   /** Road polygons generated from graph edges. */
   roads: Envelope[];
-
+  /** Simulated cars currently present in the world. */
   cars: Car[];
+  /** Markings placed in the world (includes traffic lights). */
   markings: Marking[];
+
+  /** Traffic light graph used by the traffic light editor/system. */
+  trafficLightGraph: Graph;
+  /** Traffic light system that advances signal phases over time. */
+  trafficLightSystem!: TrafficLightSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
    *
-   * @param graph - Road graph providing edges to thicken into roads
    * @param scene - Three.js scene where generated geometry will be added
    * @param roadWidth - Width used for road envelopes (default: 30)
    * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
    */
-  constructor(
-    graph: Graph,
-    scene: Scene,
-    roadWidth: number = 40,
-    roadRoundness: number = 8,
-  ) {
-    this.graph = graph;
+  constructor(scene: Scene, roadWidth: number = 40, roadRoundness: number = 8) {
+    this.graph = new Graph();
     this.scene = scene;
     this.roadWidth = roadWidth;
     this.roadRoundness = roadRoundness;
@@ -72,7 +73,15 @@ export class World {
 
     this.markings = [];
 
-    // Build derived geometry immediately
+    this.trafficLightGraph = new Graph();
+    this.trafficLightSystem = new TrafficLightSystem(
+      this.trafficLightGraph,
+      () =>
+        this.markings.filter(
+          (marking): marking is TrafficLight => marking instanceof TrafficLight,
+        ),
+    );
+
     this.generate();
   }
 
@@ -80,7 +89,9 @@ export class World {
    * Update the world state: move cars and update their sensors.
    * This function should be called once per frame.
    */
-  update() {
+  update(deltaSeconds: number = 0) {
+    this.trafficLightSystem.update(deltaSeconds);
+
     for (const car of this.cars) {
       car.update(this.cars.filter((c) => c !== car));
     }
@@ -148,9 +159,10 @@ export class World {
    * Serialize the world state to a plain JSON object suitable for saving.
    * @returns world JSON containing graph, roads, borders and markings
    */
-  toJson() {
+  toJson(): WorldJson {
     return {
       graph: this.graph.toJson(),
+      trafficLightGraph: this.trafficLightGraph.toJson(),
       roadWidth: this.roadWidth,
       roadRoundness: this.roadRoundness,
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
@@ -164,13 +176,16 @@ export class World {
    * disposed before loading to avoid leaking GPU resources.
    * @param json - Deserialized `WorldJson` object to load
    */
-  fromJson(json: WorldJson) {
+  fromJson(json: WorldJson): void {
     for (const marking of this.markings) {
       marking.dispose();
     }
-    this.markings = [];
+    this.markings.length = 0;
 
     this.graph.fromJson(json.graph);
+
+    this.trafficLightGraph.fromJson(json.trafficLightGraph);
+
     this.roadWidth = json.roadWidth;
     this.roadRoundness = json.roadRoundness;
     this.roadBorders = json.roadBorders.map((rbj) => {
@@ -187,7 +202,7 @@ export class World {
       envelope.fromJson(rj);
       return envelope;
     });
-    this.markings = (json.markings ?? []).map((mj: MarkingJson) => {
+    for (const mj of json.markings ?? []) {
       switch (mj.type) {
         case "traffic-light": {
           const tl = new TrafficLight(
@@ -196,7 +211,8 @@ export class World {
             this.worldGroup,
           );
           tl.fromJson(mj as TrafficLightJson);
-          return tl;
+          this.markings.push(tl);
+          break;
         }
         default: {
           const m = new Marking(
@@ -206,9 +222,10 @@ export class World {
             mj.type,
           );
           m.fromJson(mj);
-          return m;
+          this.markings.push(m);
+          break;
         }
       }
-    });
+    }
   }
 }

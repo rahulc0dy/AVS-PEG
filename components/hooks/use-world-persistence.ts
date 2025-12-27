@@ -1,22 +1,17 @@
-import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
 import { RefObject } from "react";
 
 /**
- * Hook providing simple JSON persistence helpers for the world and graph.
+ * Hook providing simple JSON persistence helpers for the world.
  *
  * `saveToJson` serializes the current `World` to a downloadable JSON file.
  * `loadFromJson` opens a file picker, parses a selected JSON file, and
  * loads it into the current `World` instance (updating the `graphRef`).
  *
  * @param {import("react").RefObject<World | null>} worldRef - Ref to the current World instance.
- * @param {import("react").RefObject<Graph | null>} graphRef - Ref to the current Graph instance; updated after loading.
  * @returns {{ saveToJson: () => void, loadFromJson: () => void }} Persistence helper functions.
  */
-export function useWorldPersistence(
-  worldRef: RefObject<World | null>,
-  graphRef: RefObject<Graph | null>,
-) {
+export function useWorldPersistence(worldRef: RefObject<World | null>) {
   const saveToJson = () => {
     const world = worldRef.current;
     if (!world) return;
@@ -50,8 +45,6 @@ export function useWorldPersistence(
           if (!world) return;
 
           world.fromJson(parsed);
-          // Keep external graphRef in sync with the loaded world's graph.
-          graphRef.current = world.graph;
           world.draw();
         } catch (err) {
           console.error("Failed to load world JSON:", err);

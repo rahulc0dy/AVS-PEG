@@ -4,22 +4,22 @@ import { FC, RefObject, useEffect, useState } from "react";
 import Modal from "@/components/ui/modal";
 import Button from "@/components/ui/button";
 import { getRoadData } from "@/services/osm-service";
-import { Graph } from "@/lib/primitives/graph";
 import { parseRoadsFromOsmData } from "@/utils/osm";
 import Link from "next/link";
+import { World } from "@/lib/world";
 
 /**
  * Props for `OsmModal`.
  *
  * - `isOpen`: whether the modal is visible.
  * - `onClose`: callback to close the modal.
- * - `graphRef`: a React ref pointing to the current `Graph` instance; used
+ * - `worldRef`: a React ref pointing to the current `World` instance; used
  *   to load parsed OSM data without replacing the object reference.
  */
 interface OsmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  graphRef: RefObject<Graph | null>;
+  worldRef: RefObject<World | null>;
 }
 
 /**
@@ -42,7 +42,7 @@ interface BoundingBox {
  * `graphRef` passed by the parent. The existing graph instance is updated in
  * place to ensure references held elsewhere in the app remain intact.
  */
-const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
+const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
   const [minLat, setMinLat] = useState(22.574181);
   const [minLong, setMinLong] = useState(88.410046);
   const [maxLat, setMaxLat] = useState(22.57859);
@@ -102,12 +102,18 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, graphRef }) => {
       const res = await getRoadData(minLat, minLong, maxLat, maxLong);
       const newGraph = parseRoadsFromOsmData(res);
 
-      if (graphRef.current) {
+      const graph = worldRef.current?.graph;
+      if (graph) {
         // Update the existing graph instance in-place so other components
         // holding the same reference continue to work without re-mounts.
-        graphRef.current.load(newGraph.getNodes(), newGraph.getEdges());
+        graph.load(newGraph.getNodes(), newGraph.getEdges());
+        onClose();
+      } else {
+        setError("World or graph is not available. Please try again.");
+        console.error(
+          "worldRef.current or graph is null when loading OSM data",
+        );
       }
-      onClose();
     } catch (err) {
       // Surface a human-readable message to the user while logging details
       // to the console for debugging.

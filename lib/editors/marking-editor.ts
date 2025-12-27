@@ -23,7 +23,7 @@ export class MarkingEditor extends BaseEditor {
   commitGroup: Group;
 
   /** Internal flag indicating a pending commit on click release. */
-  private addMarkingOnRelease: boolean = false;
+  protected addMarkingOnRelease: boolean = false;
 
   /**
    * Create a new MarkingEditor.
@@ -35,7 +35,7 @@ export class MarkingEditor extends BaseEditor {
   constructor(
     scene: Scene,
     targetEdges: Edge[],
-    markings: Marking[] = [],
+    markings: Marking[],
     commitGroup?: Group,
   ) {
     super(scene);
@@ -61,7 +61,7 @@ export class MarkingEditor extends BaseEditor {
    * Track pointer movement and update the preview `intent` when the pointer
    * is near a valid target edge.
    */
-  handlePointerMove(pointer: Vector3): void {
+  override handlePointerMove(pointer: Vector3): void {
     const pointerNode = new Node(pointer.x, pointer.z);
     const nearestEdge = getNearestEdge(pointerNode, this.targetEdges, 20);
     if (nearestEdge) {
@@ -87,14 +87,14 @@ export class MarkingEditor extends BaseEditor {
   }
 
   /** On left click, prepare to commit the preview on release. */
-  handleLeftClick(_pointer: Vector3): void {
+  override handleLeftClick(_pointer: Vector3): void {
     if (this.intent) {
       this.addMarkingOnRelease = true;
     }
   }
 
   /** Right-click behavior is intentionally unimplemented for now. */
-  handleRightClick(_pointer: Vector3): void {
+  override handleRightClick(_pointer: Vector3): void {
     // throw new Error("Method not implemented.");
   }
 
@@ -102,7 +102,7 @@ export class MarkingEditor extends BaseEditor {
    * Commit the preview marking to the `commitGroup` when the click is released.
    * The preview is reparented (not disposed) so meshes/lights remain intact.
    */
-  handleClickRelease(_pointer: Vector3): void {
+  override handleClickRelease(_pointer: Vector3): void {
     if (this.addMarkingOnRelease && this.intent) {
       // Reparent preview objects from the editor overlay to the world group
       // (Do NOT dispose here; disposing would destroy meshes/lights like the
@@ -115,7 +115,7 @@ export class MarkingEditor extends BaseEditor {
   }
 
   /** Draw the preview marking into the editor overlay. Returns `true` when visuals changed. */
-  draw(): boolean {
+  override draw(): boolean {
     if (this.intent) {
       this.intent.draw(this.editorGroup, this.intent.modelUrl);
       return true;

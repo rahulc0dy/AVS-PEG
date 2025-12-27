@@ -5,6 +5,15 @@ import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
 import { BaseEditor } from "./base-editor";
 
+/**
+ * Interactive editor for creating and editing a road `Graph`.
+ *
+ * Behavior summary:
+ * - Left-click a node to select it; selecting two nodes attempts to create an edge.
+ * - Left-click empty space to create a new node on click release.
+ * - Dragging a selected node updates its coordinates and marks the graph dirty.
+ * - Right-click clears selection; if nothing is selected, it deletes the hovered node.
+ */
 export class GraphEditor extends BaseEditor {
   /** Underlying graph being edited. */
   graph: Graph;
@@ -13,7 +22,7 @@ export class GraphEditor extends BaseEditor {
   /** Node currently under the pointer (hover). */
   hoveredNode: Node | null;
   /** Whether the editor is currently dragging a selected node. */
-  dragging: boolean;
+  isDragging: boolean;
 
   /** Callback invoked when drag state changes. */
   private onDragStateChanged: (isDragging: boolean) => void = () => {};
@@ -31,6 +40,12 @@ export class GraphEditor extends BaseEditor {
   private static readonly hoveredColor = new Color(0xfff23b);
   private static readonly selectedColor = new Color(0xff2b59);
 
+  /**
+   * Create a new `GraphEditor`.
+   * @param graph Graph instance to mutate.
+   * @param scene Three.js scene to draw the editor overlay into.
+   * @param onDragStateChanged Callback invoked when dragging starts/stops.
+   */
   constructor(
     graph: Graph,
     scene: Scene,
@@ -42,7 +57,7 @@ export class GraphEditor extends BaseEditor {
     this.graph = graph;
     this.selectedNode = null;
     this.hoveredNode = null;
-    this.dragging = false;
+    this.isDragging = false;
     this.onDragStateChanged = onDragStateChanged;
 
     // Force an initial draw
@@ -50,11 +65,14 @@ export class GraphEditor extends BaseEditor {
     this.lastGraphChanges = -1;
   }
 
+  /**
+   * Disable editor visuals and clear transient interaction state.
+   */
   disable() {
     super.disable();
     this.selectedNode = null;
     this.hoveredNode = null;
-    this.dragging = false;
+    this.isDragging = false;
   }
 
   /**
@@ -102,10 +120,10 @@ export class GraphEditor extends BaseEditor {
    * pointer release (enables click-to-add behavior).
    * @param _pointer - 3D pointer position (x, z used as node coords)
    */
-  handleLeftClick(_pointer: Vector3) {
+  override handleLeftClick(_pointer: Vector3) {
     if (this.hoveredNode) {
       this.selectNode(this.hoveredNode);
-      this.dragging = true;
+      this.isDragging = true;
       return;
     }
 
@@ -117,7 +135,7 @@ export class GraphEditor extends BaseEditor {
    * or removes the hovered node when none is selected.
    * @param _pointer - 3D pointer position
    */
-  handleRightClick(_pointer: Vector3) {
+  override handleRightClick(_pointer: Vector3) {
     if (this.selectedNode) {
       this.selectedNode = null;
       this.needsRedraw = true;
@@ -131,12 +149,12 @@ export class GraphEditor extends BaseEditor {
    * selected node (updates node coordinates and marks graph/visuals dirty).
    * @param pointer - 3D pointer position (x, z used as node coords)
    */
-  handlePointerMove(pointer: Vector3) {
+  override handlePointerMove(pointer: Vector3) {
     this.hoverNode(
       getNearestNode(new Node(pointer.x, pointer.z), this.graph.getNodes(), 10),
     );
     if (
-      this.dragging &&
+      this.isDragging &&
       this.selectedNode &&
       (this.selectedNode.x !== pointer.x || this.selectedNode.y !== pointer.z)
     ) {
@@ -149,7 +167,7 @@ export class GraphEditor extends BaseEditor {
 
       this.onDragStateChanged(true);
     }
-    if (!this.dragging && !this.hoveredNode) {
+    if (!this.isDragging && !this.hoveredNode) {
       // Cancel pending add-on-release if pointer moved away
       this.addNodeOnRelease = false;
     }
@@ -160,12 +178,13 @@ export class GraphEditor extends BaseEditor {
    * node at the release position when `addNodeOnRelease` is set.
    * @param pointer - 3D pointer position
    */
-  handleClickRelease(pointer: Vector3) {
-    this.dragging = false;
+  override handleClickRelease(pointer: Vector3) {
+    this.isDragging = false;
     this.onDragStateChanged(false);
     if (this.addNodeOnRelease) {
-      const node = this.graph.tryAddNode(new Node(pointer.x, pointer.z));
-      if (node) {
+      const node = new Node(pointer.x, pointer.z);
+      const isAdded = this.graph.tryAddNode(node);
+      if (isAdded) {
         this.selectNode(node);
         this.hoverNode(node);
         this.needsRedraw = true;
@@ -179,7 +198,7 @@ export class GraphEditor extends BaseEditor {
    * graph's change counter to avoid unnecessary work.
    * @returns `true` when a redraw was performed, `false` when skipped
    */
-  draw() {
+  override draw(): boolean {
     const currentChanges = this.graph.getChanges();
     if (!this.needsRedraw && currentChanges === this.lastGraphChanges) {
       return false;

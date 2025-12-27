@@ -11,10 +11,20 @@ import {
 const AI_VIEW_SIZE = 300;
 const DETECTION_RATE = 20;
 
+/**
+ * Detection result augmented with a coarse traffic-light color classification.
+ */
 type TrafficLightDetection = DetectedObject & {
   color: "RED" | "GREEN" | "YELLOW" | "UNKNOWN";
 };
 
+/**
+ * Hook that loads a COCO-SSD model and provides a helper to periodically run
+ * object detection against an off-screen render of the scene.
+ *
+ * `scanTraffic` renders the scene into a small `WebGLRenderTarget`, reads pixels,
+ * runs detection every `DETECTION_RATE` frames, and stores traffic-light detections.
+ */
 export function useTrafficDetector() {
   const [model, setModel] = useState<ObjectDetection | null>(null);
   const [detections, setDetections] = useState<TrafficLightDetection[]>([]);
@@ -42,6 +52,12 @@ export function useTrafficDetector() {
     };
   }, []);
 
+  /**
+   * Render the scene into an off-screen target and run detection periodically.
+   * @param renderer Active WebGL renderer.
+   * @param scene Scene to render.
+   * @param camera Camera used for the AI view.
+   */
   const scanTraffic = (
     renderer: WebGLRenderer,
     scene: Scene,
@@ -70,6 +86,9 @@ export function useTrafficDetector() {
     detect(pixelBufferRef.current).catch(console.error);
   };
 
+  /**
+   * Run object detection on RGBA pixel data and update local state.
+   */
   const detect = async (pixelData: Uint8Array) => {
     if (!model) return;
 
@@ -103,6 +122,12 @@ export function useTrafficDetector() {
   return { scanTraffic, detections } as const;
 }
 
+/**
+ * Infer traffic light color by scanning pixels in the detection bounding box.
+ *
+ * The algorithm thresholds RGB values and partitions the box vertically
+ * into thirds (top=red, middle=yellow, bottom=green).
+ */
 function getTrafficLightColor(
   bbox: number[],
   pixelData: Uint8Array,

@@ -73,6 +73,17 @@ export class Car {
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
+  /**
+   * Create a new simulated car.
+   * @param position Initial world position (x, y; where y maps to Three.js Z).
+   * @param breadth Vehicle width along X.
+   * @param length Vehicle length along Z.
+   * @param height Vehicle height along Y.
+   * @param controlType Input scheme (human/ai/none).
+   * @param group Parent group that will receive the car's meshes.
+   * @param angle Initial heading in radians.
+   * @param maxSpeed Maximum forward speed.
+   */
   constructor(
     position: Vector2,
     breadth: number,
@@ -105,6 +116,14 @@ export class Car {
     this.group = group;
   }
 
+  /**
+   * Advance the simulation by one frame.
+   *
+   * This updates visuals, moves the car when not damaged, recomputes the
+   * collision polygon, performs collision checks against `traffic`, and
+   * updates sensors if present.
+   * @param traffic Other cars to consider for collision/sensor readings.
+   */
   update(traffic: Car[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
