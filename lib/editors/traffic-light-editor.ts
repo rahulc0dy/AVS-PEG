@@ -188,10 +188,10 @@ export class TrafficLightEditor extends MarkingEditor {
       const isAdded = this.trafficLightGraph.tryAddNode(addedNode);
       if (isAdded) {
         this.trafficLightGraph.completeDisconnectedComponents();
+        this.selectTrafficLight(addedNode);
+        this.hoverTrafficLight(addedNode);
+        this.needsRedraw = true;
       }
-      this.selectTrafficLight(addedNode);
-      this.hoverTrafficLight(addedNode);
-      this.needsRedraw = true;
     }
 
     super.handleClickRelease(pointer);
