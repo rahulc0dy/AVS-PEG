@@ -46,16 +46,16 @@ export default function WorldComponent({
     worldRef,
   );
 
-  const { scanTraffic, detections } = useTrafficDetector();
+  // const { scanTraffic, detections } = useTrafficDetector();
 
-  useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
+  useMiniCamera(renderer, scene, camera, worldRef, undefined);
 
-  useEffect(() => {
-    if (detections.length > 0) {
-      console.log("Traffic Light Found!", detections);
-      // Logic to stop the car can go here
-    }
-  }, [detections]);
+  // useEffect(() => {
+  //   if (detections.length > 0) {
+  //     console.log("Traffic Light Found!", detections);
+  //     // Logic to stop the car can go here
+  //   }
+  // }, [detections]);
 
   const { saveToJson, loadFromJson } = useWorldPersistence(worldRef);
 
