@@ -32,8 +32,9 @@ export class World {
   roadBorders: Edge[];
   /** Road polygons generated from graph edges. */
   roads: Envelope[];
-
+  /** Simulated cars currently present in the world. */
   cars: Car[];
+  /** Markings placed in the world (includes traffic lights). */
   markings: Marking[];
 
   /** Traffic light graph used by the traffic light editor/system. */
@@ -78,7 +79,6 @@ export class World {
 
     this.markings = [];
 
-    // Traffic light graph + system are owned by the World.
     this.trafficLightGraph = new Graph();
     this.trafficLightSystem = new TrafficLightSystem(
       this.trafficLightGraph,
@@ -88,7 +88,6 @@ export class World {
         ),
     );
 
-    // Build derived geometry immediately
     this.generate();
   }
 
@@ -166,7 +165,7 @@ export class World {
    * Serialize the world state to a plain JSON object suitable for saving.
    * @returns world JSON containing graph, roads, borders and markings
    */
-  toJson() {
+  toJson(): WorldJson {
     return {
       graph: this.graph.toJson(),
       trafficLightGraph: this.trafficLightGraph.toJson(),
@@ -183,7 +182,7 @@ export class World {
    * disposed before loading to avoid leaking GPU resources.
    * @param json - Deserialized `WorldJson` object to load
    */
-  fromJson(json: WorldJson) {
+  fromJson(json: WorldJson): void {
     for (const marking of this.markings) {
       marking.dispose();
     }

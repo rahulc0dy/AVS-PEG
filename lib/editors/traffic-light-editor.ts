@@ -14,8 +14,11 @@ import { getNearestNode } from "@/utils/math";
  * `TrafficLight` instances for preview and commit.
  */
 export class TrafficLightEditor extends MarkingEditor {
+  /** Graph storing traffic light nodes and connecting edges (phase groups). */
   trafficLightGraph: Graph;
+  /** Currently selected traffic light node (used to create edges). */
   selectedTrafficLight: Node | null;
+  /** Traffic light node currently under the pointer (hover). */
   hoveredTrafficLight: Node | null;
 
   /** Whether a redraw is required on next `draw()` call. */
@@ -30,6 +33,14 @@ export class TrafficLightEditor extends MarkingEditor {
   private static readonly edgeColor = new Color(0x6cf0ff);
   private static readonly hoverThreshold = 10;
 
+  /**
+   * Create a new `TrafficLightEditor`.
+   * @param scene Three.js scene to draw the editor overlay into.
+   * @param targetEdges Road edges that are valid snap targets for placing traffic lights.
+   * @param markings Array to receive committed `TrafficLight` markings.
+   * @param trafficLightGraph Graph storing traffic-light nodes and their linking edges.
+   * @param commitGroup Optional parent group for committed markings.
+   */
   constructor(
     scene: Scene,
     targetEdges: Edge[],
@@ -46,6 +57,13 @@ export class TrafficLightEditor extends MarkingEditor {
     this.lastGraphChanges = -1;
   }
 
+  /**
+   * Select a traffic light node.
+   *
+   * If a previous node was selected, the editor attempts to connect them
+   * by adding an edge in `trafficLightGraph`.
+   * @param trafficLight Node to select.
+   */
   private selectTrafficLight(trafficLight: Node | null) {
     if (!trafficLight) return;
 
@@ -67,6 +85,10 @@ export class TrafficLightEditor extends MarkingEditor {
     this.needsRedraw = true;
   }
 
+  /**
+   * Update which traffic light node is considered hovered.
+   * @param trafficLight Hovered node, or `null` when none.
+   */
   private hoverTrafficLight(trafficLight: Node | null) {
     if (this.hoveredTrafficLight !== trafficLight) {
       this.hoveredTrafficLight = trafficLight;
@@ -74,6 +96,10 @@ export class TrafficLightEditor extends MarkingEditor {
     }
   }
 
+  /**
+   * Remove a traffic light node and its associated marking (if present).
+   * @param node Traffic light node to remove.
+   */
   private removeTrafficLight(node: Node) {
     const index = this.markings.findIndex(
       (marking): marking is TrafficLight =>
@@ -105,6 +131,10 @@ export class TrafficLightEditor extends MarkingEditor {
     return new TrafficLight(position, direction, this.editorGroup);
   }
 
+  /**
+   * Track pointer movement: updates the base placement preview and updates which
+   * traffic light node is hovered for selection/edge creation.
+   */
   override handlePointerMove(pointer: Vector3) {
     super.handlePointerMove(pointer);
     this.hoverTrafficLight(
@@ -116,6 +146,11 @@ export class TrafficLightEditor extends MarkingEditor {
     );
   }
 
+  /**
+   * Handle left-click:
+   * - if hovering an existing traffic light, select it
+   * - otherwise delegate to the base `MarkingEditor` for placement
+   */
   override handleLeftClick(pointer: Vector3) {
     if (this.hoveredTrafficLight) {
       this.selectTrafficLight(this.hoveredTrafficLight);
@@ -126,6 +161,11 @@ export class TrafficLightEditor extends MarkingEditor {
     super.handleLeftClick(pointer);
   }
 
+  /**
+   * Handle right-click:
+   * - clears current selection, otherwise
+   * - deletes the hovered traffic light node/marking.
+   */
   override handleRightClick(_pointer: Vector3) {
     if (this.selectedTrafficLight) {
       this.selectedTrafficLight = null;
@@ -137,6 +177,10 @@ export class TrafficLightEditor extends MarkingEditor {
     }
   }
 
+  /**
+   * Commit placement on click release (when `MarkingEditor` indicates a commit).
+   * Also syncs the traffic light graph and updates selection/hover state.
+   */
   override handleClickRelease(pointer: Vector3) {
     const intentTrafficLight = this.intent as TrafficLight | null;
     if (this.addMarkingOnRelease && intentTrafficLight) {
@@ -153,6 +197,10 @@ export class TrafficLightEditor extends MarkingEditor {
     super.handleClickRelease(pointer);
   }
 
+  /**
+   * Draw the traffic light graph (nodes/edges) and then the placement preview.
+   * @returns `true` when either the graph or preview changed and needs a re-render.
+   */
   override draw(): boolean {
     let redrewGraph = false;
     const currentChanges = this.trafficLightGraph.getChanges();

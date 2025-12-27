@@ -5,6 +5,15 @@ import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
 import { BaseEditor } from "./base-editor";
 
+/**
+ * Interactive editor for creating and editing a road `Graph`.
+ *
+ * Behavior summary:
+ * - Left-click a node to select it; selecting two nodes attempts to create an edge.
+ * - Left-click empty space to create a new node on click release.
+ * - Dragging a selected node updates its coordinates and marks the graph dirty.
+ * - Right-click clears selection; if nothing is selected, it deletes the hovered node.
+ */
 export class GraphEditor extends BaseEditor {
   /** Underlying graph being edited. */
   graph: Graph;
@@ -31,6 +40,12 @@ export class GraphEditor extends BaseEditor {
   private static readonly hoveredColor = new Color(0xfff23b);
   private static readonly selectedColor = new Color(0xff2b59);
 
+  /**
+   * Create a new `GraphEditor`.
+   * @param graph Graph instance to mutate.
+   * @param scene Three.js scene to draw the editor overlay into.
+   * @param onDragStateChanged Callback invoked when dragging starts/stops.
+   */
   constructor(
     graph: Graph,
     scene: Scene,
@@ -50,6 +65,9 @@ export class GraphEditor extends BaseEditor {
     this.lastGraphChanges = -1;
   }
 
+  /**
+   * Disable editor visuals and clear transient interaction state.
+   */
   disable() {
     super.disable();
     this.selectedNode = null;
@@ -180,7 +198,7 @@ export class GraphEditor extends BaseEditor {
    * graph's change counter to avoid unnecessary work.
    * @returns `true` when a redraw was performed, `false` when skipped
    */
-  override draw() {
+  override draw(): boolean {
     const currentChanges = this.graph.getChanges();
     if (!this.needsRedraw && currentChanges === this.lastGraphChanges) {
       return false;
