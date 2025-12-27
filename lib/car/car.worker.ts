@@ -54,6 +54,10 @@ function defaultControls(): ControlsDto {
   return { forward: false, left: false, right: false, reverse: false };
 }
 
+function defaultRoadRelative(): { lateral: number; along: number } {
+  return { lateral: 0, along: 0 };
+}
+
 function castRays(
   carPos: NodeJson,
   carAngle: number,
@@ -203,8 +207,11 @@ function computeTick(tick: CarTickDto): CarStateDto {
   const readings = rays.map((ray) => getReading(ray, tick.traffic));
   const offsets = readings.map((s) => (s == null ? 0 : 1 - s.offset));
 
+  const roadRelative = tick.roadRelative ?? defaultRoadRelative();
+  const nnInputs = offsets.concat([roadRelative.lateral, roadRelative.along]);
+  console.log("NN Inputs:", nnInputs);
   if (init.controlType === ControlType.AI && state.brain) {
-    const outputs = state.brain.decide(offsets);
+    const outputs = state.brain.decide(nnInputs);
     state.controls = {
       forward: outputs[0] === 1,
       left: outputs[1] === 1,
@@ -261,7 +268,7 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
             : defaultControls(),
         brain:
           init.controlType === ControlType.AI
-            ? new NeuralNetwork([init.rayCount, 6, 4])
+            ? new NeuralNetwork([init.rayCount + 2, 6, 4])
             : null,
       };
       post({ type: "ready", id: init.id });

@@ -19,7 +19,7 @@ import type {
   CarStateDto,
   CarTickDto,
   CarWorkerOutboundMessage,
-  ControlsDto,
+  RoadRelativeDto,
   TrafficCarDto,
 } from "@/lib/car/worker-protocol";
 
@@ -119,8 +119,10 @@ export class Car {
     this.initWorker();
   }
 
-  update(traffic: Car[]) {
+  update(traffic: Car[], roadEdges?: Edge[], roadWidth?: number) {
     this.draw(this.group, this.modelUrl);
+
+    const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
 
     // All simulation is done in this car's dedicated worker.
     this.requestWorkerTick({
@@ -134,7 +136,70 @@ export class Car {
               reverse: this.controls.reverse,
             }
           : undefined,
+      roadRelative,
     });
+  }
+
+  private computeRoadRelativeFeatures(
+    roadEdges?: Edge[],
+    roadWidth?: number,
+  ): RoadRelativeDto {
+    if (!roadEdges || roadEdges.length === 0) {
+      return { lateral: 0, along: 0 };
+    }
+
+    const halfWidth = (roadWidth ?? 0) / 2;
+    const px = this.position.x;
+    const py = this.position.y;
+
+    let bestDist = Infinity;
+    let bestLateral = 0;
+    let bestAlong = 0;
+
+    for (const edge of roadEdges) {
+      const x1 = edge.n1.x;
+      const y1 = edge.n1.y;
+      const x2 = edge.n2.x;
+      const y2 = edge.n2.y;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len2 = dx * dx + dy * dy;
+      if (len2 <= 0) continue;
+
+      // Project point onto segment (clamped).
+      const t = ((px - x1) * dx + (py - y1) * dy) / len2;
+      const tClamped = Math.max(0, Math.min(1, t));
+      const projX = x1 + tClamped * dx;
+      const projY = y1 + tClamped * dy;
+
+      const vx = px - projX;
+      const vy = py - projY;
+      const dist = Math.hypot(vx, vy);
+
+      if (dist >= bestDist) continue;
+
+      // Signed lateral offset using 2D cross product sign.
+      const len = Math.sqrt(len2);
+      const dirX = dx / len;
+      const dirY = dy / len;
+      const cross = dirX * vy - dirY * vx;
+      const sign = cross === 0 ? 0 : cross > 0 ? 1 : -1;
+      const lateralSigned = dist * sign;
+
+      // Normalize features.
+      const lateralNorm =
+        halfWidth > 0
+          ? Math.max(-1, Math.min(1, lateralSigned / halfWidth))
+          : 0;
+      const alongNorm = tClamped * 2 - 1; // [-1..1]
+
+      bestDist = dist;
+      bestLateral = lateralNorm;
+      bestAlong = alongNorm;
+    }
+
+    return { lateral: bestLateral, along: bestAlong };
   }
 
   private initWorker() {

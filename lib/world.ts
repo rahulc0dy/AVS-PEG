@@ -93,7 +93,11 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(this.cars.filter((c) => c !== car));
+      car.update(
+        this.cars.filter((c) => c !== car),
+        this.graph.getEdges(),
+        this.roadWidth,
+      );
     }
     for (const marking of this.markings) {
       marking.update();

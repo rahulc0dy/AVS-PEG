@@ -18,6 +18,13 @@ export type TrafficCarDto = {
   polygon: NodeJson[];
 };
 
+export type RoadRelativeDto = {
+  /** Signed lateral offset from the nearest road centerline, normalized to [-1, 1]. */
+  lateral: number;
+  /** Longitudinal position along the nearest road segment, normalized to [-1, 1]. */
+  along: number;
+};
+
 export type CarInitDto = {
   id: string;
   position: NodeJson;
@@ -41,6 +48,8 @@ export type CarInitDto = {
 export type CarTickDto = {
   traffic: TrafficCarDto[];
   controls?: ControlsDto;
+  /** Road-relative features for AI input (computed on main thread). */
+  roadRelative?: RoadRelativeDto;
 };
 
 export type CarStateDto = {
