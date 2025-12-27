@@ -146,10 +146,10 @@ export class Graph {
   /**
    * Find an edge in the graph that equals the provided edge.
    * @param edge - Edge to find
-   * @returns The matching edge or `undefined` if not present
+   * @returns The matching edge or `null` if not present
    */
-  containsEdge(edge: Edge) {
-    return this.edges.find((e) => e.equals(edge));
+  containsEdge(edge: Edge): Edge | null {
+    return this.edges.find((e) => e.equals(edge)) ?? null;
   }
 
   /**
@@ -166,6 +166,17 @@ export class Graph {
     return false;
   }
 
+  /**
+   * Add edges between every pair of distinct nodes currently in the graph.
+   *
+   * Effectively turns the node set into an undirected clique (complete graph)
+   * by attempting to insert all possible edges.
+   *
+   * Notes:
+   * - Uses `tryAddEdge`, so existing edges are not duplicated.
+   * - Self-loops are not created.
+   * - Increments the change counter only for edges that are actually added.
+   */
   addAllEdges() {
     for (let i = 0; i < this.nodes.length; i++) {
       for (let j = i + 1; j < this.nodes.length; j++) {
@@ -194,9 +205,24 @@ export class Graph {
   }
 
   /**
-   * Depth-first traversal utility.
+   * Generic depth-first traversal (DFS) utility.
    *
-   * Mutates `visited` in-place and calls `onVisit` exactly once per visited node.
+   * Performs an iterative DFS starting at `start` using an explicit stack.
+   * Nodes are considered visited based on reference/identity as defined by the
+   * `Set<T>` semantics for `T`.
+   *
+   * Behavior:
+   * - Mutates `visited` in-place (adds every newly discovered node).
+   * - Calls `onVisit` exactly once per node, immediately after the node is
+   *   marked visited.
+   * - Traversal order depends on the order produced by `getNeighbors`.
+   * - Safe to call when `start` is already visited (no-op).
+   *
+   * @template T Node/value type.
+   * @param start Starting node/value.
+   * @param getNeighbors Function returning neighbors for a node.
+   * @param visited Set tracking which nodes have been visited.
+   * @param onVisit Optional callback invoked on first visit of a node.
    */
   static dfs<T>(
     start: T,
