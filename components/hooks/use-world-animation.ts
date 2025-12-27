@@ -1,6 +1,5 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { Graph } from "@/lib/primitives/graph";
 import { World } from "@/lib/world";
 import { RefObject, useEffect, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
@@ -24,14 +23,12 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
  * @param graphEditorRef - Ref to the `GraphEditor` instance; used to draw editor overlays and detect editor-driven visual changes.
  * @param trafficLightEditorRef - Ref to the `TrafficLightEditor`; updated with world edges after generation.
  * @param worldRef - Ref to the `World` instance which is generated, drawn and updated.
- * @param graphRef - Ref to the `Graph` data structure that drives world generation; `graph.getChanges()` is used to detect structural modifications.
  */
 export function useWorldAnimation(
   controlsRef: RefObject<OrbitControls | null>,
   graphEditorRef: RefObject<GraphEditor | null>,
   trafficLightEditorRef: RefObject<TrafficLightEditor | null>,
   worldRef: RefObject<World | null>,
-  graphRef: RefObject<Graph | null>,
 ) {
   // Ref to store the active requestAnimationFrame id so we can cancel it on cleanup.
   const frameRef = useRef<number | null>(null);
@@ -43,6 +40,7 @@ export function useWorldAnimation(
 
     // Mounted flag prevents scheduling frames after the component unmounts.
     let mounted = true;
+    let lastTimestamp = performance.now();
 
     const animate = () => {
       // If unmounted, do not schedule or perform any work.
@@ -51,12 +49,16 @@ export function useWorldAnimation(
       // Schedule the next frame and remember the id for cancellation later.
       frameRef.current = requestAnimationFrame(animate);
 
+      const now = performance.now();
+      const deltaSeconds = (now - lastTimestamp) / 1000;
+      lastTimestamp = now;
+
       controlsRef.current?.update();
 
       const gEditor = graphEditorRef.current;
       const tlEditor = trafficLightEditorRef.current;
       const world = worldRef.current;
-      const graph = graphRef.current;
+      const graph = world?.graph;
 
       // Editors may draw overlays/handles; `draw()` returns true when visuals
       // changed and a world redraw is desirable.
@@ -94,7 +96,7 @@ export function useWorldAnimation(
       }
 
       // Advance simulation: move cars, update animations, etc.
-      world.update();
+      world.update(deltaSeconds);
     };
 
     animate();
@@ -107,5 +109,5 @@ export function useWorldAnimation(
         frameRef.current = null;
       }
     };
-  }, [controlsRef, graphEditorRef, trafficLightEditorRef, worldRef, graphRef]);
+  }, [controlsRef, graphEditorRef, trafficLightEditorRef, worldRef]);
 }

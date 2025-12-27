@@ -33,7 +33,6 @@ export default function WorldComponent({
   const {
     activeMode,
     setMode,
-    graphRef,
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,
@@ -45,7 +44,6 @@ export default function WorldComponent({
     graphEditorRef,
     trafficLightEditorRef,
     worldRef,
-    graphRef,
   );
 
   const { scanTraffic, detections } = useTrafficDetector();
@@ -59,7 +57,7 @@ export default function WorldComponent({
     }
   }, [detections]);
 
-  const { saveToJson, loadFromJson } = useWorldPersistence(worldRef, graphRef);
+  const { saveToJson, loadFromJson } = useWorldPersistence(worldRef);
 
   return (
     <>
@@ -75,7 +73,7 @@ export default function WorldComponent({
         <OsmModal
           isOpen={isOsmModalOpen}
           onClose={() => setIsOsmModalOpen(false)}
-          graphRef={graphRef}
+          worldRef={worldRef}
         />
       )}
     </>

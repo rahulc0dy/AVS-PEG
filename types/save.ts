@@ -7,13 +7,13 @@ import { MarkingType } from "./marking";
 export interface WorldJson {
   /** The road graph (nodes + edges). */
   graph: GraphJson;
+  /** Traffic light graph (nodes + edges) used by the traffic light editor/system. */
+  trafficLightGraph: GraphJson;
   /** Road width used when constructing envelopes. */
   roadWidth: number;
   /** Sampling/roundness value used for envelope end caps. */
   roadRoundness: number;
-  /** Serialized traffic light markings (subset of `markings`). */
-  trafficLights: TrafficLightJson[];
-  /** All other markings present in the world. */
+  /** All markings present in the world. */
   markings: MarkingJson[];
   /** Borders derived from unioning envelopes. */
   roadBorders: EdgeJson[];

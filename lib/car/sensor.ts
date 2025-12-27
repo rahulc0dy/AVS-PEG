@@ -71,21 +71,19 @@ export class Sensor {
    * This method updates the `rays` array.
    */
   private castRays() {
-    // Construct ray segments in world coordinates. Rays are distributed
-    // evenly across `raySpreadAngle` and rotated by the car's heading.
     this.rays = [];
     for (let i = 0; i < this.rayCount; i++) {
       const rayAngle =
         lerp(
           this.raySpreadAngle / 2,
           -this.raySpreadAngle / 2,
-          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1)
+          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1),
         ) - this.car.angle;
 
       const start = new Node(this.car.position.x, this.car.position.y);
       const end = new Node(
         this.car.position.x + Math.sin(rayAngle) * this.rayLength,
-        this.car.position.y - Math.cos(rayAngle) * this.rayLength
+        this.car.position.y - Math.cos(rayAngle) * this.rayLength,
       );
       this.rays.push(new Edge(start, end));
     }
@@ -110,7 +108,7 @@ export class Sensor {
           ray.n1,
           ray.n2,
           poly.nodes[j],
-          poly.nodes[(j + 1) % poly.nodes.length]
+          poly.nodes[(j + 1) % poly.nodes.length],
         );
         if (value) {
           touches.push(value);
@@ -166,7 +164,7 @@ export class Sensor {
         // Update existing line
         line.geometry.setAttribute(
           "position",
-          new Float32BufferAttribute(points, 3)
+          new Float32BufferAttribute(points, 3),
         );
         line.material.color.set(this.readings[i] ? 0xff0000 : 0xffff00);
         line.geometry.computeBoundingSphere(); // Important for frustum culling
@@ -175,7 +173,7 @@ export class Sensor {
         const geometry = new BufferGeometry();
         geometry.setAttribute(
           "position",
-          new Float32BufferAttribute(points, 3)
+          new Float32BufferAttribute(points, 3),
         );
         const material = new LineBasicMaterial({
           color: this.readings[i] ? 0xff0000 : 0xffff00,
@@ -194,8 +192,10 @@ export class Sensor {
     }
   }
 
+  /**
+   * Dispose sensor debug meshes/materials and detach from the scene.
+   */
   dispose() {
-    // Dispose of all geometries and materials before removing the group.
     this.sensorGroup.children.forEach((child) => {
       const line = child as Line;
       if (line.geometry) {

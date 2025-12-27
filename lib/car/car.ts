@@ -69,6 +69,17 @@ export class Car {
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
+  /**
+   * Create a new simulated car.
+   * @param position Initial world position (x, y; where y maps to Three.js Z).
+   * @param breadth Vehicle width along X.
+   * @param length Vehicle length along Z.
+   * @param height Vehicle height along Y.
+   * @param controlType Input scheme (human/ai/none).
+   * @param group Parent group that will receive the car's meshes.
+   * @param angle Initial heading in radians.
+   * @param maxSpeed Maximum forward speed.
+   */
   constructor(
     position: Vector2,
     breadth: number,
@@ -77,7 +88,7 @@ export class Car {
     controlType: ControlType,
     group: Group,
     angle = 0,
-    maxSpeed = 0.5
+    maxSpeed = 0.5,
   ) {
     this.position = position;
     this.breadth = breadth;
@@ -98,6 +109,14 @@ export class Car {
     this.group = group;
   }
 
+  /**
+   * Advance the simulation by one frame.
+   *
+   * This updates visuals, moves the car when not damaged, recomputes the
+   * collision polygon, performs collision checks against `traffic`, and
+   * updates sensors if present.
+   * @param traffic Other cars to consider for collision/sensor readings.
+   */
   update(traffic: Car[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
@@ -143,26 +162,26 @@ export class Car {
     points.push(
       new Node(
         this.position.x - Math.sin(this.angle - alpha) * rad,
-        this.position.y - Math.cos(this.angle - alpha) * rad
-      )
+        this.position.y - Math.cos(this.angle - alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(this.angle + alpha) * rad,
-        this.position.y - Math.cos(this.angle + alpha) * rad
-      )
+        this.position.y - Math.cos(this.angle + alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad
-      )
+        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad
-      )
+        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+      ),
     );
     return new Polygon(points);
   }
@@ -243,7 +262,7 @@ export class Car {
         undefined,
         () => {
           this.loadingModel = false;
-        }
+        },
       );
 
       return;
@@ -259,7 +278,7 @@ export class Car {
       const carGeometry = new BoxGeometry(
         this.breadth,
         this.height,
-        this.length
+        this.length,
       );
       const carMaterial = new MeshBasicMaterial({
         color: new Color(0x00ff00),
@@ -272,7 +291,7 @@ export class Car {
     this.carColliderMesh.position.set(
       this.position.x,
       this.height / 2,
-      this.position.y
+      this.position.y,
     );
     this.carColliderMesh.rotation.set(0, this.angle, 0);
 

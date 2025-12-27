@@ -23,7 +23,7 @@ export class Graph {
    * @param nodes - Initial list of nodes
    * @param edges - Initial list of edges
    */
-  constructor(nodes: Node[], edges: Edge[]) {
+  constructor(nodes: Node[] = [], edges: Edge[] = []) {
     this.nodes = nodes;
     this.edges = edges;
     this.changes = 0;
@@ -88,23 +88,23 @@ export class Graph {
   /**
    * Find a node in the graph that equals the provided node.
    * @param node - Node to find
-   * @returns The matching node or `undefined` if not present
+   * @returns The matching node or `null` if not present
    */
-  containsNode(node: Node) {
-    return this.nodes.find((p) => p.equals(node));
+  containsNode(node: Node): Node | null {
+    return this.nodes.find((p) => p.equals(node)) ?? null;
   }
 
   /**
    * Attempt to add `node` if an equal node is not already present.
    * @param node - Node to insert
-   * @returns The node when added, otherwise `null` when it already exists
+   * @returns `true` if the node was added; `false` if it already exists
    */
-  tryAddNode(node: Node): Node | null {
+  tryAddNode(node: Node): boolean {
     if (!this.containsNode(node)) {
       this.addNode(node);
-      return node;
+      return true;
     }
-    return null;
+    return false;
   }
 
   /**
@@ -146,10 +146,10 @@ export class Graph {
   /**
    * Find an edge in the graph that equals the provided edge.
    * @param edge - Edge to find
-   * @returns The matching edge or `undefined` if not present
+   * @returns The matching edge or `null` if not present
    */
-  containsEdge(edge: Edge) {
-    return this.edges.find((e) => e.equals(edge));
+  containsEdge(edge: Edge): Edge | null {
+    return this.edges.find((e) => e.equals(edge)) ?? null;
   }
 
   /**
@@ -158,12 +158,123 @@ export class Graph {
    * @param edge - Edge to insert
    * @returns `true` if the edge was added; `false` otherwise
    */
-  tryAddEdge(edge: Edge) {
+  tryAddEdge(edge: Edge): boolean {
     if (!this.containsEdge(edge) && !edge.n1.equals(edge.n2)) {
       this.addEdge(edge);
       return true;
     }
     return false;
+  }
+
+  /**
+   * Add edges between every pair of distinct nodes currently in the graph.
+   *
+   * Effectively turns the node set into an undirected clique (complete graph)
+   * by attempting to insert all possible edges.
+   *
+   * Notes:
+   * - Uses `tryAddEdge`, so existing edges are not duplicated.
+   * - Self-loops are not created.
+   * - Increments the change counter only for edges that are actually added.
+   */
+  addAllEdges() {
+    for (let i = 0; i < this.nodes.length; i++) {
+      for (let j = i + 1; j < this.nodes.length; j++) {
+        const edge = new Edge(this.nodes[i], this.nodes[j]);
+        this.tryAddEdge(edge);
+      }
+    }
+  }
+
+  /**
+   * Discover disconnected components (using existing edges) and connect
+   * every node pair inside each component so it becomes a clique. Returns
+   * the discovered components for downstream processing.
+   */
+  makeComponentsComplete(): Node[][] {
+    const components = this.getConnectedComponents();
+    for (const component of components) {
+      if (component.length <= 1) continue;
+      for (let i = 0; i < component.length; i++) {
+        for (let j = i + 1; j < component.length; j++) {
+          this.tryAddEdge(new Edge(component[i], component[j]));
+        }
+      }
+    }
+    return components;
+  }
+
+  /**
+   * Generic depth-first traversal (DFS) utility.
+   *
+   * Performs an iterative DFS starting at `start` using an explicit stack.
+   * Nodes are considered visited based on reference/identity as defined by the
+   * `Set<T>` semantics for `T`.
+   *
+   * Behavior:
+   * - Mutates `visited` in-place (adds every newly discovered node).
+   * - Calls `onVisit` exactly once per node, immediately after the node is
+   *   marked visited.
+   * - Traversal order depends on the order produced by `getNeighbors`.
+   * - Safe to call when `start` is already visited (no-op).
+   *
+   * @template T Node/value type.
+   * @param start Starting node/value.
+   * @param getNeighbors Function returning neighbors for a node.
+   * @param visited Set tracking which nodes have been visited.
+   * @param onVisit Optional callback invoked on first visit of a node.
+   */
+  static dfs<T>(
+    start: T,
+    getNeighbors: (node: T) => Iterable<T>,
+    visited: Set<T>,
+    onVisit?: (node: T) => void,
+  ) {
+    const stack: T[] = [start];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+
+      visited.add(current);
+      onVisit?.(current);
+
+      for (const neighbor of getNeighbors(current)) {
+        if (!visited.has(neighbor)) {
+          stack.push(neighbor);
+        }
+      }
+    }
+  }
+
+  /**
+   * Compute connected components of the graph based on its current nodes/edges.
+   *
+   * - Uses depth-first traversal.
+   * - Treats edges as undirected for connectivity purposes.
+   * - Returns components in the order their first node appears in `this.nodes`.
+   */
+  getConnectedComponents(): Node[][] {
+    const visited: Set<Node> = new Set();
+    const components: Node[][] = [];
+    for (const node of this.nodes) {
+      if (visited.has(node)) continue;
+
+      const component: Node[] = [];
+
+      Graph.dfs(
+        node,
+        (current) =>
+          this.getEdgesWithNode(current).map((edge) =>
+            edge.n1.equals(current) ? edge.n2 : edge.n1,
+          ),
+        visited,
+        (current) => component.push(current),
+      );
+
+      components.push(component);
+    }
+
+    return components;
   }
 
   /**
