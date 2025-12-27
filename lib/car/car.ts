@@ -12,9 +12,16 @@ import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
-import { doPolygonsIntersect } from "@/utils/math";
+import { Edge } from "@/lib/primitives/edge";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { NeuralNetwork } from "@/lib/ai/network";
+import type {
+  CarInitDto,
+  CarStateDto,
+  CarTickDto,
+  CarWorkerOutboundMessage,
+  ControlsDto,
+  TrafficCarDto,
+} from "@/lib/car/worker-protocol";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -30,6 +37,9 @@ import { NeuralNetwork } from "@/lib/ai/network";
  * to Three.js Z when rendering.
  */
 export class Car {
+  private static nextId = 1;
+  readonly id: string;
+
   /** Position in world units. `y` maps to Three.js Z when rendering. */
   position: Vector2;
   /** Vehicle width along the X axis. */
@@ -57,8 +67,7 @@ export class Car {
   /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
 
-  brain: NeuralNetwork | null = null;
-  useBrain: boolean = false;
+  private readonly controlType: ControlType;
 
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
@@ -73,17 +82,11 @@ export class Car {
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
-  /**
-   * Create a new simulated car.
-   * @param position Initial world position (x, y; where y maps to Three.js Z).
-   * @param breadth Vehicle width along X.
-   * @param length Vehicle length along Z.
-   * @param height Vehicle height along Y.
-   * @param controlType Input scheme (human/ai/none).
-   * @param group Parent group that will receive the car's meshes.
-   * @param angle Initial heading in radians.
-   * @param maxSpeed Maximum forward speed.
-   */
+  private worker: Worker | null = null;
+  private workerReady = false;
+  private tickInFlight = false;
+  private queuedTick: CarTickDto | null = null;
+
   constructor(
     position: Vector2,
     breadth: number,
@@ -94,6 +97,7 @@ export class Car {
     angle = 0,
     maxSpeed = 0.5,
   ) {
+    this.id = `car-${Car.nextId++}`;
     this.position = position;
     this.breadth = breadth;
     this.length = length;
@@ -107,142 +111,126 @@ export class Car {
     this.damaged = false;
 
     this.sensor = new Sensor(this);
-    this.useBrain = controlType == ControlType.AI;
 
-    if (this.useBrain) {
-      this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]);
-    }
+    this.controlType = controlType;
     this.controls = new Controls(controlType);
     this.group = group;
+
+    this.initWorker();
   }
 
-  /**
-   * Advance the simulation by one frame.
-   *
-   * This updates visuals, moves the car when not damaged, recomputes the
-   * collision polygon, performs collision checks against `traffic`, and
-   * updates sensors if present.
-   * @param traffic Other cars to consider for collision/sensor readings.
-   */
   update(traffic: Car[]) {
     this.draw(this.group, this.modelUrl);
-    if (!this.damaged) {
-      this.move();
-      this.polygon = this.createPolygon();
-      this.damaged = this.assessDamage(traffic);
+
+    // All simulation is done in this car's dedicated worker.
+    this.requestWorkerTick({
+      traffic: traffic.map((c) => c.toTrafficCarDto()),
+      controls:
+        this.controlType === ControlType.HUMAN
+          ? {
+              forward: this.controls.forward,
+              left: this.controls.left,
+              right: this.controls.right,
+              reverse: this.controls.reverse,
+            }
+          : undefined,
+    });
+  }
+
+  private initWorker() {
+    // Workers only exist in the browser.
+    if (typeof window === "undefined") return;
+    if (typeof Worker === "undefined") return;
+
+    this.worker = new Worker(new URL("./car.worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    this.worker.onmessage = (evt: MessageEvent<CarWorkerOutboundMessage>) => {
+      const msg = evt.data;
+      switch (msg.type) {
+        case "ready":
+          if (msg.id === this.id) {
+            this.workerReady = true;
+          }
+          return;
+
+        case "state":
+          if (msg.state.id === this.id) {
+            this.applyWorkerState(msg.state);
+          }
+          this.tickInFlight = false;
+          if (this.queuedTick) {
+            const queued = this.queuedTick;
+            this.queuedTick = null;
+            this.requestWorkerTick(queued);
+          }
+          return;
+      }
+    };
+
+    const init: CarInitDto = {
+      id: this.id,
+      position: { x: this.position.x, y: this.position.y },
+      breadth: this.breadth,
+      length: this.length,
+      height: this.height,
+      angle: this.angle,
+      maxSpeed: this.maxSpeed,
+      controlType: this.controlType,
+      acceleration: this.acceleration,
+      friction: this.friction,
+      rayCount: this.sensor?.rayCount ?? 0,
+      rayLength: this.sensor?.rayLength ?? 0,
+      raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
+    };
+
+    this.worker.postMessage({ type: "init", init });
+  }
+
+  private requestWorkerTick(tick: CarTickDto) {
+    if (!this.worker) return;
+    if (!this.workerReady) {
+      // Queue until the worker is ready so we don't drop early frames.
+      this.queuedTick = tick;
+      return;
     }
+
+    if (this.tickInFlight) {
+      this.queuedTick = tick;
+      return;
+    }
+
+    this.tickInFlight = true;
+    this.worker.postMessage({ type: "tick", tick });
+  }
+
+  private applyWorkerState(state: CarStateDto) {
+    this.position.set(state.position.x, state.position.y);
+    this.angle = state.angle;
+    this.speed = state.speed;
+    this.damaged = state.damaged;
+
+    // Keep a main-thread copy for traffic snapshots and any debug visuals.
+    this.polygon = new Polygon(state.polygon.map((p) => new Node(p.x, p.y)));
+
     if (this.sensor) {
-      this.sensor.update(traffic);
-      const offsets = this.sensor.readings.map((s) =>
-        s == null ? 0 : 1 - s.offset,
+      this.sensor.rayCount = state.sensor.rays.length;
+      this.sensor.rays = state.sensor.rays.map(
+        (r) =>
+          new Edge(new Node(r.start.x, r.start.y), new Node(r.end.x, r.end.y)),
       );
-
-      if (this.useBrain && this.brain) {
-        this.controls.applyAI(offsets, this.brain);
-      }
+      this.sensor.readings = state.sensor.readings.map((reading) =>
+        reading ? { x: reading.x, y: reading.y, offset: reading.offset } : null,
+      );
     }
   }
 
-  /**
-   * Check for collisions between this car and other vehicles.
-   *
-   * Iterates over the provided `traffic` array and returns `true` if the
-   * current car's collision polygon intersects any other's polygon.
-   */
-  private assessDamage(traffic: Car[]): boolean {
-    if (this.polygon === null) return false;
-
-    for (let i = 0; i < traffic.length; i++) {
-      if (traffic[i].polygon === null) continue;
-      if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Construct a collision polygon representing this car's footprint.
-   *
-   * The polygon is computed from the car's centre position, dimensions and
-   * heading and returned as a `Polygon` suitable for intersection tests.
-   */
-  private createPolygon(): Polygon {
-    const points = [];
-    const rad = Math.hypot(this.breadth, this.length) / 2;
-    const alpha = Math.atan2(this.breadth, this.length);
-    points.push(
-      new Node(
-        this.position.x - Math.sin(this.angle - alpha) * rad,
-        this.position.y - Math.cos(this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x - Math.sin(this.angle + alpha) * rad,
-        this.position.y - Math.cos(this.angle + alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad,
-      ),
-    );
-    return new Polygon(points);
-  }
-
-  /**
-   * Apply a single timestep of vehicle dynamics.
-   *
-   * Applies acceleration/reverse inputs, clamps speed, applies friction,
-   * handles turning (inverts when reversing) and updates position.
-   */
-  private move() {
-    if (this.controls.forward) {
-      this.speed += this.acceleration;
-    }
-    if (this.controls.reverse) {
-      this.speed -= this.acceleration;
-    }
-
-    if (this.speed > this.maxSpeed) {
-      this.speed = this.maxSpeed;
-    }
-    if (this.speed < -this.maxSpeed / 2) {
-      this.speed = -this.maxSpeed / 2;
-    }
-
-    if (this.speed > 0) {
-      this.speed -= this.friction;
-    }
-    if (this.speed < 0) {
-      this.speed += this.friction;
-    }
-
-    if (Math.abs(this.speed) < this.friction) {
-      this.speed = 0;
-    }
-
-    if (this.speed != 0) {
-      const flip = this.speed > 0 ? 1 : -1;
-      if (this.controls.left) {
-        this.angle += 0.03 * flip;
-      }
-      if (this.controls.right) {
-        this.angle -= 0.03 * flip;
-      }
-    }
-
-    this.position.x -= Math.sin(this.angle) * this.speed;
-    this.position.y -= Math.cos(this.angle) * this.speed;
+  private toTrafficCarDto(): TrafficCarDto {
+    return {
+      id: this.id,
+      polygon: this.polygon?.nodes.map((n) => ({ x: n.x, y: n.y })) ?? [],
+    };
   }
 
   /**
@@ -319,6 +307,11 @@ export class Car {
    * collider mesh.
    */
   dispose() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+
     if (this.sensor) {
       this.sensor.dispose();
     }
