@@ -10,6 +10,10 @@ export class NeuralNetwork {
     }
   }
 
+  decide(givenInputs: number[]) {
+    return NeuralNetwork.feedForward(givenInputs, this);
+  }
+
   static feedForward(givenInputs: number[], network: NeuralNetwork) {
     let outputs = Level.feedForward(givenInputs, network.levels[0]);
     for (let i = 1; i < network.levels.length; i++) {

@@ -67,6 +67,7 @@ export class World {
         this.worldGroup,
       ),
       new Car(new Vector2(20, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
+      new Car(new Vector2(40, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
     ];
 
     this.markings = [];

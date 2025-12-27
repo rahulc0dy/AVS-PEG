@@ -81,7 +81,7 @@ export class Controls {
    */
   applyAI(sensorOffsets: number[], brain: NeuralNetwork) {
     if (this.type !== ControlType.AI) return;
-    const outputs = NeuralNetwork.feedForward(sensorOffsets, brain);
+    const outputs = brain.decide(sensorOffsets);
     this.applyNetworkOutputs(outputs);
   }
 
