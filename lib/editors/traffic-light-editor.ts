@@ -141,8 +141,8 @@ export class TrafficLightEditor extends MarkingEditor {
     const intentTrafficLight = this.intent as TrafficLight | null;
     if (this.addMarkingOnRelease && intentTrafficLight) {
       const addedNode = intentTrafficLight.position;
-      this.trafficLightGraph.tryAddNode(addedNode);
-      if (addedNode) {
+      const isAdded = this.trafficLightGraph.tryAddNode(addedNode);
+      if (isAdded) {
         this.trafficLightGraph.completeDisconnectedComponents();
       }
       this.selectTrafficLight(addedNode);

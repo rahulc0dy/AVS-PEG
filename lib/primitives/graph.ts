@@ -97,7 +97,7 @@ export class Graph {
   /**
    * Attempt to add `node` if an equal node is not already present.
    * @param node - Node to insert
-   * @returns The node when added, otherwise `null` when it already exists
+   * @returns `true` if the node was added; `false` if it already exists
    */
   tryAddNode(node: Node): boolean {
     if (!this.containsNode(node)) {

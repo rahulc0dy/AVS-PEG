@@ -107,8 +107,13 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
         // Update the existing graph instance in-place so other components
         // holding the same reference continue to work without re-mounts.
         graph.load(newGraph.getNodes(), newGraph.getEdges());
+        onClose();
+      } else {
+        setError("World or graph is not available. Please try again.");
+        console.error(
+          "worldRef.current or graph is null when loading OSM data",
+        );
       }
-      onClose();
     } catch (err) {
       // Surface a human-readable message to the user while logging details
       // to the console for debugging.
