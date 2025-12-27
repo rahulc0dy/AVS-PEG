@@ -14,6 +14,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
 import { doPolygonsIntersect } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { NeuralNetwork } from "@/lib/ai/network";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -56,6 +57,9 @@ export class Car {
   /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
 
+  brain: NeuralNetwork | null = null;
+  useBrain: boolean = false;
+
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
   /** Root group returned by the GLTF loader (null until loaded). */
@@ -77,7 +81,7 @@ export class Car {
     controlType: ControlType,
     group: Group,
     angle = 0,
-    maxSpeed = 0.5
+    maxSpeed = 0.5,
   ) {
     this.position = position;
     this.breadth = breadth;
@@ -91,10 +95,13 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    if (controlType != ControlType.AI) {
-      this.sensor = new Sensor(this);
+    this.sensor = new Sensor(this);
+    this.useBrain = controlType == ControlType.AI;
+
+    if (this.useBrain) {
+      this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]);
     }
-    this.controls = new Controls(controlType as ControlType);
+    this.controls = new Controls(controlType);
     this.group = group;
   }
 
@@ -107,7 +114,13 @@ export class Car {
     }
     if (this.sensor) {
       this.sensor.update(traffic);
-      this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
+      const offsets = this.sensor.readings.map((s) =>
+        s == null ? 0 : 1 - s.offset,
+      );
+
+      if (this.useBrain && this.brain) {
+        this.controls.applyAI(offsets, this.brain);
+      }
     }
   }
 
@@ -143,26 +156,26 @@ export class Car {
     points.push(
       new Node(
         this.position.x - Math.sin(this.angle - alpha) * rad,
-        this.position.y - Math.cos(this.angle - alpha) * rad
-      )
+        this.position.y - Math.cos(this.angle - alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(this.angle + alpha) * rad,
-        this.position.y - Math.cos(this.angle + alpha) * rad
-      )
+        this.position.y - Math.cos(this.angle + alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad
-      )
+        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+      ),
     );
     points.push(
       new Node(
         this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad
-      )
+        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+      ),
     );
     return new Polygon(points);
   }
@@ -243,7 +256,7 @@ export class Car {
         undefined,
         () => {
           this.loadingModel = false;
-        }
+        },
       );
 
       return;
@@ -259,7 +272,7 @@ export class Car {
       const carGeometry = new BoxGeometry(
         this.breadth,
         this.height,
-        this.length
+        this.length,
       );
       const carMaterial = new MeshBasicMaterial({
         color: new Color(0x00ff00),
@@ -272,7 +285,7 @@ export class Car {
     this.carColliderMesh.position.set(
       this.position.x,
       this.height / 2,
-      this.position.y
+      this.position.y,
     );
     this.carColliderMesh.rotation.set(0, this.angle, 0);
 

@@ -293,3 +293,7 @@ export function getNearestEdge(
   }
   return nearest;
 }
+
+export function getRandomNumberBetween(min: number, max: number): number {
+  return Math.random() * (max - min) + min;
+}
