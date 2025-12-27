@@ -25,6 +25,13 @@ export class Polygon {
   /** Cached Three.js mesh used for filled rendering; created lazily. */
   private mesh: Mesh<ShapeGeometry, MeshBasicMaterial> | null = null;
 
+  private boundingBox: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } | null = null;
+
   /**
    * Create a polygon from either an ordered array of `Node`s (vertices) or an
    * array of `Edge`s (pre-built edges forming a closed loop).
@@ -89,7 +96,13 @@ export class Polygon {
 
         // Compare this edge against all other polygons
         for (let j = 0; j < polygons.length; j++) {
-          if (i !== j && polygons[j].containsEdge(edge)) {
+          if (i === j) continue;
+
+          // if edge midpoint can't be inside polygon's bbox, skip
+          const midpoint = average(edge.n1, edge.n2);
+          if (!polygons[j].nodeInBoundingBox(midpoint)) continue;
+
+          if (polygons[j].containsNode(midpoint)) {
             keep = false;
             break;
           }
@@ -112,6 +125,9 @@ export class Polygon {
   static multiBreak(polygons: Polygon[]): void {
     for (let i = 0; i < polygons.length - 1; i++) {
       for (let j = i + 1; j < polygons.length; j++) {
+        if (!polygons[i].boundingBoxOverlaps(polygons[j])) {
+          continue;
+        }
         Polygon.break(polygons[i], polygons[j]);
       }
     }
@@ -168,6 +184,52 @@ export class Polygon {
    */
   distanceToNode(node: Node): number {
     return Math.min(...this.edges.map((edge) => edge.distanceToNode(node)));
+  }
+
+  getBoundingBox(): { minX: number; maxX: number; minY: number; maxY: number } {
+    if (this.boundingBox) {
+      return this.boundingBox;
+    }
+
+    if (this.nodes.length === 0) {
+      this.boundingBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+      return this.boundingBox;
+    }
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const node of this.nodes) {
+      if (node.x < minX) minX = node.x;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.y > maxY) maxY = node.y;
+    }
+
+    this.boundingBox = { minX, maxX, minY, maxY };
+    return this.boundingBox;
+  }
+
+  boundingBoxOverlaps(other: Polygon): boolean {
+    const a = this.getBoundingBox();
+    const b = other.getBoundingBox();
+
+    if (a.maxX < b.minX || b.maxX < a.minX) return false;
+    if (a.maxY < b.minY || b.maxY < a.minY) return false;
+
+    return true;
+  }
+
+  nodeInBoundingBox(node: Node): boolean {
+    const bbox = this.getBoundingBox();
+    return (
+      node.x >= bbox.minX &&
+      node.x <= bbox.maxX &&
+      node.y >= bbox.minY &&
+      node.y <= bbox.maxY
+    );
   }
 
   /**
@@ -273,7 +335,7 @@ export class Polygon {
 
   /**
    * Dispose of any Three.js resources held by this polygon (geometry + material)
-   * and clear the cached mesh reference.
+   * and clear any cached data (mesh, bounding box).
    */
   dispose() {
     if (this.mesh) {
@@ -281,6 +343,7 @@ export class Polygon {
       this.mesh.material.dispose();
       this.mesh = null;
     }
+    this.boundingBox = null;
   }
 
   /**
