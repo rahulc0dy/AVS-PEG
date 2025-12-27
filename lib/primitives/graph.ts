@@ -193,7 +193,40 @@ export class Graph {
     return components;
   }
 
-  /** Depth-first search over the current edge set to collect components. */
+  /**
+   * Depth-first traversal utility.
+   *
+   * Mutates `visited` in-place and calls `onVisit` exactly once per visited node.
+   */
+  static dfs<T>(
+    start: T,
+    getNeighbors: (node: T) => Iterable<T>,
+    visited: Set<T>,
+    onVisit?: (node: T) => void,
+  ) {
+    const stack: T[] = [start];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+
+      visited.add(current);
+      onVisit?.(current);
+
+      for (const neighbor of getNeighbors(current)) {
+        if (!visited.has(neighbor)) {
+          stack.push(neighbor);
+        }
+      }
+    }
+  }
+
+  /**
+   * Compute connected components of the graph based on its current nodes/edges.
+   *
+   * - Uses depth-first traversal.
+   * - Treats edges as undirected for connectivity purposes.
+   * - Returns components in the order their first node appears in `this.nodes`.
+   */
   getConnectedComponents(): Node[][] {
     const visited: Set<Node> = new Set();
     const components: Node[][] = [];
@@ -202,23 +235,15 @@ export class Graph {
 
       const component: Node[] = [];
 
-      // TODO: create utility function for DFS and BFS
-      const stack: Node[] = [node];
-      while (stack.length > 0) {
-        const current = stack.pop()!;
-        if (visited.has(current)) continue;
-
-        visited.add(current);
-        component.push(current);
-        const neighbors = this.getEdgesWithNode(current).map((edge) =>
-          edge.n1.equals(current) ? edge.n2 : edge.n1,
-        );
-        for (const neighbor of neighbors) {
-          if (!visited.has(neighbor)) {
-            stack.push(neighbor);
-          }
-        }
-      }
+      Graph.dfs(
+        node,
+        (current) =>
+          this.getEdgesWithNode(current).map((edge) =>
+            edge.n1.equals(current) ? edge.n2 : edge.n1,
+          ),
+        visited,
+        (current) => component.push(current),
+      );
 
       components.push(component);
     }
