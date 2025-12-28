@@ -1,4 +1,5 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
+import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { World } from "@/lib/world";
 import { RefObject, useEffect, useRef } from "react";
@@ -28,6 +29,7 @@ export function useWorldAnimation(
   controlsRef: RefObject<OrbitControls | null>,
   graphEditorRef: RefObject<GraphEditor | null>,
   trafficLightEditorRef: RefObject<TrafficLightEditor | null>,
+  sourceDestinationEditorRef: RefObject<SourceDestinationEditor | null>,
   worldRef: RefObject<World | null>,
 ) {
   // Ref to store the active requestAnimationFrame id so we can cancel it on cleanup.
@@ -57,13 +59,16 @@ export function useWorldAnimation(
 
       const gEditor = graphEditorRef.current;
       const tlEditor = trafficLightEditorRef.current;
+      const sdEditor = sourceDestinationEditorRef.current;
       const world = worldRef.current;
       const graph = world?.graph;
 
       // Editors may draw overlays/handles; `draw()` returns true when visuals
       // changed and a world redraw is desirable.
       const editorChanged =
-        (gEditor?.draw() ?? false) || (tlEditor?.draw() ?? false);
+        (gEditor?.draw() ?? false) ||
+        (tlEditor?.draw() ?? false) ||
+        (sdEditor?.draw() ?? false);
 
       // If required runtime objects are missing, skip this frame's logic.
       if (!world || !graph) {
@@ -84,6 +89,11 @@ export function useWorldAnimation(
         // Update traffic-light editor with any new target edges from the world.
         if (tlEditor) {
           tlEditor.targetEdges = world.roadBorders;
+        }
+
+        // Update source/destination editor with any new target edges from the world.
+        if (sdEditor) {
+          sdEditor.targetEdges = world.roadBorders;
         }
 
         return;
@@ -109,5 +119,11 @@ export function useWorldAnimation(
         frameRef.current = null;
       }
     };
-  }, [controlsRef, graphEditorRef, trafficLightEditorRef, worldRef]);
+  }, [
+    controlsRef,
+    graphEditorRef,
+    trafficLightEditorRef,
+    sourceDestinationEditorRef,
+    worldRef,
+  ]);
 }

@@ -6,7 +6,7 @@ import { Vector3 } from "three";
  * - `graph`: editing the road graph (nodes/edges)
  * - `traffic-lights`: editing traffic light placement and configuration
  */
-export type EditorMode = "graph" | "traffic-lights";
+export type EditorMode = "graph" | "traffic-lights" | "source-destination";
 
 /**
  * Generic editor interface for in-scene editing tools.

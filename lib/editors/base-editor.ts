@@ -70,6 +70,8 @@ export abstract class BaseEditor implements Editor {
    */
   abstract handleClickRelease(pointer: Vector3): void;
 
+  abstract handleTabKeyPress(): void;
+
   /**
    * Update editor visuals. Return `true` if the scene requires a re-render.
    */

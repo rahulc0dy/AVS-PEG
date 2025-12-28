@@ -114,6 +114,8 @@ export class MarkingEditor extends BaseEditor {
     }
   }
 
+  override handleTabKeyPress(): void {}
+
   /** Draw the preview marking into the editor overlay. Returns `true` when visuals changed. */
   override draw(): boolean {
     if (this.intent) {

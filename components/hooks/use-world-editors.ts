@@ -1,4 +1,5 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
+import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { World } from "@/lib/world";
 import { EditorMode } from "@/types/editor";
@@ -40,12 +41,16 @@ export function useWorldEditors(
   const worldRef = useRef<World | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
+  const sourceDestinationEditorRef = useRef<SourceDestinationEditor | null>(
+    null,
+  );
   const controlsRef = useRef<OrbitControls | null>(null);
 
   // Disable both editors (safe to call even if an editor isn't initialized)
   const disableEditors = () => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
+    sourceDestinationEditorRef.current?.disable();
   };
 
   // Switch the active editor mode and enable the corresponding editor.
@@ -61,6 +66,9 @@ export function useWorldEditors(
         break;
       case "traffic-lights":
         trafficLightEditorRef.current?.enable();
+        break;
+      case "source-destination":
+        sourceDestinationEditorRef.current?.enable();
         break;
     }
   };
@@ -97,6 +105,14 @@ export function useWorldEditors(
     );
     trafficLightEditorRef.current = trafficLightEditor;
 
+    const sourceDestinationEditor = new SourceDestinationEditor(
+      scene,
+      world.roadBorders,
+      world.markings,
+      world.worldGroup,
+    );
+    sourceDestinationEditorRef.current = sourceDestinationEditor;
+
     modeRef.current = "graph";
     graphEditor.enable();
 
@@ -129,6 +145,9 @@ export function useWorldEditors(
         case "traffic-lights":
           trafficLightEditorRef.current?.handlePointerMove(point);
           break;
+        case "source-destination":
+          sourceDestinationEditorRef.current?.handlePointerMove(point);
+          break;
       }
     };
 
@@ -146,6 +165,11 @@ export function useWorldEditors(
           case "traffic-lights":
             trafficLightEditorRef.current?.handleLeftClick(intersectionPoint);
             break;
+          case "source-destination":
+            sourceDestinationEditorRef.current?.handleLeftClick(
+              intersectionPoint,
+            );
+            break;
         }
       } else if (evt.button === 2) {
         switch (modeRef.current) {
@@ -154,6 +178,11 @@ export function useWorldEditors(
             break;
           case "traffic-lights":
             trafficLightEditorRef.current?.handleRightClick(intersectionPoint);
+            break;
+          case "source-destination":
+            sourceDestinationEditorRef.current?.handleRightClick(
+              intersectionPoint,
+            );
             break;
         }
       }
@@ -170,21 +199,45 @@ export function useWorldEditors(
         case "traffic-lights":
           trafficLightEditorRef.current?.handleClickRelease(intersectionPoint);
           break;
+        case "source-destination":
+          sourceDestinationEditorRef.current?.handleClickRelease(
+            intersectionPoint,
+          );
+          break;
       }
     };
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        switch (modeRef.current) {
+          case "graph":
+            graphEditorRef.current?.handleTabKeyPress();
+            break;
+          case "traffic-lights":
+            trafficLightEditorRef.current?.handleTabKeyPress();
+            break;
+          case "source-destination":
+            sourceDestinationEditorRef.current?.handleTabKeyPress();
+            break;
+        }
+      }
+    };
+
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
     dom.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
       dom.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [dom, updatePointer, getIntersectPoint]);
 
@@ -194,6 +247,7 @@ export function useWorldEditors(
     worldRef,
     graphEditorRef,
     trafficLightEditorRef,
+    sourceDestinationEditorRef,
     controlsRef,
   };
 }

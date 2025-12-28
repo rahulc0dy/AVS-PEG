@@ -56,6 +56,22 @@ export function ModeControls({ activeMode, setMode }: ModeControlsProps) {
             className="size-6 rotate-90"
           />
         </Button>
+        <Button
+          onClick={() => setMode("source-destination")}
+          color="white"
+          style={{
+            filter:
+              activeMode === "source-destination" ? "" : "grayscale(100%)",
+          }}
+        >
+          <Image
+            src={"/icons/source-destination.png"}
+            alt="source-destination"
+            width={30}
+            height={50}
+            className="size-6 rotate-90"
+          />
+        </Button>
       </div>
     </>
   );

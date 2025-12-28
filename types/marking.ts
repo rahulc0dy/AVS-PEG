@@ -5,4 +5,8 @@
  *   associated controller/placement in the world.
  * - `default`: a generic or unspecified marking type.
  */
-export type MarkingType = "traffic-light" | "default";
+export type MarkingType =
+  | "traffic-light"
+  | "source"
+  | "destination"
+  | "default";
