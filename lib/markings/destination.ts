@@ -1,5 +1,5 @@
 import { Marking } from "@/lib/markings/marking";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { Group } from "three";
 
 export class Destination extends Marking {

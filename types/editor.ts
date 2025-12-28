@@ -3,8 +3,9 @@ import { Vector3 } from "three";
 /**
  * The current mode of the editor.
  *
- * - `graph`: editing the road graph (nodes/edges)
- * - `traffic-lights`: editing traffic light placement and configuration
+ * - `graph`: edit the road graph (nodes/edges).
+ * - `traffic-lights`: place/configure traffic light markings.
+ * - `source-destination`: place start/end markings for routing/simulation.
  */
 export type EditorMode = "graph" | "traffic-lights" | "source-destination";
 
@@ -14,6 +15,12 @@ export type EditorMode = "graph" | "traffic-lights" | "source-destination";
  * Implementations should show/hide their visuals and manage transient
  * state when enabled/disabled, update any dynamic visuals in `draw()`,
  * and respond to pointer/click events in the scene.
+ *
+ * Notes:
+ * - Pointer/click points are expressed in world coordinates.
+ * - Some concrete editors may expose additional helpers (e.g. handling
+ *   keyboard shortcuts), but this interface only defines the shared
+ *   pointer/click lifecycle.
  */
 export interface Editor {
   /**
@@ -37,10 +44,12 @@ export interface Editor {
   // Event handlers
   /** Handle pointer movement in world coordinates (`Vector3`). */
   handlePointerMove(point: Vector3): void;
-  /** Handle a left-click at the given world `point`. */
+  /** Handle a left-click press at the given world `point`. */
   handleLeftClick(point: Vector3): void;
-  /** Handle a right-click at the given world `point`. */
+  /** Handle a right-click press at the given world `point`. */
   handleRightClick(point: Vector3): void;
-  /** Handle release of a click at the given world `point`. */
+  /** Handle release of a mouse click at the given world `point`. */
   handleClickRelease(point: Vector3): void;
+  /** Handle the Tab key press. */
+  handleTabKeyPress(): void;
 }

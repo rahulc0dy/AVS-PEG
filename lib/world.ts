@@ -10,6 +10,8 @@ import { Node } from "@/lib/primitives/node";
 import { TrafficLightJson, WorldJson } from "@/types/save";
 import { Marking } from "@/lib/markings/marking";
 import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
+import { Source } from "@/lib/markings/source";
+import { Destination } from "@/lib/markings/destination";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -218,6 +220,22 @@ export class World {
           );
           tl.fromJson(mj as TrafficLightJson);
           this.markings.push(tl);
+          break;
+        }
+        case "source": {
+          const s = new Source(new Node(0, 0), new Node(0, 0), this.worldGroup);
+          s.fromJson(mj);
+          this.markings.push(s);
+          break;
+        }
+        case "destination": {
+          const s = new Destination(
+            new Node(0, 0),
+            new Node(0, 0),
+            this.worldGroup,
+          );
+          s.fromJson(mj);
+          this.markings.push(s);
           break;
         }
         default: {

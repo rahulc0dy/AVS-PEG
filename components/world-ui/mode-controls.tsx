@@ -11,8 +11,9 @@ interface ModeControlsProps {
  * Controls to switch between editor modes and show the active mode.
  *
  * Displays the current `activeMode` and renders two buttons to toggle
- * between the "graph" and "traffic-lights" editors. The active button
- * is shown in full color while the inactive one is grayscaled.
+ * between the available editors ("graph", "traffic-lights", and
+ * "source-destination"). The active button is shown in full color while
+ * inactive ones are grayscaled.
  *
  * @param {object} props - Component props.
  * @param {EditorMode} props.activeMode - Currently selected editor mode.
