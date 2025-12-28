@@ -1,6 +1,8 @@
 import { Color, Group, Scene, Vector2 } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Envelope } from "@/lib/primitives/envelope";
+import { RoadEnvelope } from "@/lib/primitives/road-envelope";
+import { Road } from "@/lib/primitives/road";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Graph } from "@/lib/primitives/graph";
 import { Car } from "@/lib/car/car";
@@ -30,8 +32,8 @@ export class World {
   roadRoundness: number;
   /** Border segments produced by unioning road envelopes. */
   roadBorders: Edge[];
-  /** Road polygons generated from graph edges. */
-  roads: Envelope[];
+  /** Road envelopes generated from graph edges (with lane dividers). */
+  roads: RoadEnvelope[];
   /** Simulated cars currently present in the world. */
   cars: Car[];
   /** Markings placed in the world (includes traffic lights). */
@@ -114,10 +116,21 @@ export class World {
    * the current graph state and intended to be called after graph updates.
    */
   generate() {
+    for (const road of this.roads) {
+      road.dispose();
+    }
+
     // Recompute envelopes for every edge in the graph
     this.roads.length = 0;
     for (const edge of this.graph.getEdges()) {
-      this.roads.push(new Envelope(edge, this.roadWidth, this.roadRoundness));
+      const road =
+        edge instanceof Road
+          ? edge
+          : new Road(edge.n1, edge.n2, 2, edge.isDirected);
+
+      this.roads.push(
+        new RoadEnvelope(road, this.roadWidth, this.roadRoundness),
+      );
     }
 
     // Compute the union of all envelope polygons to derive continuous borders
@@ -154,6 +167,9 @@ export class World {
     }
     for (const marking of this.markings) {
       marking.dispose();
+    }
+    for (const road of this.roads) {
+      road.dispose();
     }
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
@@ -199,9 +215,15 @@ export class World {
       edge.fromJson(rbj);
       return edge;
     });
+
+    for (const road of this.roads) {
+      road.dispose();
+    }
+
     this.roads = json.roads.map((rj) => {
-      const envelope = new Envelope(
-        new Edge(new Node(0, 0), new Node(0, 0)),
+      const road = new Road(new Node(0, 0), new Node(0, 0));
+      const envelope = new RoadEnvelope(
+        road,
         this.roadWidth,
         this.roadRoundness,
       );

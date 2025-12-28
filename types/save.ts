@@ -47,6 +47,16 @@ export interface EdgeJson {
 }
 
 /**
+ * Serialized road segment extending EdgeJson with lane information.
+ */
+export interface RoadJson extends EdgeJson {
+  /** Number of lanes on the road segment (defaults to 2 if not specified). */
+  laneCount?: number;
+  /** Road type from OSM (e.g., 'primary', 'secondary', 'residential'). */
+  roadType?: string;
+}
+
+/**
  * Traffic light-specific serialized marking.
  * Extends the base `MarkingJson` with an explicit `lightState`.
  */
