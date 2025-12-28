@@ -1,10 +1,8 @@
-import { Group, Scene } from "three";
 import { MarkingEditor } from "@/lib/editors/marking-editor";
 import { Marking } from "@/lib/markings/marking";
 import { Node } from "@/lib/primitives/node";
-import { Edge } from "@/lib/primitives/edge";
-import { Destination } from "../markings/destination";
-import { Source } from "../markings/source";
+import { Destination } from "@/lib/markings/destination";
+import { Source } from "@/lib/markings/source";
 
 export type SourceDestinationMarkingType = "source" | "destination";
 
@@ -29,23 +27,6 @@ export class SourceDestinationEditor extends MarkingEditor {
    */
   setMarkingType(type: SourceDestinationMarkingType) {
     this.currentMarkingType = type;
-  }
-
-  /**
-   * Create a source/destination editor.
-   *
-   * @param scene Three.js scene to attach editor visuals.
-   * @param targetEdges Road edges eligible for marking placement.
-   * @param markings Shared markings array to mutate when committing.
-   * @param commitGroup Optional group where committed markings are moved.
-   */
-  constructor(
-    scene: Scene,
-    targetEdges: Edge[],
-    markings: Marking[],
-    commitGroup?: Group,
-  ) {
-    super(scene, targetEdges, markings, commitGroup);
   }
 
   /**

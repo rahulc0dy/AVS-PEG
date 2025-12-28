@@ -223,19 +223,23 @@ export class World {
           break;
         }
         case "source": {
-          const s = new Source(new Node(0, 0), new Node(0, 0), this.worldGroup);
-          s.fromJson(mj);
-          this.markings.push(s);
-          break;
-        }
-        case "destination": {
-          const s = new Destination(
+          const src = new Source(
             new Node(0, 0),
             new Node(0, 0),
             this.worldGroup,
           );
-          s.fromJson(mj);
-          this.markings.push(s);
+          src.fromJson(mj);
+          this.markings.push(src);
+          break;
+        }
+        case "destination": {
+          const dest = new Destination(
+            new Node(0, 0),
+            new Node(0, 0),
+            this.worldGroup,
+          );
+          dest.fromJson(mj);
+          this.markings.push(dest);
           break;
         }
         default: {
