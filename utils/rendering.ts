@@ -98,6 +98,8 @@ export const setupScene = (
   const renderer = new WebGLRenderer({
     antialias: true,
     logarithmicDepthBuffer: true,
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(mount.clientWidth, mount.clientHeight);

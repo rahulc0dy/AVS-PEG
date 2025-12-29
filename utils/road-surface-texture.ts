@@ -2,9 +2,10 @@ import { ARROW_SPACING } from "@/env";
 import {
   CanvasTexture,
   ClampToEdgeWrapping,
-  RepeatWrapping,
+  LinearFilter,
+  LinearMipmapLinearFilter,
   NearestFilter,
-  TextureFilter,
+  RepeatWrapping,
 } from "three";
 
 export interface RoadTextureConfig {
@@ -81,7 +82,7 @@ export function createArrowTexture(
   }
 
   const numArrows = Math.max(1, Math.floor(roadLength / arrowSpacing));
-  const heightPerArrowPx = 128;
+  const heightPerArrowPx = laneWidthPx * 4;
   const height = numArrows * heightPerArrowPx;
 
   const canvas = document.createElement("canvas");
@@ -91,7 +92,7 @@ export function createArrowTexture(
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, width, height);
 
-  const arrowSize = 16;
+  const arrowSize = laneWidthPx / 2;
 
   for (let arrowIdx = 0; arrowIdx < numArrows; arrowIdx++) {
     const centerY = (arrowIdx + 0.5) * heightPerArrowPx;
@@ -131,9 +132,9 @@ export function createArrowTexture(
   const texture = new CanvasTexture(canvas);
   texture.wrapS = ClampToEdgeWrapping;
   texture.wrapT = ClampToEdgeWrapping;
-  texture.magFilter = NearestFilter;
-  texture.minFilter = NearestFilter;
-  texture.generateMipmaps = false;
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
 
   return texture;
 }
