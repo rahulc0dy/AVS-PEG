@@ -20,8 +20,6 @@ export class PathFindingSystem {
       return null; // No valid start or end edge found
     }
 
-    console.log(startEdge, endEdge);
-
     // Quick case: if both points are on the same edge, return that edge
     if (startEdge.equals(endEdge)) return [startEdge];
 
