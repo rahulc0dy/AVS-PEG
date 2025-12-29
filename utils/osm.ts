@@ -1,7 +1,6 @@
 import { Edge } from "@/lib/primitives/edge";
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { Road } from "@/lib/primitives/road";
 import {
   isNode,
   isWay,
@@ -100,19 +99,13 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
 
     const tags = way.tags || {};
     const isOneWay = tags["oneway"] === "yes";
-    const roadType = tags["highway"] || "unclassified";
-
-    const lanesTag = tags["lanes"];
-    const laneCount = lanesTag ? Math.max(1, parseInt(lanesTag, 10)) : 2;
 
     for (let i = 1; i < wayIds.length; i++) {
       const prevNode = osmNodes.get(wayIds[i - 1]);
       const currNode = osmNodes.get(wayIds[i]);
 
       if (prevNode && currNode) {
-        segments.push(
-          new Road(prevNode, currNode, laneCount, isOneWay, roadType),
-        );
+        segments.push(new Edge(prevNode, currNode, isOneWay));
       }
     }
   }

@@ -18,7 +18,7 @@ export interface WorldJson {
   /** Borders derived from unioning envelopes. */
   roadBorders: EdgeJson[];
   /** Road envelopes (polygons) generated from edges. */
-  roads: EnvelopeJson[];
+  roads: RoadJson[];
 }
 
 /**
@@ -47,13 +47,14 @@ export interface EdgeJson {
 }
 
 /**
- * Serialized road segment extending EdgeJson with lane information.
+ * Serialized road segment extending EnvelopeJson with lane information.
+ * Note: Formerly extended EdgeJson, now extends EnvelopeJson as Road is an Envelope.
  */
-export interface RoadJson extends EdgeJson {
-  /** Number of lanes on the road segment (defaults to 2 if not specified). */
-  laneCount?: number;
+export interface RoadJson extends EnvelopeJson {
+  /** Number of lanes on the road segment. */
+  laneCount: number;
   /** Road type from OSM (e.g., 'primary', 'secondary', 'residential'). */
-  roadType?: string;
+  roadType: string;
 }
 
 /**

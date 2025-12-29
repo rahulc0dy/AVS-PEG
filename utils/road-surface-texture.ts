@@ -1,4 +1,10 @@
-import { CanvasTexture, ClampToEdgeWrapping, LinearFilter } from "three";
+import {
+  CanvasTexture,
+  ClampToEdgeWrapping,
+  RepeatWrapping,
+  NearestFilter,
+  TextureFilter,
+} from "three";
 
 export interface RoadTextureConfig {
   laneCount: number;
@@ -8,92 +14,108 @@ export interface RoadTextureConfig {
 }
 
 /**
- * Creates a single road texture with dashed lane dividers and sparse arrows.
- * No repeating - the entire road is drawn on one texture.
+ * Creates a small repeating texture tile with dashed lane dividers.
  */
-export function createRoadTexture(config: RoadTextureConfig): CanvasTexture {
-  const { laneCount, isOneWay, roadLength, showArrows = true } = config;
-
-  const pixelsPerUnit = 8;
-  const laneWidthPx = 64;
+export function createLaneTexture(laneCount: number): CanvasTexture {
+  const laneWidthPx = 32;
   const width = laneCount * laneWidthPx;
-  const height = Math.max(128, Math.round(roadLength * pixelsPerUnit));
+  const height = 64; // One dash + gap cycle
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
 
   const ctx = canvas.getContext("2d")!;
-
-  // Road background
-  ctx.fillStyle = "#2a2a2a";
-  ctx.fillRect(0, 0, width, height);
+  ctx.clearRect(0, 0, width, height);
 
   // Dashed lane dividers
   ctx.fillStyle = "#FFFFFF";
-  const dashLen = 40;
-  const gapLen = 40;
-  const dividerW = 4;
+  const dividerW = 2;
+  const dashLen = height / 2;
 
   for (let i = 1; i < laneCount; i++) {
     const x = i * laneWidthPx - dividerW / 2;
-    for (let y = 0; y < height; y += dashLen + gapLen) {
-      ctx.fillRect(x, y, dividerW, dashLen);
-    }
+    ctx.fillRect(x, 0, dividerW, dashLen);
   }
 
-  // Sparse arrows
-  if (showArrows) {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-    const arrowSpacing = 600; // pixels
-    const numArrows = Math.max(1, Math.floor(height / arrowSpacing));
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
+  texture.generateMipmaps = false;
 
-    for (let i = 0; i < numArrows; i++) {
-      const y = arrowSpacing * (i + 0.5);
-      for (let lane = 0; lane < laneCount; lane++) {
-        const cx = (lane + 0.5) * laneWidthPx;
-        const up = isOneWay || lane >= laneCount / 2;
-        drawArrow(ctx, cx, y, laneWidthPx * 0.3, up);
+  return texture;
+}
+
+/**
+ * Creates a texture with direction arrows drawn on canvas.
+ * Arrows are spaced along the road length, one per lane.
+ */
+export function createArrowTexture(
+  laneCount: number,
+  isDirected: boolean,
+  roadLength: number,
+): CanvasTexture {
+  const laneWidthPx = 32;
+  const width = laneCount * laneWidthPx;
+
+  // Scale height based on road length (1 pixel per world unit, scaled)
+  const arrowSpacing = 100; // world units between arrows
+  const numArrows = Math.max(1, Math.floor(roadLength / arrowSpacing));
+  const heightPerArrow = 128; // pixels per arrow segment
+  const height = numArrows * heightPerArrow;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, width, height);
+
+  // Draw arrows in each lane
+  const arrowSize = 16;
+
+  for (let arrowIdx = 0; arrowIdx < numArrows; arrowIdx++) {
+    const centerY = (arrowIdx + 0.5) * heightPerArrow;
+
+    for (let lane = 0; lane < laneCount; lane++) {
+      const centerX = (lane + 0.5) * laneWidthPx;
+
+      // Determine direction: for two-way, left half goes up, right half goes down
+      // For one-way (directed), all go up (forward direction)
+      const pointsUp = isDirected || lane < laneCount / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      if (!pointsUp) {
+        ctx.rotate(Math.PI); // Flip 180 degrees for backward lanes
       }
+
+      // Draw arrow shape
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.beginPath();
+      // Arrow pointing up (in local coords after rotation)
+      ctx.moveTo(0, -arrowSize / 2); // tip
+      ctx.lineTo(-arrowSize / 3, arrowSize / 4); // bottom left
+      ctx.lineTo(-arrowSize / 6, arrowSize / 4);
+      ctx.lineTo(-arrowSize / 6, arrowSize / 2); // stem bottom left
+      ctx.lineTo(arrowSize / 6, arrowSize / 2); // stem bottom right
+      ctx.lineTo(arrowSize / 6, arrowSize / 4);
+      ctx.lineTo(arrowSize / 3, arrowSize / 4); // bottom right
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
     }
   }
 
   const texture = new CanvasTexture(canvas);
   texture.wrapS = ClampToEdgeWrapping;
   texture.wrapT = ClampToEdgeWrapping;
-  texture.magFilter = LinearFilter;
-  texture.minFilter = LinearFilter;
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
   texture.generateMipmaps = false;
 
   return texture;
-}
-
-function drawArrow(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number,
-  up: boolean,
-): void {
-  ctx.save();
-  ctx.translate(cx, cy);
-  if (!up) ctx.rotate(Math.PI);
-
-  const h = size * 1.2;
-  const headW = size * 0.7;
-  const headH = size * 0.4;
-  const bodyW = size * 0.25;
-
-  ctx.beginPath();
-  ctx.moveTo(0, -h / 2);
-  ctx.lineTo(-headW / 2, -h / 2 + headH);
-  ctx.lineTo(-bodyW / 2, -h / 2 + headH);
-  ctx.lineTo(-bodyW / 2, h / 2);
-  ctx.lineTo(bodyW / 2, h / 2);
-  ctx.lineTo(bodyW / 2, -h / 2 + headH);
-  ctx.lineTo(headW / 2, -h / 2 + headH);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
 }
