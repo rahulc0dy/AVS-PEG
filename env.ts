@@ -7,6 +7,11 @@ const nonNegInt = (def: number) =>
   z.coerce.number().int().nonnegative().default(def);
 
 export const {
+  // Orbit Camera
+  NEXT_PUBLIC_ORBIT_CAM_FAR: ORBIT_CAM_FAR,
+  NEXT_PUBLIC_ORBIT_CAM_NEAR: ORBIT_CAM_NEAR,
+  NEXT_PUBLIC_ORBIT_CAM_FOV: ORBIT_CAM_FOV,
+
   // Road config
   NEXT_PUBLIC_ROAD_WIDTH: ROAD_WIDTH,
   NEXT_PUBLIC_ARROW_SPACING: ARROW_SPACING,
@@ -39,6 +44,11 @@ export const {
     NEXT_PUBLIC_ROAD_WIDTH: posInt(40),
     NEXT_PUBLIC_ARROW_SPACING: posInt(100),
 
+    // Orbit Camera
+    NEXT_PUBLIC_ORBIT_CAM_NEAR: posNum(0.1),
+    NEXT_PUBLIC_ORBIT_CAM_FAR: posNum(15000),
+    NEXT_PUBLIC_ORBIT_CAM_FOV: posNum(10),
+
     // Mini camera (numbers reflect your current hardcoded values)
     NEXT_PUBLIC_MINICAM_HEIGHT: posNum(12),
     NEXT_PUBLIC_MINICAM_FORWARD: posNum(18),
@@ -61,6 +71,10 @@ export const {
     NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_GREEN_DURATION: nonNegInt(2),
   },
   experimental__runtimeEnv: {
+    NEXT_PUBLIC_ORBIT_CAM_FAR: process.env.NEXT_PUBLIC_ORBIT_CAM_FAR,
+    NEXT_PUBLIC_ORBIT_CAM_NEAR: process.env.NEXT_PUBLIC_ORBIT_CAM_NEAR,
+    NEXT_PUBLIC_ORBIT_CAM_FOV: process.env.NEXT_PUBLIC_ORBIT_CAM_FOV,
+
     NEXT_PUBLIC_ROAD_WIDTH: process.env.NEXT_PUBLIC_ROAD_WIDTH,
     NEXT_PUBLIC_ARROW_SPACING: process.env.NEXT_PUBLIC_ARROW_SPACING,
 
