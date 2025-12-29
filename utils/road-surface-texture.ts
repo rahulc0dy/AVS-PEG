@@ -1,3 +1,4 @@
+import { ARROW_SPACING } from "@/env";
 import {
   CanvasTexture,
   ClampToEdgeWrapping,
@@ -72,7 +73,7 @@ export function createArrowTexture(
   const laneWidthPx = 32;
   const width = laneCount * laneWidthPx;
 
-  const arrowSpacing = 100; // world units between arrows
+  const arrowSpacing = ARROW_SPACING;
   const minLengthForArrows = 60; // minimum road length to show arrows
 
   if (roadLength < minLengthForArrows) {

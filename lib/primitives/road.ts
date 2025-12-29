@@ -19,6 +19,7 @@ import {
   createArrowTexture,
 } from "@/utils/road-surface-texture";
 import { angle, subtract, translate } from "@/utils/math";
+import { ARROW_SPACING } from "@/env";
 
 export class Road extends Envelope {
   laneCount: number;
@@ -68,23 +69,6 @@ export class Road extends Envelope {
 
   length(): number {
     return this.skeleton.length();
-  }
-
-  getLanesPerDirection(): { forward: number; backward: number } {
-    if (this.isDirected) {
-      return { forward: this.laneCount, backward: 0 };
-    }
-    const forward = Math.ceil(this.laneCount / 2);
-    const backward = Math.floor(this.laneCount / 2);
-    return { forward, backward };
-  }
-
-  needsCenterDivider(): boolean {
-    return !this.isDirected && this.laneCount >= 2;
-  }
-
-  getLaneWidth(totalRoadWidth: number): number {
-    return totalRoadWidth / this.laneCount;
   }
 
   draw(group: Group, config?: { fillColor?: Color; showArrows?: boolean }) {
@@ -244,8 +228,7 @@ export class Road extends Envelope {
       return null;
     }
 
-    // Geometry height matches texture layout (fixed arrow spacing)
-    const arrowSpacing = 100;
+    const arrowSpacing = ARROW_SPACING;
     const numArrows = Math.max(1, Math.floor(length / arrowSpacing));
     const geometryHeight = numArrows * arrowSpacing;
 
@@ -266,9 +249,6 @@ export class Road extends Envelope {
     const { n1, n2 } = this;
     mesh.position.set((n1.x + n2.x) / 2, 0.03, (n1.y + n2.y) / 2);
 
-    // Align mesh with road:
-    // 1. Lay flat on XZ plane (rotation.x = -PI/2)
-    // 2. Rotate so texture's "up" (forward) aligns with road direction n1→n2
     const roadAngle = Math.atan2(n2.y - n1.y, n2.x - n1.x);
     mesh.rotation.x = -Math.PI / 2;
     mesh.rotation.z = -roadAngle + Math.PI / 2;
