@@ -12,6 +12,7 @@ import { Marking } from "@/lib/markings/marking";
 import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
+import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -43,6 +44,8 @@ export class World {
   trafficLightGraph: Graph;
   /** Traffic light system that advances signal phases over time. */
   trafficLightSystem!: TrafficLightSystem;
+
+  pathFindingSystem!: PathFindingSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -90,6 +93,8 @@ export class World {
         ),
     );
 
+    this.pathFindingSystem = new PathFindingSystem(this.graph);
+
     this.generate();
   }
 
@@ -124,6 +129,14 @@ export class World {
 
     // Compute the union of all envelope polygons to derive continuous borders
     this.roadBorders = Polygon.union(this.roads.map((e) => e.poly));
+
+    // find the source and destination markings
+    const source = this.markings.find((m) => m.type === "source");
+    const destination = this.markings.find((m) => m.type === "destination");
+
+    if (source && destination) {
+      this.pathFindingSystem.findPath(source.position, destination.position);
+    }
   }
 
   /**
@@ -141,6 +154,12 @@ export class World {
     }
     for (const edge of this.roadBorders) {
       edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
+    }
+
+    if (this.pathFindingSystem.getPath()) {
+      for (const edge of this.pathFindingSystem.getPath()) {
+        edge.draw(this.worldGroup, { width: 4, color: new Color(0x00ff00) });
+      }
     }
 
     this.scene.add(this.worldGroup);
