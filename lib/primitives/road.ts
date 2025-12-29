@@ -234,12 +234,22 @@ export class Road extends Envelope {
     return mesh;
   }
 
-  private createArrowMesh(): Mesh {
+  private createArrowMesh(): Mesh | null {
     const length = this.length();
-    const { laneCount, isDirected } = this;
+    const isOneWay = this.isDirected;
 
-    const geometry = new PlaneGeometry(this.width, length);
-    const texture = createArrowTexture(laneCount, isDirected, length);
+    const texture = createArrowTexture(this.laneCount, isOneWay, length);
+
+    if (!texture) {
+      return null;
+    }
+
+    // Geometry height matches texture layout (fixed arrow spacing)
+    const arrowSpacing = 100;
+    const numArrows = Math.max(1, Math.floor(length / arrowSpacing));
+    const geometryHeight = numArrows * arrowSpacing;
+
+    const geometry = new PlaneGeometry(this.width, geometryHeight);
 
     const material = new MeshBasicMaterial({
       map: texture,
@@ -256,6 +266,9 @@ export class Road extends Envelope {
     const { n1, n2 } = this;
     mesh.position.set((n1.x + n2.x) / 2, 0.03, (n1.y + n2.y) / 2);
 
+    // Align mesh with road:
+    // 1. Lay flat on XZ plane (rotation.x = -PI/2)
+    // 2. Rotate so texture's "up" (forward) aligns with road direction n1→n2
     const roadAngle = Math.atan2(n2.y - n1.y, n2.x - n1.x);
     mesh.rotation.x = -Math.PI / 2;
     mesh.rotation.z = -roadAngle + Math.PI / 2;

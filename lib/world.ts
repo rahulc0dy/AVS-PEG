@@ -130,7 +130,7 @@ export class World {
         road.skeleton.n1 = match.n1;
         road.skeleton.n2 = match.n2;
         // Regenerate visuals since geometry might have changed
-        road.dispose();
+        road.regenerate();
         survivingRoads.push(road);
       } else {
         // Edge removed from graph, so remove the road

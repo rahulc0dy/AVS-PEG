@@ -50,21 +50,38 @@ export function createLaneTexture(laneCount: number): CanvasTexture {
 
 /**
  * Creates a texture with direction arrows drawn on canvas.
- * Arrows are spaced along the road length, one per lane.
+ *
+ * Left-hand traffic (India, UK, etc.):
+ * - Texture X-axis: lane 0 on left, lane N-1 on right
+ * - Two-way roads: left lanes (low index) = forward, right lanes (high index) = backward
+ * - One-way roads: all lanes = forward
+ *
+ * Arrow pointing UP in canvas = forward direction (n1 → n2)
+ * Arrow pointing DOWN in canvas = backward direction (n2 → n1)
+ *
+ * @param laneCount - number of lanes
+ * @param isOneWay - true for one-way roads (all lanes go forward)
+ * @param roadLength - length of the road in world units
+ * @returns CanvasTexture with arrows, or null if road is too short
  */
 export function createArrowTexture(
   laneCount: number,
-  isDirected: boolean,
+  isOneWay: boolean,
   roadLength: number,
-): CanvasTexture {
+): CanvasTexture | null {
   const laneWidthPx = 32;
   const width = laneCount * laneWidthPx;
 
-  // Scale height based on road length (1 pixel per world unit, scaled)
   const arrowSpacing = 100; // world units between arrows
+  const minLengthForArrows = 60; // minimum road length to show arrows
+
+  if (roadLength < minLengthForArrows) {
+    return null;
+  }
+
   const numArrows = Math.max(1, Math.floor(roadLength / arrowSpacing));
-  const heightPerArrow = 128; // pixels per arrow segment
-  const height = numArrows * heightPerArrow;
+  const heightPerArrowPx = 128;
+  const height = numArrows * heightPerArrowPx;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -73,36 +90,36 @@ export function createArrowTexture(
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, width, height);
 
-  // Draw arrows in each lane
   const arrowSize = 16;
 
   for (let arrowIdx = 0; arrowIdx < numArrows; arrowIdx++) {
-    const centerY = (arrowIdx + 0.5) * heightPerArrow;
+    const centerY = (arrowIdx + 0.5) * heightPerArrowPx;
 
     for (let lane = 0; lane < laneCount; lane++) {
       const centerX = (lane + 0.5) * laneWidthPx;
 
-      // Determine direction: for two-way, left half goes up, right half goes down
-      // For one-way (directed), all go up (forward direction)
-      const pointsUp = isDirected || lane < laneCount / 2;
+      // Left-hand traffic (India):
+      // - One-way: all lanes go forward
+      // - Two-way: left half goes forward, right half goes backward
+      const isForwardLane = isOneWay || lane < laneCount / 2;
 
       ctx.save();
       ctx.translate(centerX, centerY);
-      if (!pointsUp) {
-        ctx.rotate(Math.PI); // Flip 180 degrees for backward lanes
+
+      if (!isForwardLane) {
+        ctx.rotate(Math.PI); // Flip arrow for backward lanes
       }
 
-      // Draw arrow shape
+      // Draw arrow pointing UP (forward)
       ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
       ctx.beginPath();
-      // Arrow pointing up (in local coords after rotation)
       ctx.moveTo(0, -arrowSize / 2); // tip
-      ctx.lineTo(-arrowSize / 3, arrowSize / 4); // bottom left
+      ctx.lineTo(-arrowSize / 3, arrowSize / 4);
       ctx.lineTo(-arrowSize / 6, arrowSize / 4);
-      ctx.lineTo(-arrowSize / 6, arrowSize / 2); // stem bottom left
-      ctx.lineTo(arrowSize / 6, arrowSize / 2); // stem bottom right
+      ctx.lineTo(-arrowSize / 6, arrowSize / 2);
+      ctx.lineTo(arrowSize / 6, arrowSize / 2);
       ctx.lineTo(arrowSize / 6, arrowSize / 4);
-      ctx.lineTo(arrowSize / 3, arrowSize / 4); // bottom right
+      ctx.lineTo(arrowSize / 3, arrowSize / 4);
       ctx.closePath();
       ctx.fill();
 
