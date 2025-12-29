@@ -67,12 +67,10 @@ export function scale(n: Node, scaler: number): Node {
 }
 
 /**
- * Normalize a vector to unit length. Returns the zero vector when input has
- * zero length (safe fallback).
+ * Normalize a vector to unit length.
  *
- * @param n - input vector
- * @returns a new `Node` normalized to length 1, or the zero vector if input
- * has zero magnitude
+ * @param n - Input vector
+ * @returns A `Node` with length 1 in the direction of `n`, or the zero vector if `n` has length 0
  */
 export function normalize(n: Node): Node {
   const mag = magnitude(n);
@@ -95,10 +93,10 @@ export function dot(n1: Node, n2: Node): number {
 }
 
 /**
- * Compute the unit-length vector rotated 90 degrees counter-clockwise from the given vector.
+ * Produces a unit-length vector rotated 90 degrees counter-clockwise from the given vector.
  *
  * @param n - The input vector
- * @returns A unit-length `Node` perpendicular to `n`. If `n` has zero magnitude, returns the zero vector.
+ * @returns A unit-length `Node` perpendicular to `n`. If `n` has zero magnitude, the zero vector.
  */
 export function perpendicular(n: Node): Node {
   const perp = new Node(-n.y, n.x);
@@ -277,16 +275,12 @@ export function getNearestNode(
 }
 
 /**
- * Find the nearest edge to `loc` within an optional `threshold`.
+ * Locate the edge closest to a point within an optional distance threshold.
  *
- * Searches `edges` and returns the closest `Edge` whose distance to `loc`
- * is less than `threshold`. Returns `null` when no edge is within the
- * threshold.
- *
- * @param loc - query location
- * @param edges - candidate edges to search
- * @param threshold - maximum allowed distance (defaults to `Number.MAX_SAFE_INTEGER`)
- * @returns nearest `Edge` within `threshold`, or `null` if none found
+ * @param loc - Query point to measure distance from
+ * @param edges - Candidate edges to search
+ * @param threshold - Maximum allowed distance; edges with distance >= `threshold` are ignored (defaults to `Number.MAX_SAFE_INTEGER`)
+ * @returns The closest `Edge` to `loc` whose distance is less than `threshold`, or `null` if no edge meets the criterion
  */
 export function getNearestEdge(
   loc: Node,
