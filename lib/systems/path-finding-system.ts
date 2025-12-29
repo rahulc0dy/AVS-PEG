@@ -18,12 +18,12 @@ export class PathFindingSystem {
   /**
    * Compute a path between two positions.
    *
-   * The function updates the internal `this.path` with the found edges and
-   * returns the same array on success, or `null` when no path exists.
+   * The function updates the internal `this.path` with the found edges.
+   * Use `getPath()` to retrieve the computed path after calling this method.
+   * If no valid path exists, `this.path` is cleared to an empty array.
    *
    * @param srcPos - starting position (Node-like object with coordinates)
    * @param destPos - destination position (Node-like object with coordinates)
-   * @returns The ordered array of edges from source to destination, or null.
    */
   public findPath(srcPos: Node, destPos: Node) {
     const edges = this.graph.getEdges();
