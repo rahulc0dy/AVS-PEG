@@ -84,22 +84,21 @@ export function normalize(n: Node): Node {
 }
 
 /**
- * Dot product of two node vectors.
+ * Compute the dot product of two Node vectors.
  *
- * @param n1 - first vector
- * @param n2 - second vector
- * @returns the scalar dot product `n1 · n2`
+ * @param n1 - First vector
+ * @param n2 - Second vector
+ * @returns The scalar dot product of `n1` and `n2`
  */
 export function dot(n1: Node, n2: Node): number {
   return n1.x * n2.x + n1.y * n2.y;
 }
 
 /**
- * Compute a perpendicular vector to the input vector.
- * Returns a normalized vector rotated 90 degrees counter-clockwise.
+ * Compute the unit-length vector rotated 90 degrees counter-clockwise from the given vector.
  *
- * @param n - input vector
- * @returns a new normalized `Node` perpendicular to `n`
+ * @param n - The input vector
+ * @returns A unit-length `Node` perpendicular to `n`. If `n` has zero magnitude, returns the zero vector.
  */
 export function perpendicular(n: Node): Node {
   const perp = new Node(-n.y, n.x);

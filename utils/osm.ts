@@ -11,25 +11,15 @@ import {
 import { degToRad, invLerp } from "@/utils/math";
 
 /**
- * Parse OpenStreetMap (OSM) JSON response into the project's `Graph` format.
+ * Convert an OpenStreetMap JSON response into the project's Graph of road nodes and edges.
  *
- * The function performs the following steps:
- * 1. Extract node elements and way elements from the `osmData.elements` array.
- * 2. Filter nodes to only those referenced by any way (reduces noise).
- * 3. Compute a bounding box and convert lat/lon coordinates to centered
- *    world coordinates (meters) using a simple equirectangular approximation
- *    with a cosine correction for longitude at the center latitude.
- * 4. Create `Node` instances for each used OSM node and `Edge` instances
- *    for consecutive node pairs in each way.
+ * Coordinates are mapped to centered world coordinates in meters using an equirectangular
+ * approximation with a cosine correction for longitude at the center latitude. Only OSM
+ * nodes referenced by ways are included; edges connect consecutive node pairs in each way.
  *
- * Notes:
- * - Uses a fixed approximate value for meters-per-degree latitude (~111km).
- * - Returns an empty Graph when the data is empty or when the bounding box
- *   is degenerate (all nodes collinear or coincident).
- *
- * @param osmData - parsed OSM JSON response (with `elements` array)
- * @returns a `Graph` containing nodes and edges derived from OSM ways
- */
+ * @param osmData - Parsed OSM JSON response containing an `elements` array of nodes and ways
+ * @returns A `Graph` of `Node` instances (positions in meters, centered) and `Edge` instances;
+ *          edges are marked directed when the source way has a `"oneway" = "yes"` tag.
 export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   const osmNodes: Map<number, Node> = new Map();
   const segments: Edge[] = [];

@@ -16,7 +16,9 @@ export interface RoadTextureConfig {
 }
 
 /**
- * Creates a small repeating texture tile with dashed lane dividers.
+ * Creates a repeating texture tile containing dashed white lane dividers for the specified number of lanes.
+ *
+ * @returns A CanvasTexture configured as a horizontal tile of dashed lane dividers suitable for repeating along a road surface
  */
 export function createLaneTexture(laneCount: number): CanvasTexture {
   const laneWidthPx = 32;
@@ -51,20 +53,17 @@ export function createLaneTexture(laneCount: number): CanvasTexture {
 }
 
 /**
- * Creates a texture with direction arrows drawn on canvas.
+ * Create a texture containing directional arrows for each lane.
  *
- * Left-hand traffic (India, UK, etc.):
- * - Texture X-axis: lane 0 on left, lane N-1 on right
- * - Two-way roads: left lanes (low index) = forward, right lanes (high index) = backward
- * - One-way roads: all lanes = forward
+ * Lanes are laid out on the texture X-axis with lane 0 at the left and lane N-1 at the right.
+ * For one-way roads all lanes are drawn as forward. For two-way roads lanes with index < laneCount/2
+ * are treated as forward and lanes with index >= laneCount/2 are treated as backward.
+ * An upward-pointing arrow on the canvas denotes the forward direction; a downward-pointing arrow denotes the backward direction.
  *
- * Arrow pointing UP in canvas = forward direction (n1 → n2)
- * Arrow pointing DOWN in canvas = backward direction (n2 → n1)
- *
- * @param laneCount - number of lanes
- * @param isOneWay - true for one-way roads (all lanes go forward)
- * @param roadLength - length of the road in world units
- * @returns CanvasTexture with arrows, or null if road is too short
+ * @param laneCount - Number of lanes represented horizontally in the texture
+ * @param isOneWay - When true all lanes are drawn as forward direction
+ * @param roadLength - Road length in world units; if less than the minimum required length for arrows the function returns `null`
+ * @returns A configured CanvasTexture with arrow graphics for each lane, or `null` if the road is too short to render arrows
  */
 export function createArrowTexture(
   laneCount: number,
