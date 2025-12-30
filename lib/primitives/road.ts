@@ -15,11 +15,11 @@ import {
   ShapeGeometry,
 } from "three";
 import {
-  createLaneTexture,
   createArrowTexture,
+  createLaneTexture,
 } from "@/utils/road-surface-texture";
 import { angle, subtract, translate } from "@/utils/math";
-import { ARROW_SPACING } from "@/env";
+import { ARROW_SPACING, ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 
 export class Road extends Envelope {
   laneCount: number;
@@ -39,9 +39,9 @@ export class Road extends Envelope {
     laneCount: number = 2,
     isDirected: boolean = false,
     roadType: string = "unclassified",
-    width: number = 40,
-    roundness: number = 10,
   ) {
+    const width = ROAD_WIDTH;
+    const roundness = ROAD_ROUNDNESS;
     const skeleton = new Edge(n1, n2, isDirected);
     super(skeleton, width, roundness);
 
@@ -94,29 +94,6 @@ export class Road extends Envelope {
     }
   }
 
-  private createBaseMesh(color: Color): Mesh {
-    const material = new MeshBasicMaterial({
-      color,
-      side: BackSide,
-    });
-
-    const shape = new Shape();
-    const nodes = this.poly.nodes;
-    if (nodes.length > 0) {
-      shape.moveTo(nodes[0].x, nodes[0].y);
-      for (let i = 1; i < nodes.length; i++) {
-        shape.lineTo(nodes[i].x, nodes[i].y);
-      }
-    }
-
-    const geometry = new ShapeGeometry(shape);
-    const mesh = new Mesh(geometry, material);
-    mesh.rotation.x = Math.PI / 2;
-    mesh.position.y = -0.02;
-
-    return mesh;
-  }
-
   dispose(): void {
     if (this.laneMesh) {
       this.laneMesh.geometry.dispose();
@@ -161,6 +138,29 @@ export class Road extends Envelope {
     this.roadType = json.roadType ?? "unclassified";
 
     this.regenerate();
+  }
+
+  private createBaseMesh(color: Color): Mesh {
+    const material = new MeshBasicMaterial({
+      color,
+      side: BackSide,
+    });
+
+    const shape = new Shape();
+    const nodes = this.poly.nodes;
+    if (nodes.length > 0) {
+      shape.moveTo(nodes[0].x, nodes[0].y);
+      for (let i = 1; i < nodes.length; i++) {
+        shape.lineTo(nodes[i].x, nodes[i].y);
+      }
+    }
+
+    const geometry = new ShapeGeometry(shape);
+    const mesh = new Mesh(geometry, material);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.y = -0.02;
+
+    return mesh;
   }
 
   private createPoly(width: number, roundness: number): Polygon {

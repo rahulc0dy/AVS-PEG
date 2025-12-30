@@ -12,6 +12,7 @@ import { Marking } from "@/lib/markings/marking";
 import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
+import { ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -51,11 +52,11 @@ export class World {
    * @param roadWidth - Width used for road envelopes (default: 30)
    * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
    */
-  constructor(scene: Scene, roadWidth: number = 40, roadRoundness: number = 8) {
+  constructor(scene: Scene) {
     this.graph = new Graph();
     this.scene = scene;
-    this.roadWidth = roadWidth;
-    this.roadRoundness = roadRoundness;
+    this.roadWidth = ROAD_WIDTH;
+    this.roadRoundness = ROAD_ROUNDNESS;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
@@ -150,8 +151,6 @@ export class World {
             2, // default lane count
             edge.isDirected,
             "unclassified",
-            this.roadWidth,
-            this.roadRoundness,
           ),
         );
       }
@@ -243,8 +242,6 @@ export class World {
         2,
         false,
         "unclassified",
-        this.roadWidth,
-        this.roadRoundness,
       );
       road.fromJson(rj);
       return road;

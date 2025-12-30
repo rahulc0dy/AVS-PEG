@@ -14,6 +14,7 @@ export const {
 
   // Road config
   NEXT_PUBLIC_ROAD_WIDTH: ROAD_WIDTH,
+  NEXT_PUBLIC_ROAD_ROUNDNESS: ROAD_ROUNDNESS,
   NEXT_PUBLIC_ARROW_SPACING: ARROW_SPACING,
 
   // Mini camera (driver view) config
@@ -42,6 +43,7 @@ export const {
   client: {
     // Roads
     NEXT_PUBLIC_ROAD_WIDTH: posInt(40),
+    NEXT_PUBLIC_ROAD_ROUNDNESS: posInt(8),
     NEXT_PUBLIC_ARROW_SPACING: posInt(100),
 
     // Orbit Camera
@@ -76,6 +78,7 @@ export const {
     NEXT_PUBLIC_ORBIT_CAM_FOV: process.env.NEXT_PUBLIC_ORBIT_CAM_FOV,
 
     NEXT_PUBLIC_ROAD_WIDTH: process.env.NEXT_PUBLIC_ROAD_WIDTH,
+    NEXT_PUBLIC_ROAD_ROUNDNESS: process.env.NEXT_PUBLIC_ROAD_ROUNDNESS,
     NEXT_PUBLIC_ARROW_SPACING: process.env.NEXT_PUBLIC_ARROW_SPACING,
 
     NEXT_PUBLIC_MINICAM_HEIGHT: process.env.NEXT_PUBLIC_MINICAM_HEIGHT,
