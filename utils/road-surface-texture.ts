@@ -8,6 +8,9 @@ import {
   RepeatWrapping,
 } from "three";
 
+// Each lane is 32 pixels wide in the texture
+const laneWidthPx = 32;
+
 /**
  * Creates a small repeating texture tile with dashed lane dividers.
  *
@@ -30,8 +33,6 @@ import {
  * ```
  */
 export function createLaneTexture(laneCount: number): CanvasTexture {
-  // Each lane is 32 pixels wide in the texture
-  const laneWidthPx = 32;
   const width = laneCount * laneWidthPx;
   // Height represents one complete dash cycle (dash + gap)
   const height = 64;
@@ -111,8 +112,6 @@ export function createArrowTexture(
   isOneWay: boolean,
   roadLength: number,
 ): CanvasTexture | null {
-  // Each lane is 32 pixels wide in the texture
-  const laneWidthPx = 32;
   const width = laneCount * laneWidthPx;
 
   // Use configured arrow spacing from environment

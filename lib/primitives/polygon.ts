@@ -13,8 +13,13 @@ import {
 import { PolygonJson } from "@/types/save";
 
 /**
- * Represents a closed polygon defined by ordered nodes.
- * Each consecutive pair of nodes forms an edge, and the polygon closes back to the first node.
+ * Represents a closed polygon defined by ordered vertices.
+ *
+ * - `nodes` are expected to be in winding order (clockwise or counter-clockwise).
+ * - `edges` connect consecutive nodes and wrap from the last node back to the first.
+ *
+ * This class is used primarily for *simple* shapes (envelopes/roads) where
+ * midpoint-based containment heuristics are acceptable.
  */
 export class Polygon {
   /** Ordered list of polygon vertices (2D points). */
@@ -25,6 +30,7 @@ export class Polygon {
   /** Cached Three.js mesh used for filled rendering; created lazily. */
   private mesh: Mesh<ShapeGeometry, MeshBasicMaterial> | null = null;
 
+  /** Cached axis-aligned bounding box (AABB) for fast rejection checks. */
   private boundingBox: {
     minX: number;
     maxX: number;
@@ -33,13 +39,13 @@ export class Polygon {
   } | null = null;
 
   /**
-   * Create a polygon from either an ordered array of `Node`s (vertices) or an
-   * array of `Edge`s (pre-built edges forming a closed loop).
+   * Create a polygon from either an ordered array of {@link Node}s (vertices)
+   * or an array of {@link Edge}s (pre-built edges forming a closed loop).
    *
-   * When called with `Node[]`, edges are constructed by connecting consecutive
-   * nodes and closing the loop. When called with `Edge[]`, the polygon will use
-   * the supplied edges (shallow-copied) and derive its node list from the
-   * edges' `n1` vertices.
+   * - When called with `Node[]`, edges are constructed by connecting consecutive
+   *   nodes and closing the loop.
+   * - When called with `Edge[]`, the polygon uses the supplied edges (shallow-copied)
+   *   and derives its node list from the edges' `n1` vertices.
    */
   constructor(nodes: Node[]);
   constructor(edges: Edge[]);
@@ -71,17 +77,20 @@ export class Polygon {
   }
 
   /**
-   * Computes the union of multiple polygons.
+   * Computes the union outline (as edges) of multiple polygons.
    *
-   * Side effect: this call mutates the provided polygons. {@link Polygon.multiBreak}
-   * splits intersecting edges in-place, so clone your polygons beforehand if
+   * ### Side effects
+   * This call mutates the provided polygons. {@link Polygon.multiBreak} splits
+   * intersecting edges in-place, so clone your polygons beforehand if
    * immutability is required.
    *
-   * Containment heuristic: {@link Polygon.containsEdge} checks only the midpoint
-   * of each edge. This works for convex/simple envelopes (e.g., rectangles) but
-   * can fail for concave shapes or edges that merely touch. Ensure inputs meet
-   * that precondition or swap in a more robust containment test before relying
-   * on the result.
+   * ### Containment heuristic
+   * {@link Polygon.containsEdge} uses an edge-midpoint point-in-polygon test.
+   * This works well for the convex/simple envelopes used in this project, but
+   * it can fail for concave shapes or edges that only touch the boundary.
+   *
+   * @param polygons - Polygons to union
+   * @returns Edges representing the outer boundary after union
    */
   static union(polygons: Polygon[]): Edge[] {
     // Split all intersecting edges so polygons share common intersection nodes
@@ -98,11 +107,10 @@ export class Polygon {
         for (let j = 0; j < polygons.length; j++) {
           if (i === j) continue;
 
-          // if edge midpoint can't be inside polygon's bbox, skip
-          const midpoint = average(edge.n1, edge.n2);
-          if (!polygons[j].nodeInBoundingBox(midpoint)) continue;
+          // if edge can't be inside polygon's bbox, skip
+          if (!polygons[j].isEdgeInBoundingBox(edge)) continue;
 
-          if (polygons[j].containsNode(midpoint)) {
+          if (polygons[j].containsEdge(edge)) {
             keep = false;
             break;
           }
@@ -120,26 +128,30 @@ export class Polygon {
   /**
    * Break all polygons at pairwise intersections so that intersecting
    * edges are split and share common intersection nodes.
-   * @param polygons - Array of polygons to split in-place
+   *
+   * @param polygons - Polygons to split in-place
    */
   static multiBreak(polygons: Polygon[]): void {
     for (let i = 0; i < polygons.length - 1; i++) {
       for (let j = i + 1; j < polygons.length; j++) {
-        if (!polygons[i].boundingBoxOverlaps(polygons[j])) {
-          continue;
+        if (polygons[i].boundingBoxOverlaps(polygons[j])) {
+          Polygon.break(polygons[i], polygons[j]);
         }
-        Polygon.break(polygons[i], polygons[j]);
       }
     }
   }
 
   /**
-   * Break two polygons at their pairwise edge intersections. When an
-   * intersection is found (excluding endpoints), a new `Node` is inserted
-   * at the intersection and both edges are split so the intersection becomes
-   * an explicit vertex shared by both polygons.
+   * Break two polygons at their pairwise edge intersections.
+   *
+   * When an intersection is found (excluding endpoints), a new {@link Node}
+   * is inserted at the intersection and both edges are split so the
+   * intersection becomes an explicit vertex shared by both polygons.
    *
    * This mutates `poly1` and `poly2` in-place.
+   *
+   * @param poly1 - First polygon (mutated)
+   * @param poly2 - Second polygon (mutated)
    */
   static break(poly1: Polygon, poly2: Polygon): void {
     const edges1 = poly1.edges;
@@ -178,7 +190,8 @@ export class Polygon {
   }
 
   /**
-   * Compute the shortest distance from `node` to this polygon (min over edges).
+   * Compute the shortest distance from a point to this polygon (min over edges).
+   *
    * @param node - External point
    * @returns Minimum distance to any edge of the polygon
    */
@@ -192,13 +205,7 @@ export class Polygon {
    * The bounding box is cached after first computation. Call {@link dispose}
    * to clear the cache if the polygon geometry changes.
    *
-   * @returns Object containing min/max X and Y coordinates of the bounding box
-   *
-   * @example
-   * ```ts
-   * const bbox = polygon.getBoundingBox();
-   * console.log(`Width: ${bbox.maxX - bbox.minX}`);
-   * ```
+   * @returns Min/max X and Y coordinates of the bounding box
    */
   getBoundingBox(): { minX: number; maxX: number; minY: number; maxY: number } {
     // Return cached bounding box if available
@@ -232,10 +239,11 @@ export class Polygon {
   }
 
   /**
-   * Checks if this polygon's bounding box overlaps with another polygon's bounding box.
+   * Checks if this polygon's bounding box overlaps with another polygon's
+   * bounding box.
    *
-   * This is a fast early-rejection test used before more expensive intersection
-   * checks. Two AABBs overlap if they intersect on both the X and Y axes.
+   * Fast early-rejection test used before more expensive intersection checks.
+   * Two AABBs overlap if they intersect on both the X and Y axes.
    *
    * @param other - The other polygon to test against
    * @returns `true` if bounding boxes overlap, `false` otherwise
@@ -254,32 +262,43 @@ export class Polygon {
   }
 
   /**
-   * Checks if a node lies within this polygon's bounding box.
+   * Checks whether an edge's midpoint lies within this polygon's bounding box.
    *
-   * This is a fast preliminary test before more expensive point-in-polygon
-   * checks. A point inside the bounding box may or may not be inside the
-   * actual polygon.
+   * This is a fast preliminary test before more expensive containment checks.
+   * A point inside the bounding box may or may not be inside the actual polygon.
    *
-   * @param node - The point to test
-   * @returns `true` if the node is within the bounding box (inclusive), `false` otherwise
+   * Note: Despite the older name, this method does *not* check the whole edge—
+   * only the edge midpoint.
+   *
+   * @param edge - Edge to test
+   * @returns `true` if the edge midpoint is within the bounding box (inclusive)
    */
-  nodeInBoundingBox(node: Node): boolean {
+  isEdgeInBoundingBox(edge: Edge): boolean {
     const bbox = this.getBoundingBox();
+    const midpoint = average(edge.n1, edge.n2);
     return (
-      node.x >= bbox.minX &&
-      node.x <= bbox.maxX &&
-      node.y >= bbox.minY &&
-      node.y <= bbox.maxY
+      midpoint.x >= bbox.minX &&
+      midpoint.x <= bbox.maxX &&
+      midpoint.y >= bbox.minY &&
+      midpoint.y <= bbox.maxY
     );
   }
 
   /**
    * Compute the shortest distance between this polygon and another polygon.
-   * Approximated by checking distance from each edge's start point to the
-   * other polygon (sufficient for many simple/convex cases).
+   *
+   * Approximated by checking distance from each edge start point to the other
+   * polygon. This is sufficient for many simple/convex cases used in the app,
+   * but it is not a mathematically complete poly-to-poly distance.
+   *
+   * @remarks
+   * This is a convenience utility used by some tools/experiments and may not be
+   * referenced by the main app at all times.
+   *
    * @param polygon - Other polygon
    * @returns Minimum pairwise distance
    */
+  // noinspection JSUnusedGlobalSymbols
   distanceToPoly(polygon: Polygon): number {
     return Math.min(
       ...this.edges.map((edge) => polygon.distanceToNode(edge.n1)),
@@ -287,10 +306,16 @@ export class Polygon {
   }
 
   /**
-   * Determine whether this polygon intersects `polygon` (any edge pair intersects).
+   * Determine whether this polygon intersects another polygon (any edge pair intersects).
+   *
+   * @remarks
+   * This is a convenience utility used by some tools/experiments and may not be
+   * referenced by the main app at all times.
+   *
    * @param polygon - Other polygon
    * @returns `true` when an intersection exists
    */
+  // noinspection JSUnusedGlobalSymbols
   intersectsPoly(polygon: Polygon): boolean {
     for (const edge1 of this.edges) {
       for (const edge2 of polygon.edges) {
@@ -303,10 +328,9 @@ export class Polygon {
   }
 
   /**
-   * Heuristic containment test for an edge: check whether the edge's
-   * midpoint lies inside this polygon. NOTE: This is a midpoint heuristic
-   * and can give false positives/negatives for concave polygons or edges
-   * that touch the boundary.
+   * Heuristic containment test for an edge: checks whether the edge midpoint is
+   * inside this polygon.
+   *
    * @param edge - Edge to test
    * @returns `true` if midpoint is inside the polygon
    */
@@ -316,9 +340,11 @@ export class Polygon {
   }
 
   /**
-   * Point-in-polygon test using the ray-casting (odd-even) rule. Casts a
-   * ray from the query point to a sufficiently far "outer" point and counts
-   * intersections with polygon edges.
+   * Point-in-polygon test using the ray-casting (odd-even) rule.
+   *
+   * Casts a ray from the query point to a sufficiently far "outer" point and
+   * counts intersections with polygon edges.
+   *
    * @param node - Point to test
    * @returns `true` when the point is inside the polygon
    */
@@ -338,16 +364,17 @@ export class Polygon {
   }
 
   /**
-   * Create or update a filled Three.js `Mesh` representing the polygon and
-   * add it to the provided `Group`.
+   * Create or update a filled Three.js {@link Mesh} representing the polygon and
+   * add it to the provided {@link Group}.
    *
-   * The mesh is created lazily. When created, the polygon is rotated to lie
-   * on the X-Z plane and slightly offset in Y to reduce z-fighting.
+   * The mesh is created lazily. When created, it is rotated to lie on the X–Z
+   * plane and slightly offset in Y to reduce z-fighting.
    *
    * @param group - Scene group to add the mesh to
-   * @param config - Rendering config (fillColor)
+   * @param config - Rendering config
+   * @param config.fillColor - Fill color for the polygon surface
    */
-  draw(group: Group, config: { fillColor: Color }) {
+  draw(group: Group, config: { fillColor: Color }): void {
     if (!this.mesh) {
       const material = new MeshBasicMaterial({
         color: config.fillColor,
@@ -376,9 +403,9 @@ export class Polygon {
 
   /**
    * Dispose of any Three.js resources held by this polygon (geometry + material)
-   * and clear any cached data (mesh, bounding box).
+   * and clear cached data (mesh, bounding box).
    */
-  dispose() {
+  dispose(): void {
     if (this.mesh) {
       this.mesh.geometry.dispose();
       this.mesh.material.dispose();
@@ -388,9 +415,11 @@ export class Polygon {
   }
 
   /**
-   * Serialize the polygon to JSON (nodes and edges).
+   * Serialize the polygon to JSON.
+   *
+   * @returns A {@link PolygonJson}-compatible payload
    */
-  toJson() {
+  toJson(): PolygonJson {
     return {
       nodes: this.nodes.map((n) => n.toJson()),
       edges: this.edges.map((e) => e.toJson()),
@@ -398,11 +427,13 @@ export class Polygon {
   }
 
   /**
-   * Restore polygon geometry from JSON. Disposes any cached mesh so the
-   * visual is recreated on the next draw.
-   * @param json Serialized polygon data
+   * Restore polygon geometry from JSON.
+   *
+   * Disposes any cached mesh so the visual is recreated on the next draw.
+   *
+   * @param json - Serialized polygon data
    */
-  fromJson(json: PolygonJson) {
+  fromJson(json: PolygonJson): void {
     this.dispose();
 
     this.nodes = json.nodes.map((n) => {

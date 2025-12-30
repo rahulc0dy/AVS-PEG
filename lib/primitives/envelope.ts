@@ -89,7 +89,7 @@ export class Envelope {
   /**
    * Releases all Three.js resources (geometries, materials, textures).
    */
-  dispose() {
+  dispose(): void {
     this.poly.dispose();
   }
 
