@@ -12,7 +12,6 @@ import { Marking } from "@/lib/markings/marking";
 import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
-import { ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -27,10 +26,6 @@ export class World {
   scene: Scene;
   /** Group used to collect world meshes before adding to the scene. */
   worldGroup: Group;
-  /** Width used when constructing road envelopes (in same units as Nodes). */
-  roadWidth: number;
-  /** Controls smoothness of envelope end caps (higher = smoother). */
-  roadRoundness: number;
   /** Border segments produced by unioning road envelopes. */
   roadBorders: Edge[];
   /** Road objects (Envelopes) generated from graph edges. */
@@ -49,14 +44,10 @@ export class World {
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
-   * @param roadWidth - Width used for road envelopes (default: 30)
-   * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
    */
   constructor(scene: Scene) {
     this.graph = new Graph();
     this.scene = scene;
-    this.roadWidth = ROAD_WIDTH;
-    this.roadRoundness = ROAD_ROUNDNESS;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
@@ -206,8 +197,6 @@ export class World {
     return {
       graph: this.graph.toJson(),
       trafficLightGraph: this.trafficLightGraph.toJson(),
-      roadWidth: this.roadWidth,
-      roadRoundness: this.roadRoundness,
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
       roads: this.roads.map((r) => r.toJson()),
       markings: this.markings.map((m) => m.toJson()),
@@ -225,9 +214,6 @@ export class World {
 
     this.graph.fromJson(json.graph);
     this.trafficLightGraph.fromJson(json.trafficLightGraph);
-
-    this.roadWidth = json.roadWidth;
-    this.roadRoundness = json.roadRoundness;
 
     this.roadBorders = json.roadBorders.map((rbj) => {
       const edge = new Edge(new Node(0, 0), new Node(0, 0));

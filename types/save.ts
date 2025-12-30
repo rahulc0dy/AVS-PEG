@@ -9,10 +9,6 @@ export interface WorldJson {
   graph: GraphJson;
   /** Traffic light graph (nodes + edges) used by the traffic light editor/system. */
   trafficLightGraph: GraphJson;
-  /** Road width used when constructing envelopes. */
-  roadWidth: number;
-  /** Sampling/roundness value used for envelope end caps. */
-  roadRoundness: number;
   /** All markings present in the world. */
   markings: MarkingJson[];
   /** Borders derived from unioning envelopes. */
