@@ -11,7 +11,7 @@
   "dependencies": {
     "@tensorflow-models/coco-ssd": "^2.2.3",
     "@tensorflow/tfjs": "^4.22.0",
-    "next": "^16.1.0",
+    "next": "^16.1.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "three": "^0.180.0"

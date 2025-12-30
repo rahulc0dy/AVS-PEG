@@ -184,6 +184,9 @@ export class Polygon {
           const originalEnd2 = edges2[j].n2;
           edges2[j].n2 = newNode;
           edges2.splice(j + 1, 0, new Edge(newNode, originalEnd2));
+
+          poly1.boundingBox = null;
+          poly2.boundingBox = null;
         }
       }
     }
@@ -298,7 +301,6 @@ export class Polygon {
    * @param polygon - Other polygon
    * @returns Minimum pairwise distance
    */
-  // noinspection JSUnusedGlobalSymbols
   distanceToPoly(polygon: Polygon): number {
     return Math.min(
       ...this.edges.map((edge) => polygon.distanceToNode(edge.n1)),
@@ -315,7 +317,6 @@ export class Polygon {
    * @param polygon - Other polygon
    * @returns `true` when an intersection exists
    */
-  // noinspection JSUnusedGlobalSymbols
   intersectsPoly(polygon: Polygon): boolean {
     for (const edge1 of this.edges) {
       for (const edge2 of polygon.edges) {
