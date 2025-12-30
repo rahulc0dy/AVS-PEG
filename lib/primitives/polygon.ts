@@ -193,16 +193,6 @@ export class Polygon {
   }
 
   /**
-   * Compute the shortest distance from a point to this polygon (min over edges).
-   *
-   * @param node - External point
-   * @returns Minimum distance to any edge of the polygon
-   */
-  distanceToNode(node: Node): number {
-    return Math.min(...this.edges.map((edge) => edge.distanceToNode(node)));
-  }
-
-  /**
    * Computes the axis-aligned bounding box (AABB) of this polygon.
    *
    * The bounding box is cached after first computation. Call {@link dispose}
@@ -285,47 +275,6 @@ export class Polygon {
       midpoint.y >= bbox.minY &&
       midpoint.y <= bbox.maxY
     );
-  }
-
-  /**
-   * Compute the shortest distance between this polygon and another polygon.
-   *
-   * Approximated by checking distance from each edge start point to the other
-   * polygon. This is sufficient for many simple/convex cases used in the app,
-   * but it is not a mathematically complete poly-to-poly distance.
-   *
-   * @remarks
-   * This is a convenience utility used by some tools/experiments and may not be
-   * referenced by the main app at all times.
-   *
-   * @param polygon - Other polygon
-   * @returns Minimum pairwise distance
-   */
-  distanceToPoly(polygon: Polygon): number {
-    return Math.min(
-      ...this.edges.map((edge) => polygon.distanceToNode(edge.n1)),
-    );
-  }
-
-  /**
-   * Determine whether this polygon intersects another polygon (any edge pair intersects).
-   *
-   * @remarks
-   * This is a convenience utility used by some tools/experiments and may not be
-   * referenced by the main app at all times.
-   *
-   * @param polygon - Other polygon
-   * @returns `true` when an intersection exists
-   */
-  intersectsPoly(polygon: Polygon): boolean {
-    for (const edge1 of this.edges) {
-      for (const edge2 of polygon.edges) {
-        if (getIntersection(edge1.n1, edge1.n2, edge2.n1, edge2.n2)) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   /**
