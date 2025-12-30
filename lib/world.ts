@@ -1,6 +1,6 @@
 import { Color, Group, Scene, Vector2 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-import { Envelope } from "@/lib/primitives/envelope";
+import { Road } from "@/lib/primitives/road";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Graph } from "@/lib/primitives/graph";
 import { Car } from "@/lib/car/car";
@@ -26,14 +26,10 @@ export class World {
   scene: Scene;
   /** Group used to collect world meshes before adding to the scene. */
   worldGroup: Group;
-  /** Width used when constructing road envelopes (in same units as Nodes). */
-  roadWidth: number;
-  /** Controls smoothness of envelope end caps (higher = smoother). */
-  roadRoundness: number;
   /** Border segments produced by unioning road envelopes. */
   roadBorders: Edge[];
-  /** Road polygons generated from graph edges. */
-  roads: Envelope[];
+  /** Road objects (Envelopes) generated from graph edges. */
+  roads: Road[];
   /** Simulated cars currently present in the world. */
   cars: Car[];
   /** Markings placed in the world (includes traffic lights). */
@@ -48,14 +44,10 @@ export class World {
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
-   * @param roadWidth - Width used for road envelopes (default: 30)
-   * @param roadRoundness - Sampling used to approximate rounded ends (default: 8)
    */
-  constructor(scene: Scene, roadWidth: number = 40, roadRoundness: number = 8) {
+  constructor(scene: Scene) {
     this.graph = new Graph();
     this.scene = scene;
-    this.roadWidth = roadWidth;
-    this.roadRoundness = roadRoundness;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
@@ -109,34 +101,65 @@ export class World {
   }
 
   /**
-   * Generate envelope polygons and unions for the current `graph`.
+   * Generate road visuals and unions for the current `graph`.
    *
-   * This rebuilds `envelopes`, computes the unioned `roadBorders`, and
-   * regenerates `laneGuides`. The operation is idempotent with respect to
-   * the current graph state and intended to be called after graph updates.
+   * This synchronizes the `roads` list with `graph.edges`. It preserves existing
+   * Road objects (keeping their lane counts) if their underlying edges still exist,
+   * creates new Roads for new edges, and removes Roads for deleted edges.
    */
   generate() {
-    // Recompute envelopes for every edge in the graph
-    this.roads.length = 0;
-    for (const edge of this.graph.getEdges()) {
-      this.roads.push(new Envelope(edge, this.roadWidth, this.roadRoundness));
+    this.roadBorders = [];
+
+    const graphEdges = this.graph.getEdges();
+
+    // 1. Filter out roads whose skeletons no longer exist in the graph.
+    // We match by endpoints because graph edges and road skeletons might be different instances.
+    const survivingRoads: Road[] = [];
+    for (const road of this.roads) {
+      const match = graphEdges.find((e) => e.equals(road.skeleton));
+      if (match) {
+        // Update the skeleton to match the graph edge geometry perfectly (in case nodes moved)
+        road.skeleton.n1 = match.n1;
+        road.skeleton.n2 = match.n2;
+        // Regenerate visuals since geometry might have changed
+        road.regenerate();
+        survivingRoads.push(road);
+      } else {
+        // Edge removed from graph, so remove the road
+        road.dispose();
+      }
+    }
+    this.roads = survivingRoads;
+
+    // 2. Create new roads for any graph edges that don't have a matching road yet.
+    for (const edge of graphEdges) {
+      const exists = this.roads.some((r) => r.skeleton.equals(edge));
+      if (!exists) {
+        this.roads.push(
+          new Road(
+            edge,
+            2, // default lane count
+            "unclassified",
+          ),
+        );
+      }
     }
 
-    // Compute the union of all envelope polygons to derive continuous borders
-    this.roadBorders = Polygon.union(this.roads.map((e) => e.poly));
+    // 3. Compute the union of all road polygons to derive continuous borders
+    this.roadBorders = Polygon.union(this.roads.map((r) => r.poly));
   }
 
   /**
-   * Render the world: clear the `worldGroup`, draw envelopes and road borders,
-   * and add the group to the scene. Colors and widths are currently hardcoded
-   * here for a base visual appearance.
+   * Render the world: clear the `worldGroup`, draw roads and road borders,
+   * and add the group to the scene.
    */
   draw() {
     this.worldGroup.clear();
 
-    for (const envelope of this.roads) {
-      envelope.draw(this.worldGroup, {
+    for (const road of this.roads) {
+      road.draw(this.worldGroup, {
         fillColor: new Color(0x222021),
+        showArrows: true,
       });
     }
     for (const edge of this.roadBorders) {
@@ -147,8 +170,7 @@ export class World {
   }
 
   /**
-   * Dispose of any Three.js resources held by this world (geometry + material)
-   * and clear the cached mesh reference.
+   * Dispose of any Three.js resources held by this world.
    */
   dispose() {
     for (const car of this.cars) {
@@ -156,6 +178,9 @@ export class World {
     }
     for (const marking of this.markings) {
       marking.dispose();
+    }
+    for (const road of this.roads) {
+      road.dispose();
     }
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
@@ -171,8 +196,6 @@ export class World {
     return {
       graph: this.graph.toJson(),
       trafficLightGraph: this.trafficLightGraph.toJson(),
-      roadWidth: this.roadWidth,
-      roadRoundness: this.roadRoundness,
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
       roads: this.roads.map((r) => r.toJson()),
       markings: this.markings.map((m) => m.toJson()),
@@ -181,35 +204,32 @@ export class World {
 
   /**
    * Populate the world from serialized JSON. Existing scene resources are
-   * disposed before loading to avoid leaking GPU resources.
+   * disposed before loading.
    * @param json - Deserialized `WorldJson` object to load
    */
   fromJson(json: WorldJson): void {
-    for (const marking of this.markings) {
-      marking.dispose();
-    }
+    this.dispose();
     this.markings.length = 0;
 
     this.graph.fromJson(json.graph);
-
     this.trafficLightGraph.fromJson(json.trafficLightGraph);
 
-    this.roadWidth = json.roadWidth;
-    this.roadRoundness = json.roadRoundness;
     this.roadBorders = json.roadBorders.map((rbj) => {
       const edge = new Edge(new Node(0, 0), new Node(0, 0));
       edge.fromJson(rbj);
       return edge;
     });
+
     this.roads = json.roads.map((rj) => {
-      const envelope = new Envelope(
+      const road = new Road(
         new Edge(new Node(0, 0), new Node(0, 0)),
-        this.roadWidth,
-        this.roadRoundness,
+        2,
+        "unclassified",
       );
-      envelope.fromJson(rj);
-      return envelope;
+      road.fromJson(rj);
+      return road;
     });
+
     for (const mj of json.markings ?? []) {
       switch (mj.type) {
         case "traffic-light": {

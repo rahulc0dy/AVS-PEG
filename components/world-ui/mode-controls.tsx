@@ -70,7 +70,7 @@ export function ModeControls({ activeMode, setMode }: ModeControlsProps) {
             alt="source-destination"
             width={30}
             height={50}
-            className="size-6 rotate-90"
+            className="size-6"
           />
         </Button>
       </div>

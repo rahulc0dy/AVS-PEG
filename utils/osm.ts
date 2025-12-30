@@ -66,7 +66,7 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   if (deltaLat === 0 || deltaLon === 0) {
     // Can't create a proper 2D graph from a line or point
     console.warn(
-      "Degenerate bounding box: all nodes are collinear or coincident"
+      "Degenerate bounding box: all nodes are collinear or coincident",
     );
     return new Graph([], []);
   }
@@ -96,12 +96,16 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
   // 3. Create Segments from Ways
   for (const way of ways) {
     const wayIds = way.nodes;
+
+    const tags = way.tags || {};
+    const isOneWay = tags["oneway"] === "yes";
+
     for (let i = 1; i < wayIds.length; i++) {
       const prevNode = osmNodes.get(wayIds[i - 1]);
       const currNode = osmNodes.get(wayIds[i]);
 
       if (prevNode && currNode) {
-        segments.push(new Edge(prevNode, currNode));
+        segments.push(new Edge(currNode, prevNode, isOneWay));
       }
     }
   }

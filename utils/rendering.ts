@@ -1,11 +1,12 @@
 import {
+  AmbientLight,
   Color,
+  DirectionalLight,
   PerspectiveCamera,
   Scene,
   WebGLRenderer,
-  AmbientLight,
-  DirectionalLight,
 } from "three";
+import { ORBIT_CAM_FAR, ORBIT_CAM_FOV, ORBIT_CAM_NEAR } from "@/env";
 
 /** Partial camera configuration used by `setupScene`. All fields are optional. */
 interface CameraConfig {
@@ -50,7 +51,7 @@ interface SceneOptions {
  */
 export const setupScene = (
   mount: HTMLDivElement | null,
-  options: SceneOptions = {}
+  options: SceneOptions = {},
 ): {
   scene: Scene;
   camera: PerspectiveCamera;
@@ -63,7 +64,12 @@ export const setupScene = (
     bgColor = 0x0b0b0f,
   } = options;
 
-  const { fov = 10, aspect = 16 / 9, near = 0.1, far = 10000 } = cameraConfig;
+  const {
+    fov = ORBIT_CAM_FOV,
+    aspect = 16 / 9,
+    near = ORBIT_CAM_NEAR,
+    far = ORBIT_CAM_FAR,
+  } = cameraConfig;
   const { x = 0, y = 100, z = 5 } = cameraPosition;
   if (!mount) throw new Error("Mount element not ready");
 
@@ -76,7 +82,7 @@ export const setupScene = (
     fov,
     mount.clientWidth / mount.clientHeight || aspect,
     near,
-    far
+    far,
   );
   camera.position.set(x, y, z);
   camera.lookAt(0, 0, 0);
@@ -89,7 +95,12 @@ export const setupScene = (
   scene.add(dir);
 
   // Renderer + DOM attachment
-  const renderer = new WebGLRenderer({ antialias: true });
+  const renderer = new WebGLRenderer({
+    antialias: true,
+    logarithmicDepthBuffer: true,
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: true,
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(mount.clientWidth, mount.clientHeight);
   mount.appendChild(renderer.domElement);

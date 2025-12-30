@@ -95,6 +95,18 @@ export function dot(n1: Node, n2: Node): number {
 }
 
 /**
+ * Compute a perpendicular vector to the input vector.
+ * Returns a normalized vector rotated 90 degrees counter-clockwise.
+ *
+ * @param n - input vector
+ * @returns a new normalized `Node` perpendicular to `n`
+ */
+export function perpendicular(n: Node): Node {
+  const perp = new Node(-n.y, n.x);
+  return normalize(perp);
+}
+
+/**
  * Linear interpolation between two scalar values.
  *
  * @param a - start value
