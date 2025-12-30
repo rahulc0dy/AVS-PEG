@@ -187,6 +187,9 @@ export class Polygon {
 
           poly1.boundingBox = null;
           poly2.boundingBox = null;
+
+          poly1.nodes = poly1.edges.map((e) => e.n1);
+          poly2.nodes = poly2.edges.map((e) => e.n1);
         }
       }
     }
