@@ -137,10 +137,8 @@ export class World {
       if (!exists) {
         this.roads.push(
           new Road(
-            edge.n1,
-            edge.n2,
+            edge,
             2, // default lane count
-            edge.isDirected,
             "unclassified",
           ),
         );
@@ -224,10 +222,8 @@ export class World {
 
     this.roads = json.roads.map((rj) => {
       const road = new Road(
-        new Node(0, 0),
-        new Node(0, 0),
+        new Edge(new Node(0, 0), new Node(0, 0)),
         2,
-        false,
         "unclassified",
       );
       road.fromJson(rj);

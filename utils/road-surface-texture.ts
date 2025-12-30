@@ -9,20 +9,6 @@ import {
 } from "three";
 
 /**
- * Configuration options for road texture generation.
- */
-export interface RoadTextureConfig {
-  /** Number of lanes on the road */
-  laneCount: number;
-  /** Whether the road is one-way (all lanes go same direction) */
-  isOneWay: boolean;
-  /** Length of the road in world units */
-  roadLength: number;
-  /** Whether to show directional arrows on the road surface */
-  showArrows?: boolean;
-}
-
-/**
  * Creates a small repeating texture tile with dashed lane dividers.
  *
  * The texture is designed to tile vertically along the road's length,
@@ -95,13 +81,13 @@ export function createLaneTexture(laneCount: number): CanvasTexture {
  * using arrow symbols. The arrows are positioned in the center of each lane
  * and spaced evenly along the road length.
  *
- * ## Traffic Convention (Left-hand traffic - India, UK, etc.)
+ * ### Traffic Convention (Left-hand traffic - India, UK, etc.)
  *
  * - **Texture X-axis**: Lane 0 on left, lane N-1 on right
  * - **Two-way roads**: Left lanes (lower index) = forward, right lanes (higher index) = backward
  * - **One-way roads**: All lanes point forward
  *
- * ## Arrow Direction Mapping
+ * ### Arrow Direction Mapping
  *
  * - Arrow pointing **UP** in canvas = forward direction (n1 → n2)
  * - Arrow pointing **DOWN** in canvas = backward direction (n2 → n1)
