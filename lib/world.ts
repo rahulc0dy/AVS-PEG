@@ -161,6 +161,7 @@ export class World {
     for (const road of this.roads) {
       road.draw(this.worldGroup, {
         fillColor: new Color(0x222021),
+        showArrows: true,
       });
     }
     for (const edge of this.roadBorders) {
@@ -278,7 +279,5 @@ export class World {
         }
       }
     }
-
-    this.generate();
   }
 }

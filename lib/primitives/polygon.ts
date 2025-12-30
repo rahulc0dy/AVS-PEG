@@ -186,21 +186,39 @@ export class Polygon {
     return Math.min(...this.edges.map((edge) => edge.distanceToNode(node)));
   }
 
+  /**
+   * Computes the axis-aligned bounding box (AABB) of this polygon.
+   *
+   * The bounding box is cached after first computation. Call {@link dispose}
+   * to clear the cache if the polygon geometry changes.
+   *
+   * @returns Object containing min/max X and Y coordinates of the bounding box
+   *
+   * @example
+   * ```ts
+   * const bbox = polygon.getBoundingBox();
+   * console.log(`Width: ${bbox.maxX - bbox.minX}`);
+   * ```
+   */
   getBoundingBox(): { minX: number; maxX: number; minY: number; maxY: number } {
+    // Return cached bounding box if available
     if (this.boundingBox) {
       return this.boundingBox;
     }
 
+    // Handle empty polygon case
     if (this.nodes.length === 0) {
       this.boundingBox = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
       return this.boundingBox;
     }
 
+    // Initialize with extreme values to find actual min/max
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
+    // Scan all nodes to find bounding extents
     for (const node of this.nodes) {
       if (node.x < minX) minX = node.x;
       if (node.x > maxX) maxX = node.x;
@@ -208,20 +226,43 @@ export class Polygon {
       if (node.y > maxY) maxY = node.y;
     }
 
+    // Cache and return the computed bounding box
     this.boundingBox = { minX, maxX, minY, maxY };
     return this.boundingBox;
   }
 
+  /**
+   * Checks if this polygon's bounding box overlaps with another polygon's bounding box.
+   *
+   * This is a fast early-rejection test used before more expensive intersection
+   * checks. Two AABBs overlap if they intersect on both the X and Y axes.
+   *
+   * @param other - The other polygon to test against
+   * @returns `true` if bounding boxes overlap, `false` otherwise
+   */
   boundingBoxOverlaps(other: Polygon): boolean {
     const a = this.getBoundingBox();
     const b = other.getBoundingBox();
 
+    // Check for separation on X axis
     if (a.maxX < b.minX || b.maxX < a.minX) return false;
+    // Check for separation on Y axis
     if (a.maxY < b.minY || b.maxY < a.minY) return false;
 
+    // Bounding boxes overlap on both axes
     return true;
   }
 
+  /**
+   * Checks if a node lies within this polygon's bounding box.
+   *
+   * This is a fast preliminary test before more expensive point-in-polygon
+   * checks. A point inside the bounding box may or may not be inside the
+   * actual polygon.
+   *
+   * @param node - The point to test
+   * @returns `true` if the node is within the bounding box (inclusive), `false` otherwise
+   */
   nodeInBoundingBox(node: Node): boolean {
     const bbox = this.getBoundingBox();
     return (
