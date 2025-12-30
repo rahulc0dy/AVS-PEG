@@ -193,6 +193,8 @@ export class GraphEditor extends BaseEditor {
     }
   }
 
+  override handleTabKeyPress(): void {}
+
   /**
    * Draw editor visuals (nodes) into the scene. Uses `needsRedraw` and the
    * graph's change counter to avoid unnecessary work.
