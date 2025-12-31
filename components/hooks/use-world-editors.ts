@@ -10,25 +10,22 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
 /**
  * Hook to initialize and manage world editors and controls.
  *
- * This sets up an `OrbitControls`, grid helper, `GraphEditor`, `TrafficLightEditor`,
- * and a `World` instance, wiring pointer events to the active editor.
+ * This hook sets up `OrbitControls`, `GraphEditor`, `TrafficLightEditor`,
+ * and `SourceDestinationEditor`, wiring pointer events to the active editor.
  *
+ * NOTE: This hook requires a World instance to be provided. Use `useWorld` hook
+ * to create the World instance first, then pass `worldRef.current` to this hook.
+ *
+ * @param {World} world - The World instance to edit.
  * @param {Scene} scene - Three.js scene to attach helpers and editor objects to.
  * @param {Camera} camera - Three.js camera used by `OrbitControls` and raycasting.
  * @param {HTMLElement} dom - DOM element used for pointer event listeners and control target.
  * @param {(evt: PointerEvent) => void} updatePointer - Callback that updates the pointer/raycaster state.
  * @param {() => Vector3} getIntersectPoint - Function that returns the current pointer intersection point on the ground plane.
- * @returns {{
- *   activeMode: EditorMode,
- *   setMode: (mode: EditorMode) => void,
- *   graphRef: import("react").MutableRefObject<Graph | null>,
- *   worldRef: import("react").MutableRefObject<World | null>,
- *   graphEditorRef: import("react").MutableRefObject<GraphEditor | null>,
- *   trafficLightEditorRef: import("react").MutableRefObject<TrafficLightEditor | null>,
- *   controlsRef: import("react").MutableRefObject<OrbitControls | null>
- * }} Object containing the current mode, setter, and refs for editors and controls.
+ * @returns Object containing the current mode, setter, and refs for editors and controls.
  */
 export function useWorldEditors(
+  world: World | null,
   scene: Scene,
   camera: Camera,
   dom: HTMLElement,
@@ -38,7 +35,6 @@ export function useWorldEditors(
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
   const modeRef = useRef<EditorMode>("graph");
 
-  const worldRef = useRef<World | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
   const sourceDestinationEditorRef = useRef<SourceDestinationEditor | null>(
@@ -74,17 +70,12 @@ export function useWorldEditors(
   };
 
   useEffect(() => {
+    // Don't initialize editors until world is ready
+    if (!world) return;
+
     // Create orbit controls attached to the provided `dom` element so
     // camera orbiting is enabled for the user.
     controlsRef.current = new OrbitControls(camera, dom);
-
-    // Add a ground grid helper for visual reference in the scene.
-    const grid = new GridHelper(1000, 40, 0x666666, 0x333333);
-    grid.position.set(0, 0, 0);
-    scene.add(grid);
-
-    const world = new World(scene);
-    worldRef.current = world;
 
     // GraphEditor receives a callback that reports whether the user is
     // actively dragging. While dragging, disable OrbitControls to avoid
@@ -122,14 +113,11 @@ export function useWorldEditors(
         controlsRef.current.dispose();
         controlsRef.current = null;
       }
-      if (worldRef.current) {
-        worldRef.current.dispose();
-        worldRef.current = null;
-      }
-      scene.remove(grid);
-      grid.dispose();
+      graphEditorRef.current = null;
+      trafficLightEditorRef.current = null;
+      sourceDestinationEditorRef.current = null;
     };
-  }, [scene, camera, dom]);
+  }, [world, scene, camera, dom]);
 
   useEffect(() => {
     // Pointer move: update raycaster pointer then forward the computed
@@ -244,7 +232,6 @@ export function useWorldEditors(
   return {
     activeMode,
     setMode,
-    worldRef,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,

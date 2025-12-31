@@ -12,7 +12,7 @@ import { MINIVIEW_HEIGHT, MINIVIEW_WIDTH, MINIVIEW_X, MINIVIEW_Y } from "@/env";
 export function MiniMapOverlay() {
   return (
     <div
-      className="pointer-events-none fixed bottom-4 left-4 z-10 border border-gray-200"
+      className="pointer-events-none fixed bottom-4 left-4 z-10 border border-zinc-700 rounded-sm"
       style={{
         left: MINIVIEW_X,
         bottom: MINIVIEW_Y,

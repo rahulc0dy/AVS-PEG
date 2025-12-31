@@ -1,19 +1,17 @@
 "use client";
 
-import SimulationCanvas from "@/components/simulation-canvas";
+import EditorCanvas from "@/components/editor-canvas";
 import SceneCanvas from "@/components/scene-canvas";
 
 /**
- * Home page - Simulation view (read-only).
- *
- * This page loads a saved world and runs the simulation
- * with standard traffic (human-controlled car + AI cars).
+ * Edit page - The full world editor with graph editing,
+ * traffic light placement, and source/destination marking.
  */
-export default function Home() {
+export default function EditPage() {
   return (
     <SceneCanvas config={{ cameraPosition: { x: 0, y: 2000, z: 0 } }}>
       {(context) => (
-        <SimulationCanvas
+        <EditorCanvas
           scene={context.scene}
           camera={context.camera}
           renderer={context.renderer}

@@ -3,6 +3,8 @@
 import { FC, RefObject, useEffect, useState } from "react";
 import Modal from "@/components/ui/modal";
 import Button from "@/components/ui/button";
+import Input from "@/components/ui/input";
+import Label from "@/components/ui/label";
 import { getRoadData } from "@/services/osm-service";
 import { parseRoadsFromOsmData } from "@/utils/osm";
 import Link from "next/link";
@@ -138,19 +140,10 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
       description="Enter the bounding box coordinates to load road data from OpenStreetMap."
       footer={
         <>
-          <Button
-            variant="ghost"
-            color="gray"
-            onClick={onClose}
-            disabled={isLoading}
-          >
+          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button
-            onClick={handleGetRoadData}
-            color="white"
-            disabled={isLoading}
-          >
+          <Button onClick={handleGetRoadData} disabled={isLoading}>
             {isLoading ? "Loading..." : "Load Data"}
           </Button>
         </>
@@ -159,7 +152,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
       <div className="space-y-4">
         {/* Error banner: shown when an error message exists */}
         {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-900 dark:border-zinc-800 dark:bg-red-950 dark:text-rose-300">
             {error}
           </div>
         )}
@@ -170,12 +163,12 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
           - center: Max Lat (North) and Min Lat (South)
           - right: Max Lon (East)
         */}
-        <div className="grid grid-cols-3 items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-          <div className="col-start-2 space-y-1">
-            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+        <div className="grid grid-cols-3 items-center gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="col-start-2 space-y-1.5">
+            <Label className="block text-center text-xs text-zinc-500 dark:text-zinc-400">
               Max Lat (North)
-            </label>
-            <input
+            </Label>
+            <Input
               type="number"
               step="any"
               value={maxLat}
@@ -183,15 +176,15 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMaxLat(val);
               }}
-              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="text-center"
             />
           </div>
 
-          <div className="col-start-1 space-y-1">
-            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+          <div className="col-start-1 space-y-1.5">
+            <Label className="block text-center text-xs text-zinc-500 dark:text-zinc-400">
               Min Lon (West)
-            </label>
-            <input
+            </Label>
+            <Input
               type="number"
               step="any"
               value={minLong}
@@ -199,15 +192,15 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMinLong(val);
               }}
-              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="text-center"
             />
           </div>
 
-          <div className="col-start-3 space-y-1">
-            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+          <div className="col-start-3 space-y-1.5">
+            <Label className="block text-center text-xs text-zinc-500 dark:text-zinc-400">
               Max Lon (East)
-            </label>
-            <input
+            </Label>
+            <Input
               type="number"
               step="any"
               value={maxLong}
@@ -215,15 +208,15 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMaxLong(val);
               }}
-              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="text-center"
             />
           </div>
 
-          <div className="col-start-2 space-y-1">
-            <label className="block text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+          <div className="col-start-2 space-y-1.5">
+            <Label className="block text-center text-xs text-zinc-500 dark:text-zinc-400">
               Min Lat (South)
-            </label>
-            <input
+            </Label>
+            <Input
               type="number"
               step="any"
               value={minLat}
@@ -231,7 +224,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
                 const val = e.target.valueAsNumber;
                 if (!isNaN(val)) setMinLat(val);
               }}
-              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              className="text-center"
             />
           </div>
         </div>
@@ -241,7 +234,7 @@ const OsmModal: FC<OsmModalProps> = ({ isOpen, onClose, worldRef }) => {
           href={"https://www.openstreetmap.org/export"}
           target="_blank"
           rel="noopener noreferrer"
-          className="float-right align-bottom text-xs text-gray-400"
+          className="float-right align-bottom text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 underline-offset-4 hover:underline"
         >
           Export from OpenStreetMaps
         </Link>

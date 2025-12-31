@@ -39,7 +39,7 @@ const Modal = ({
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden"; // Prevent scrolling when modal is open
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
@@ -68,20 +68,20 @@ const Modal = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
       onClick={handleBackdropClick}
       aria-modal="true"
       role="dialog"
     >
       <div
         ref={modalRef}
-        className={`relative w-full ${sizeClasses[size]} bg-white dark:bg-zinc-900 rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 ${className}`}
+        className={`relative w-full ${sizeClasses[size]} border border-zinc-200 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 dark:border-zinc-800 dark:bg-zinc-950 ${className}`}
       >
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {title && (
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                <h2 className="text-lg font-semibold leading-none tracking-tight text-zinc-950 dark:text-zinc-50">
                   {title}
                 </h2>
               )}
@@ -94,19 +94,19 @@ const Modal = ({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="text-zinc-400 hover:text-rose-500 dark:text-zinc-500 dark:hover:text-rose-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 dark:focus:ring-offset-zinc-900 rounded-full p-1 transition-colors"
+                className="rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:pointer-events-none dark:ring-offset-zinc-950 dark:focus:ring-zinc-300"
                 aria-label="Close"
               >
                 <svg
-                  className="w-6 h-6"
+                  className="h-4 w-4"
                   fill="none"
                   stroke="currentColor"
+                  strokeWidth={2}
                   viewBox="0 0 24 24"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
@@ -115,12 +115,12 @@ const Modal = ({
           </div>
         )}
 
-        <div className="px-6 py-4 overflow-y-auto flex-1 text-zinc-900 dark:text-zinc-100">
+        <div className="px-6 py-4 overflow-y-auto flex-1 text-zinc-950 dark:text-zinc-50">
           {children}
         </div>
 
         {footer && (
-          <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
+          <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
             {footer}
           </div>
         )}

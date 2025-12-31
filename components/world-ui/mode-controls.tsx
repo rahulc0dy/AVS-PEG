@@ -1,4 +1,3 @@
-import Button from "@/components/ui/button";
 import { EditorMode } from "@/types/editor";
 import Image from "next/image";
 
@@ -7,13 +6,53 @@ interface ModeControlsProps {
   setMode: (mode: EditorMode) => void;
 }
 
+interface ToolButtonProps {
+  mode: EditorMode;
+  activeMode: EditorMode;
+  onClick: () => void;
+  icon: string;
+  alt: string;
+  rotateIcon?: boolean;
+}
+
+function ToolButton({
+  mode,
+  activeMode,
+  onClick,
+  icon,
+  alt,
+  rotateIcon,
+}: ToolButtonProps) {
+  const isActive = activeMode === mode;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative flex items-center justify-center w-10 h-10 rounded-lg transition-colors
+        ${
+          isActive
+            ? "bg-white/20 text-white"
+            : "text-zinc-400 hover:bg-zinc-700/50 hover:text-zinc-200"
+        }
+      `}
+      title={alt}
+    >
+      <Image
+        src={icon}
+        alt={alt}
+        width={24}
+        height={24}
+        className={`size-5 ${rotateIcon ? "rotate-90" : ""} ${isActive ? "brightness-0 invert" : "opacity-70"}`}
+      />
+    </button>
+  );
+}
+
 /**
- * Controls to switch between editor modes and show the active mode.
+ * Controls to switch between editor modes - tldraw/figma style toolbar.
  *
- * Displays the current `activeMode` and renders two buttons to toggle
- * between the available editors ("graph", "traffic-lights", and
- * "source-destination"). The active button is shown in full color while
- * inactive ones are grayscaled.
+ * A horizontal bar with icon buttons where the active mode is highlighted.
  *
  * @param {object} props - Component props.
  * @param {EditorMode} props.activeMode - Currently selected editor mode.
@@ -22,58 +61,31 @@ interface ModeControlsProps {
  */
 export function ModeControls({ activeMode, setMode }: ModeControlsProps) {
   return (
-    <>
-      <div className="fixed right-4 bottom-4 z-100 text-gray-200">
-        <p className="font-bold text-gray-100">
-          Mode: <span className="text-green-300 uppercase">{activeMode}</span>
-        </p>
-      </div>
-      <div className="fixed right-0 bottom-4 left-0 flex items-center justify-center gap-5">
-        <Button
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-1 px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg">
+        <ToolButton
+          mode="graph"
+          activeMode={activeMode}
           onClick={() => setMode("graph")}
-          color="white"
-          style={{ filter: activeMode === "graph" ? "" : "grayscale(100%)" }}
-        >
-          <Image
-            src={"/icons/graph.png"}
-            alt="graph"
-            width={30}
-            height={50}
-            className="size-6"
-          />
-        </Button>
-        <Button
+          icon="/icons/graph.png"
+          alt="Graph Editor"
+        />
+        <ToolButton
+          mode="traffic-lights"
+          activeMode={activeMode}
           onClick={() => setMode("traffic-lights")}
-          color="white"
-          style={{
-            filter: activeMode === "traffic-lights" ? "" : "grayscale(100%)",
-          }}
-        >
-          <Image
-            src={"/icons/traffic-lights.png"}
-            alt="traffic-lights"
-            width={30}
-            height={50}
-            className="size-6 rotate-90"
-          />
-        </Button>
-        <Button
+          icon="/icons/traffic-lights.png"
+          alt="Traffic Lights"
+          rotateIcon
+        />
+        <ToolButton
+          mode="source-destination"
+          activeMode={activeMode}
           onClick={() => setMode("source-destination")}
-          color="white"
-          style={{
-            filter:
-              activeMode === "source-destination" ? "" : "grayscale(100%)",
-          }}
-        >
-          <Image
-            src={"/icons/source-destination.png"}
-            alt="source-destination"
-            width={30}
-            height={50}
-            className="size-6"
-          />
-        </Button>
+          icon="/icons/source-destination.png"
+          alt="Source & Destination"
+        />
       </div>
-    </>
+    </div>
   );
 }

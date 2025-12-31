@@ -14,6 +14,20 @@ import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
 
 /**
+ * Configuration options for initializing a World instance.
+ */
+export interface WorldConfig {
+  /**
+   * Initial cars to spawn. If not provided, defaults to empty array.
+   * Use `generateTraffic()` to spawn cars after initialization.
+   */
+  initialCars?: {
+    position: Vector2;
+    controlType: ControlType;
+  }[];
+}
+
+/**
  * Responsible for generating visual road geometry from a `Graph`, managing
  * world objects (cars, markings), and providing serialization helpers for
  * save/load. The `World` owns a Three.js `Group` (`worldGroup`) which is
@@ -44,32 +58,34 @@ export class World {
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
+   * @param config - Optional configuration for world initialization
    */
-  constructor(scene: Scene) {
+  constructor(scene: Scene, config?: WorldConfig) {
     this.graph = new Graph();
     this.scene = scene;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
 
-    this.cars = [
-      new Car(
-        new Vector2(0, 0),
-        10,
-        17.5,
-        7,
-        ControlType.HUMAN,
-        this.worldGroup,
-      ),
-      new Car(
-        new Vector2(20, 0),
-        10,
-        17.5,
-        7,
-        ControlType.NONE,
-        this.worldGroup,
-      ),
-    ];
+    // Initialize with empty car array by default
+    // Cars can be added via config.initialCars or generateTraffic()
+    this.cars = [];
+
+    // If initial cars are provided in config, create them
+    if (config?.initialCars) {
+      for (const carConfig of config.initialCars) {
+        this.cars.push(
+          new Car(
+            carConfig.position,
+            10, // breadth
+            17.5, // length
+            7, // height
+            carConfig.controlType,
+            this.worldGroup,
+          ),
+        );
+      }
+    }
 
     this.markings = [];
 
@@ -83,6 +99,104 @@ export class World {
     );
 
     this.generate();
+  }
+
+  /**
+   * Generate traffic by spawning multiple cars at random positions on roads.
+   *
+   * @param count - Number of cars to spawn
+   * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
+   * @param options - Optional configuration for car spawning
+   */
+  generateTraffic(
+    count: number,
+    controlType: ControlType,
+    options?: {
+      /** Custom breadth for cars (default: 10) */
+      breadth?: number;
+      /** Custom length for cars (default: 17.5) */
+      length?: number;
+      /** Custom height for cars (default: 7) */
+      height?: number;
+      /** Custom max speed for cars (default: 0.5) */
+      maxSpeed?: number;
+      /** Clear existing cars before spawning (default: true) */
+      clearExisting?: boolean;
+    },
+  ): void {
+    const {
+      breadth = 10,
+      length = 17.5,
+      height = 7,
+      maxSpeed = 0.5,
+      clearExisting = true,
+    } = options ?? {};
+
+    // Optionally clear existing cars
+    if (clearExisting) {
+      for (const car of this.cars) {
+        car.dispose();
+      }
+      this.cars = [];
+    }
+
+    // If no roads exist, spawn at origin
+    if (this.roads.length === 0) {
+      for (let i = 0; i < count; i++) {
+        const car = new Car(
+          new Vector2(i * 30, 0), // Spread cars out along X axis
+          breadth,
+          length,
+          height,
+          controlType,
+          this.worldGroup,
+          0, // angle
+          maxSpeed,
+        );
+        this.cars.push(car);
+      }
+      return;
+    }
+
+    // Spawn cars at random positions along roads
+    for (let i = 0; i < count; i++) {
+      // Pick a random road
+      const road = this.roads[Math.floor(Math.random() * this.roads.length)];
+      const skeleton = road.skeleton;
+
+      // Get random position along the road
+      const t = Math.random();
+      const x = skeleton.n1.x + t * (skeleton.n2.x - skeleton.n1.x);
+      const y = skeleton.n1.y + t * (skeleton.n2.y - skeleton.n1.y);
+
+      // Calculate road angle for car orientation
+      const angle = Math.atan2(
+        skeleton.n2.y - skeleton.n1.y,
+        skeleton.n2.x - skeleton.n1.x,
+      );
+
+      const car = new Car(
+        new Vector2(x, y),
+        breadth,
+        length,
+        height,
+        controlType,
+        this.worldGroup,
+        angle,
+        maxSpeed,
+      );
+      this.cars.push(car);
+    }
+  }
+
+  /**
+   * Clear all cars from the world.
+   */
+  clearCars(): void {
+    for (const car of this.cars) {
+      car.dispose();
+    }
+    this.cars = [];
   }
 
   /**

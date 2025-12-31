@@ -1,19 +1,21 @@
 "use client";
 
-import SimulationCanvas from "@/components/simulation-canvas";
+import TrainingCanvas from "@/components/training-canvas";
 import SceneCanvas from "@/components/scene-canvas";
 
 /**
- * Home page - Simulation view (read-only).
+ * Training page - For training AI agents with multiple cars.
  *
- * This page loads a saved world and runs the simulation
- * with standard traffic (human-controlled car + AI cars).
+ * Features:
+ * - Spawns 100+ AI-controlled cars
+ * - Provides controls for saving/loading AI brains
+ * - Runs simulation without editor tools
  */
-export default function Home() {
+export default function TrainPage() {
   return (
     <SceneCanvas config={{ cameraPosition: { x: 0, y: 2000, z: 0 } }}>
       {(context) => (
-        <SimulationCanvas
+        <TrainingCanvas
           scene={context.scene}
           camera={context.camera}
           renderer={context.renderer}

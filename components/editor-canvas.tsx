@@ -11,35 +11,59 @@ import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
-import { useTrafficDetector } from "./hooks/use-traffic-detector";
+import { useTrafficDetector } from "@/components/hooks/use-traffic-detector";
+import { useWorld } from "@/components/hooks/use-world";
+import { FpsMeter } from "@/components/ui/fps-meter";
 
-interface WorldComponentProps {
+interface EditorCanvasProps {
   scene: Scene;
   camera: Camera;
   renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
-export default function WorldComponent({
+/**
+ * Editor canvas component that provides the full editing experience.
+ *
+ * This component includes:
+ * - Graph editing (add/remove nodes and edges)
+ * - Traffic light placement
+ * - Source/destination marking
+ * - Mini camera view
+ * - File save/load functionality
+ * - OSM import modal
+ */
+export default function EditorCanvas({
   scene,
   camera,
   renderer,
   dom,
-}: WorldComponentProps) {
+}: EditorCanvasProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
+
+  // Initialize the World instance
+  const worldRef = useWorld(scene, { showGrid: true });
 
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
+  // Initialize editors (requires world to be ready)
   const {
     activeMode,
     setMode,
-    worldRef,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
     controlsRef,
-  } = useWorldEditors(scene, camera, dom, updatePointer, getIntersectPoint);
+  } = useWorldEditors(
+    worldRef.current,
+    scene,
+    camera,
+    dom,
+    updatePointer,
+    getIntersectPoint,
+  );
 
+  // Run the animation loop with editor support
   useWorldAnimation(
     controlsRef,
     graphEditorRef,
@@ -55,7 +79,6 @@ export default function WorldComponent({
   useEffect(() => {
     if (detections.length > 0) {
       console.log("Traffic Light Found!", detections);
-      // Logic to stop the car can go here
     }
   }, [detections]);
 
@@ -63,6 +86,7 @@ export default function WorldComponent({
 
   return (
     <>
+      <FpsMeter />
       <ModeControls activeMode={activeMode} setMode={setMode} />
       <MiniMapOverlay />
       <FileToolbar
