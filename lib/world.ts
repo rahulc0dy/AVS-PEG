@@ -153,12 +153,14 @@ export class World {
     // 3. Compute the union of all road polygons to derive continuous borders
     this.roadBorders = Polygon.union(this.roads.map((r) => r.poly));
 
-    // find the source and destination markings
     const source = this.markings.find((m) => m.type === "source");
     const destination = this.markings.find((m) => m.type === "destination");
 
     if (source && destination) {
       this.pathFindingSystem.findPath(source.position, destination.position);
+    } else {
+      // Clear the path if either marking is missing
+      this.pathFindingSystem.reset();
     }
   }
 

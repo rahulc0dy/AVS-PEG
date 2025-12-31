@@ -1,6 +1,6 @@
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { getNearestEdge, distance } from "@/utils/math";
+import { distance, getNearestEdge } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 
 /**
@@ -94,6 +94,13 @@ export class PathFindingSystem {
    */
   public getPath(): Edge[] {
     return this.path;
+  }
+
+  /**
+   * Clears the current path.
+   */
+  public reset() {
+    this.path = [];
   }
 
   /**
