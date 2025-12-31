@@ -305,5 +305,8 @@ export class World {
         }
       }
     }
+
+    // Update path finding after loading markings
+    this.updatePath();
   }
 }
