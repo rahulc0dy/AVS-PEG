@@ -167,6 +167,9 @@ export function createArrowTexture(
         ctx.rotate(Math.PI);
       }
 
+      // Fix one way road directions
+      if (isOneWay) ctx.rotate(Math.PI);
+
       // Draw arrow shape pointing UP (forward direction)
       // Arrow shape: triangular head with rectangular stem
       ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
