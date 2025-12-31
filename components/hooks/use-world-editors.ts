@@ -120,6 +120,10 @@ export function useWorldEditors(
   }, [world, scene, camera, dom]);
 
   useEffect(() => {
+    // Don't set up event listeners until world and editors are ready
+    if (!world) return;
+    if (!graphEditorRef.current) return;
+
     // Pointer move: update raycaster pointer then forward the computed
     // ground intersection to the active editor for hover/preview behavior.
     const handlePointerMove = (evt: PointerEvent) => {
@@ -227,7 +231,7 @@ export function useWorldEditors(
       dom.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dom, updatePointer, getIntersectPoint]);
+  }, [world, dom, updatePointer, getIntersectPoint]);
 
   return {
     activeMode,

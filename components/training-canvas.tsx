@@ -38,7 +38,7 @@ export default function TrainingCanvas({
   const [isTraining, setIsTraining] = useState(false);
 
   // Initialize the World instance (no initial cars)
-  const worldRef = useWorld(scene, { showGrid: true });
+  const { worldRef, world } = useWorld(scene, { showGrid: true });
 
   // Run the simulation loop (no editors)
   useWorldSimulation(worldRef, camera, dom);
@@ -47,7 +47,6 @@ export default function TrainingCanvas({
 
   // Load saved world and spawn training cars on mount
   useEffect(() => {
-    const world = worldRef.current;
     if (!world) return;
 
     // Try to load saved world from localStorage
@@ -70,7 +69,7 @@ export default function TrainingCanvas({
     });
 
     setIsTraining(true);
-  }, [worldRef, carCount]);
+  }, [world, carCount]);
 
   const handleSaveBrain = useCallback(() => {
     // Placeholder for brain saving logic

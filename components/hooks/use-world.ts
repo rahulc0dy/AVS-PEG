@@ -1,5 +1,5 @@
 import { World, WorldConfig } from "@/lib/world";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GridHelper, Scene } from "three";
 
 /**
@@ -17,6 +17,16 @@ export interface UseWorldOptions {
 }
 
 /**
+ * Return type for the useWorld hook.
+ */
+export interface UseWorldResult {
+  /** Ref to the World instance */
+  worldRef: React.RefObject<World | null>;
+  /** The World instance (null until initialized, triggers re-render when ready) */
+  world: World | null;
+}
+
+/**
  * Base hook that initializes a World instance and optional GridHelper.
  *
  * This hook strictly handles:
@@ -28,22 +38,25 @@ export interface UseWorldOptions {
  *
  * @param scene - Three.js scene to attach the world and grid to
  * @param options - Optional configuration for world and grid
- * @returns A ref to the World instance
+ * @returns Object containing both the ref and a state value for the World instance
  *
  * @example
  * ```tsx
- * const worldRef = useWorld(scene, {
+ * const { worldRef, world } = useWorld(scene, {
  *   worldConfig: { initialCars: [] },
  *   showGrid: true,
  * });
+ * // Use `world` to trigger dependent effects when world is ready
+ * // Use `worldRef` for accessing current value in event handlers
  * ```
  */
 export function useWorld(
   scene: Scene,
   options?: UseWorldOptions,
-): React.RefObject<World | null> {
+): UseWorldResult {
   const worldRef = useRef<World | null>(null);
   const gridRef = useRef<GridHelper | null>(null);
+  const [world, setWorld] = useState<World | null>(null);
 
   const {
     worldConfig,
@@ -54,8 +67,9 @@ export function useWorld(
 
   useEffect(() => {
     // Create the World instance
-    const world = new World(scene, worldConfig);
-    worldRef.current = world;
+    const newWorld = new World(scene, worldConfig);
+    worldRef.current = newWorld;
+    setWorld(newWorld); // Trigger re-render for dependent hooks
 
     // Add grid helper if enabled
     if (showGrid) {
@@ -76,8 +90,9 @@ export function useWorld(
         gridRef.current.dispose();
         gridRef.current = null;
       }
+      setWorld(null);
     };
   }, [scene, worldConfig, showGrid, gridSize, gridDivisions]);
 
-  return worldRef;
+  return { worldRef, world };
 }

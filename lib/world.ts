@@ -140,11 +140,35 @@ export class World {
       this.cars = [];
     }
 
-    // If no roads exist, spawn at origin
+    // Minimum distance between car centers to avoid overlap
+    const minDistance = Math.max(breadth, length) * 1.5;
+
+    // Helper to check if a position is too close to existing cars
+    const isTooClose = (x: number, y: number): boolean => {
+      for (const car of this.cars) {
+        const dx = car.position.x - x;
+        const dy = car.position.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDistance) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // If no roads exist, spawn spread out from origin
     if (this.roads.length === 0) {
       for (let i = 0; i < count; i++) {
+        // Spread cars in a grid pattern to avoid overlap
+        const cols = Math.ceil(Math.sqrt(count));
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const spacing = minDistance * 1.5;
+        const x = (col - cols / 2) * spacing;
+        const y = row * spacing;
+
         const car = new Car(
-          new Vector2(i * 30, 0), // Spread cars out along X axis
+          new Vector2(x, y),
           breadth,
           length,
           height,
@@ -158,34 +182,50 @@ export class World {
       return;
     }
 
-    // Spawn cars at random positions along roads
+    // Spawn cars at random positions along roads, avoiding overlaps
+    const maxAttempts = 50; // Max attempts per car to find a valid position
     for (let i = 0; i < count; i++) {
-      // Pick a random road
-      const road = this.roads[Math.floor(Math.random() * this.roads.length)];
-      const skeleton = road.skeleton;
+      let placed = false;
 
-      // Get random position along the road
-      const t = Math.random();
-      const x = skeleton.n1.x + t * (skeleton.n2.x - skeleton.n1.x);
-      const y = skeleton.n1.y + t * (skeleton.n2.y - skeleton.n1.y);
+      for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
+        // Pick a random road
+        const road = this.roads[Math.floor(Math.random() * this.roads.length)];
+        const skeleton = road.skeleton;
 
-      // Calculate road angle for car orientation
-      const angle = Math.atan2(
-        skeleton.n2.y - skeleton.n1.y,
-        skeleton.n2.x - skeleton.n1.x,
-      );
+        // Get random position along the road
+        const t = Math.random();
+        const x = skeleton.n1.x + t * (skeleton.n2.x - skeleton.n1.x);
+        const y = skeleton.n1.y + t * (skeleton.n2.y - skeleton.n1.y);
 
-      const car = new Car(
-        new Vector2(x, y),
-        breadth,
-        length,
-        height,
-        controlType,
-        this.worldGroup,
-        angle,
-        maxSpeed,
-      );
-      this.cars.push(car);
+        // Check if position is valid (not too close to other cars)
+        if (!isTooClose(x, y)) {
+          // Calculate road angle for car orientation
+          const angle = Math.atan2(
+            skeleton.n2.y - skeleton.n1.y,
+            skeleton.n2.x - skeleton.n1.x,
+          );
+
+          const car = new Car(
+            new Vector2(x, y),
+            breadth,
+            length,
+            height,
+            controlType,
+            this.worldGroup,
+            angle,
+            maxSpeed,
+          );
+          this.cars.push(car);
+          placed = true;
+        }
+      }
+
+      // If couldn't place after max attempts, skip this car
+      if (!placed) {
+        console.warn(
+          `Could not find valid position for car ${i + 1}/${count} after ${maxAttempts} attempts`,
+        );
+      }
     }
   }
 
@@ -324,6 +364,7 @@ export class World {
   fromJson(json: WorldJson): void {
     this.dispose();
     this.markings.length = 0;
+    this.cars = []; // Clear the cars array after disposing
 
     this.graph.fromJson(json.graph);
     this.trafficLightGraph.fromJson(json.trafficLightGraph);

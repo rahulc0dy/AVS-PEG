@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
 import OsmModal from "@/components/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { useWorldEditors } from "@/components/hooks/use-world-editors";
 import { useWorldAnimation } from "@/components/hooks/use-world-animation";
-import { useMiniCamera } from "@/components/hooks/use-mini-camera";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
-import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
-import { useTrafficDetector } from "@/components/hooks/use-traffic-detector";
 import { useWorld } from "@/components/hooks/use-world";
 import { FpsMeter } from "@/components/ui/fps-meter";
+import { SourceDestinationMarkingType } from "@/lib/editors/source-destination-editor";
 
 interface EditorCanvasProps {
   scene: Scene;
@@ -29,7 +27,6 @@ interface EditorCanvasProps {
  * - Graph editing (add/remove nodes and edges)
  * - Traffic light placement
  * - Source/destination marking
- * - Mini camera view
  * - File save/load functionality
  * - OSM import modal
  */
@@ -40,9 +37,11 @@ export default function EditorCanvas({
   dom,
 }: EditorCanvasProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
+  const [sourceDestMarkingType, setSourceDestMarkingType] =
+    useState<SourceDestinationMarkingType>("source");
 
   // Initialize the World instance
-  const worldRef = useWorld(scene, { showGrid: true });
+  const { worldRef, world } = useWorld(scene, { showGrid: true });
 
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
@@ -55,12 +54,35 @@ export default function EditorCanvas({
     sourceDestinationEditorRef,
     controlsRef,
   } = useWorldEditors(
-    worldRef.current,
+    world, // Pass the state value, not ref, so editors re-initialize when world is ready
     scene,
     camera,
     dom,
     updatePointer,
     getIntersectPoint,
+  );
+
+  // Sync source-destination marking type with the editor
+  useEffect(() => {
+    const editor = sourceDestinationEditorRef.current;
+    if (editor) {
+      editor.setMarkingType(sourceDestMarkingType);
+      // Set up callback to update UI when editor changes type (e.g., auto-switch after placing source)
+      editor.setOnMarkingTypeChange((type) => {
+        setSourceDestMarkingType(type);
+      });
+    }
+  }, [sourceDestinationEditorRef, sourceDestMarkingType]);
+
+  const handleSourceDestTypeChange = useCallback(
+    (type: SourceDestinationMarkingType) => {
+      setSourceDestMarkingType(type);
+      const editor = sourceDestinationEditorRef.current;
+      if (editor) {
+        editor.setMarkingType(type);
+      }
+    },
+    [sourceDestinationEditorRef],
   );
 
   // Run the animation loop with editor support
@@ -72,23 +94,17 @@ export default function EditorCanvas({
     worldRef,
   );
 
-  const { scanTraffic, detections } = useTrafficDetector();
-
-  useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
-
-  useEffect(() => {
-    if (detections.length > 0) {
-      console.log("Traffic Light Found!", detections);
-    }
-  }, [detections]);
-
   const { saveToJson, loadFromJson } = useWorldPersistence(worldRef);
 
   return (
     <>
       <FpsMeter />
-      <ModeControls activeMode={activeMode} setMode={setMode} />
-      <MiniMapOverlay />
+      <ModeControls
+        activeMode={activeMode}
+        setMode={setMode}
+        sourceDestinationMarkingType={sourceDestMarkingType}
+        onSourceDestinationTypeChange={handleSourceDestTypeChange}
+      />
       <FileToolbar
         onImportOsm={() => setIsOsmModalOpen(true)}
         onLoadJson={loadFromJson}

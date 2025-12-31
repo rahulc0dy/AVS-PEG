@@ -8,7 +8,6 @@ import { useMiniCamera } from "@/components/hooks/use-mini-camera";
 import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
 import { useTrafficDetector } from "@/components/hooks/use-traffic-detector";
 import { ControlType } from "@/lib/car/controls";
-import { Vector2 } from "three";
 import {
   Card,
   CardHeader,
@@ -39,14 +38,9 @@ export default function SimulationCanvas({
   renderer,
   dom,
 }: SimulationCanvasProps) {
-  // Initialize the World instance with a human-controlled car
-  const worldRef = useWorld(scene, {
+  // Initialize the World instance (cars will be spawned after loading saved world)
+  const { worldRef, world } = useWorld(scene, {
     showGrid: true,
-    worldConfig: {
-      initialCars: [
-        { position: new Vector2(0, 0), controlType: ControlType.HUMAN },
-      ],
-    },
   });
 
   // Run the simulation loop (no editors)
@@ -56,9 +50,8 @@ export default function SimulationCanvas({
 
   useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
 
-  // Load saved world on mount
+  // Load saved world on mount and spawn cars
   useEffect(() => {
-    const world = worldRef.current;
     if (!world) return;
 
     // Try to load saved world from localStorage
@@ -69,17 +62,23 @@ export default function SimulationCanvas({
         world.fromJson(json);
         world.generate();
         world.draw();
-
-        // Add some AI traffic after loading
-        world.generateTraffic(5, ControlType.AI, {
-          clearExisting: false, // Keep the human car
-          maxSpeed: 0.3,
-        });
       } catch (e) {
         console.warn("Failed to load saved world:", e);
       }
     }
-  }, [worldRef]);
+
+    // Spawn the human-controlled car
+    world.generateTraffic(1, ControlType.HUMAN, {
+      clearExisting: false,
+      maxSpeed: 0.5,
+    });
+
+    // Add some AI traffic
+    world.generateTraffic(5, ControlType.AI, {
+      clearExisting: false,
+      maxSpeed: 0.3,
+    });
+  }, [world]);
 
   useEffect(() => {
     if (detections.length > 0) {
@@ -93,7 +92,7 @@ export default function SimulationCanvas({
       <MiniMapOverlay />
 
       {/* Simple UI overlay */}
-      <Card className="absolute bottom-4 left-4 z-10 w-64 border-zinc-700 bg-zinc-900 text-zinc-50">
+      <Card className="absolute bottom-4 right-4 z-10 w-64 border-zinc-700 bg-zinc-900 text-zinc-50">
         <CardHeader className="pb-2">
           <CardTitle className="text-zinc-50">Simulation Mode</CardTitle>
           <CardDescription className="text-zinc-400">

@@ -102,9 +102,8 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    if (controlType != ControlType.AI) {
-      this.sensor = new Sensor(this);
-    }
+    // All control types get sensors (AI needs sensors for neural network input)
+    this.sensor = new Sensor(this);
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
   }

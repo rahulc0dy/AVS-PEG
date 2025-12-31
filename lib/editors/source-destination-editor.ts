@@ -3,23 +3,44 @@ import { Marking } from "@/lib/markings/marking";
 import { Node } from "@/lib/primitives/node";
 import { Destination } from "@/lib/markings/destination";
 import { Source } from "@/lib/markings/source";
+import { Vector3 } from "three";
 
 export type SourceDestinationMarkingType = "source" | "destination";
+
+/**
+ * Callback type for when marking type changes.
+ */
+export type MarkingTypeChangeCallback = (
+  type: SourceDestinationMarkingType,
+) => void;
 
 /**
  * Editor for placing "source" and "destination" markings onto edges.
  *
  * This is a specialized {@link MarkingEditor} that can create two different
  * marking variants. The active variant is controlled by {@link setMarkingType}
- * and can also be cycled with {@link handleTabKeyPress}.
+ * and can be selected via a context menu in the UI.
  *
- * - Left-click behavior, intent previewing, and commit behavior are inherited
- *   from {@link MarkingEditor}.
- * - Pressing Tab clears the current intent preview and toggles between
- *   `"source"` and `"destination"`.
+ * - Left-click places the current marking type
+ * - After placing a source, automatically switches to destination mode
  */
 export class SourceDestinationEditor extends MarkingEditor {
   private currentMarkingType: SourceDestinationMarkingType = "source";
+  private onMarkingTypeChange?: MarkingTypeChangeCallback;
+
+  /**
+   * Set a callback to be notified when the marking type changes.
+   */
+  setOnMarkingTypeChange(callback: MarkingTypeChangeCallback | undefined) {
+    this.onMarkingTypeChange = callback;
+  }
+
+  /**
+   * Get the current marking type.
+   */
+  getMarkingType(): SourceDestinationMarkingType {
+    return this.currentMarkingType;
+  }
 
   /**
    * Set which marking will be created on the next commit.
@@ -27,6 +48,9 @@ export class SourceDestinationEditor extends MarkingEditor {
    */
   setMarkingType(type: SourceDestinationMarkingType) {
     this.currentMarkingType = type;
+    // Clear intent so the preview updates with the new type
+    this.intent?.dispose();
+    this.intent = null;
   }
 
   /**
@@ -46,19 +70,32 @@ export class SourceDestinationEditor extends MarkingEditor {
   }
 
   /**
-   * Cycle the active marking type (`"source"` ↔ `"destination"`).
-   *
-   * Clears any in-progress intent preview so the user sees the new marking type
-   * immediately on the next hover.
+   * Override click release to auto-switch to destination after placing a source.
+   */
+  override handleClickRelease(pointer: Vector3): void {
+    const wasSource = this.currentMarkingType === "source";
+
+    // Call parent implementation to commit the marking
+    super.handleClickRelease(pointer);
+
+    // If we just placed a source, switch to destination mode
+    if (wasSource && !this.intent) {
+      this.currentMarkingType = "destination";
+      this.onMarkingTypeChange?.("destination");
+    }
+  }
+
+  /**
+   * Right-click no longer toggles - use context menu in UI instead.
+   */
+  override handleRightClick(_pointer: Vector3): void {
+    // No-op: use context menu from toolbar instead
+  }
+
+  /**
+   * Tab key press - no longer used.
    */
   override handleTabKeyPress(): void {
-    // Cycle through marking types
-    if (this.currentMarkingType === "source") {
-      this.currentMarkingType = "destination";
-    } else {
-      this.currentMarkingType = "source";
-    }
-    this.intent?.dispose();
-    this.intent = null;
+    // No-op
   }
 }
