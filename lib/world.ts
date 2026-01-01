@@ -152,6 +152,9 @@ export class World {
 
     // 3. Compute the union of all road polygons to derive continuous borders
     this.roadBorders = Polygon.union(this.roads.map((r) => r.poly));
+
+    // Update path finding after regenerating roads
+    this.updatePath();
   }
 
   /**
@@ -159,7 +162,8 @@ export class World {
    *
    * This is a lightweight operation compared to `generate()` and should be
    * called when only path finding needs to be updated (e.g., when source or
-   * destination markings change).
+   * destination markings change), avoid calling this on every frame or
+   * mouse event due to computational cost.
    */
   updatePath() {
     const source = this.markings.find((m) => m.type === "source");
