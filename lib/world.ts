@@ -64,14 +64,8 @@ export class World {
         ControlType.HUMAN,
         this.worldGroup,
       ),
-      new Car(
-        new Vector2(20, 0),
-        10,
-        17.5,
-        7,
-        ControlType.NONE,
-        this.worldGroup,
-      ),
+      new Car(new Vector2(20, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
+      new Car(new Vector2(40, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
     ];
 
     this.markings = [];
@@ -98,7 +92,11 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(this.cars.filter((c) => c !== car));
+      car.update(
+        this.cars.filter((c) => c !== car),
+        this.graph.getEdges(),
+        this.roadWidth,
+      );
     }
     for (const marking of this.markings) {
       marking.update();

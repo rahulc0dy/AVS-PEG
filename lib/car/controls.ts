@@ -1,3 +1,5 @@
+import { NeuralNetwork } from "@/lib/ai/network";
+
 /**
  * Available control schemes for a `Car`.
  *
@@ -19,6 +21,8 @@ export enum ControlType {
  * either lowercase or uppercase (e.g. `w` and `W` both work).
  */
 export class Controls {
+  private readonly type: ControlType;
+
   /** True while the forward input is active (ArrowUp / W). */
   forward = false;
   /** True while the left input is active (ArrowLeft / A). */
@@ -34,6 +38,8 @@ export class Controls {
    *               `AI` enables a simple forward default).
    */
   constructor(type: ControlType) {
+    this.type = type;
+
     this.forward = false;
     this.left = false;
     this.right = false;
@@ -51,6 +57,32 @@ export class Controls {
         // No input by default
         break;
     }
+  }
+
+  /** Reset all input flags to false. */
+  reset() {
+    this.forward = false;
+    this.left = false;
+    this.right = false;
+    this.reverse = false;
+  }
+
+  /** Apply a network output vector `[forward,left,right,reverse]` to flags. */
+  applyNetworkOutputs(outputs: number[]) {
+    this.forward = outputs[0] === 1;
+    this.left = outputs[1] === 1;
+    this.right = outputs[2] === 1;
+    this.reverse = outputs[3] === 1;
+  }
+
+  /**
+   * For AI-controlled cars: compute network outputs from sensor offsets and
+   * update the control flags.
+   */
+  applyAI(sensorOffsets: number[], brain: NeuralNetwork) {
+    if (this.type !== ControlType.AI) return;
+    const outputs = brain.decide(sensorOffsets);
+    this.applyNetworkOutputs(outputs);
   }
 
   /**
