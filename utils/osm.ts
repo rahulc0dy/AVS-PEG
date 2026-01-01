@@ -105,7 +105,7 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
       const currNode = osmNodes.get(wayIds[i]);
 
       if (prevNode && currNode) {
-        segments.push(new Edge(currNode, prevNode, isOneWay));
+        segments.push(new Edge(prevNode, currNode, isOneWay));
       }
     }
   }
