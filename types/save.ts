@@ -9,16 +9,12 @@ export interface WorldJson {
   graph: GraphJson;
   /** Traffic light graph (nodes + edges) used by the traffic light editor/system. */
   trafficLightGraph: GraphJson;
-  /** Road width used when constructing envelopes. */
-  roadWidth: number;
-  /** Sampling/roundness value used for envelope end caps. */
-  roadRoundness: number;
   /** All markings present in the world. */
   markings: MarkingJson[];
   /** Borders derived from unioning envelopes. */
   roadBorders: EdgeJson[];
   /** Road envelopes (polygons) generated from edges. */
-  roads: EnvelopeJson[];
+  roads: RoadJson[];
 }
 
 /**
@@ -44,6 +40,17 @@ export interface EdgeJson {
   n1: NodeJson;
   n2: NodeJson;
   isDirected: boolean;
+}
+
+/**
+ * Serialized road segment extending EnvelopeJson with lane information.
+ * Note: Formerly extended EdgeJson, now extends EnvelopeJson as Road is an Envelope.
+ */
+export interface RoadJson extends EnvelopeJson {
+  /** Number of lanes on the road segment. */
+  laneCount: number;
+  /** Road type from OSM (e.g., 'primary', 'secondary', 'residential'). */
+  roadType: string;
 }
 
 /**

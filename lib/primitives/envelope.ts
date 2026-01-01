@@ -45,7 +45,7 @@ export class Envelope {
    * @param roundness - Number of subdivisions used for the semicircular ends
    * @returns A `Polygon` approximating the envelope area
    */
-  private generatePolygon(width: number, roundness: number): Polygon {
+  protected generatePolygon(width: number, roundness: number): Polygon {
     if (width <= 0) {
       throw new Error("Width must be positive.");
     }
@@ -84,6 +84,13 @@ export class Envelope {
    */
   draw(group: Group, config: { fillColor: Color }) {
     this.poly.draw(group, config);
+  }
+
+  /**
+   * Releases all Three.js resources (geometries, materials, textures).
+   */
+  dispose(): void {
+    this.poly.dispose();
   }
 
   /**

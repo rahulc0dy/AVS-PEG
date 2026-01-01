@@ -110,6 +110,7 @@ export function useWorldEditors(
       world.roadBorders,
       world.markings,
       world.worldGroup,
+      () => world.updatePath(), // Callback: updates path on source/destination change
     );
     sourceDestinationEditorRef.current = sourceDestinationEditor;
 
