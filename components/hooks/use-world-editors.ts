@@ -4,7 +4,7 @@ import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { World } from "@/lib/world/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
-import { Camera, GridHelper, Scene, Vector3 } from "three";
+import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 
 /**

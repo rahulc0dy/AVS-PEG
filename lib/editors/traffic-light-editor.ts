@@ -167,6 +167,7 @@ export class TrafficLightEditor extends MarkingEditor {
    * - deletes the hovered traffic light node/marking.
    */
   override handleRightClick(_pointer: Vector3) {
+    void _pointer; // Required by interface but unused in this implementation
     if (this.selectedTrafficLight) {
       this.selectedTrafficLight = null;
       this.needsRedraw = true;

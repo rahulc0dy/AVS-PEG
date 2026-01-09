@@ -88,6 +88,7 @@ export class MarkingEditor extends BaseEditor {
 
   /** On left click, prepare to commit the preview on release. */
   override handleLeftClick(_pointer: Vector3): void {
+    void _pointer; // Required by interface but unused in this implementation
     if (this.intent) {
       this.addMarkingOnRelease = true;
     }
@@ -95,7 +96,7 @@ export class MarkingEditor extends BaseEditor {
 
   /** Right-click behavior is intentionally unimplemented for now. */
   override handleRightClick(_pointer: Vector3): void {
-    // throw new Error("Method not implemented.");
+    void _pointer; // Required by interface but unused in this implementation
   }
 
   /**
@@ -103,6 +104,7 @@ export class MarkingEditor extends BaseEditor {
    * The preview is reparented (not disposed) so meshes/lights remain intact.
    */
   override handleClickRelease(_pointer: Vector3): void {
+    void _pointer; // Required by interface but unused in this implementation
     if (this.addMarkingOnRelease && this.intent) {
       // Reparent preview objects from the editor overlay to the world group
       // (Do NOT dispose here; disposing would destroy meshes/lights like the

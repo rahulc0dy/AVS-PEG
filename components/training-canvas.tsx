@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { Camera, Scene, WebGLRenderer } from "three";
+import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
@@ -15,7 +15,6 @@ import { FpsMeter } from "@/components/ui/fps-meter";
 interface TrainingCanvasProps {
   scene: Scene;
   camera: Camera;
-  renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
@@ -31,11 +30,11 @@ interface TrainingCanvasProps {
 export default function TrainingCanvas({
   scene,
   camera,
-  renderer,
   dom,
 }: TrainingCanvasProps) {
   const [carCount, setCarCount] = useState(10);
   const [isTraining, setIsTraining] = useState(false);
+  const [currentCarCount, setCurrentCarCount] = useState(0);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -83,6 +82,7 @@ export default function TrainingCanvas({
       "avs-peg-best-brain",
       JSON.stringify({
         timestamp: Date.now(),
+        carPosition: { x: bestCar.position.x, y: bestCar.position.y },
         // In a real implementation: bestCar.brain.toJSON()
       }),
     );
@@ -99,6 +99,7 @@ export default function TrainingCanvas({
       maxSpeed: 0.5,
     });
 
+    setCurrentCarCount(world.cars.length);
     setIsTraining(true);
   }, [worldRef, carCount]);
 
@@ -108,6 +109,7 @@ export default function TrainingCanvas({
 
     // Clear all cars using SpawnerSystem
     world.spawnerSystem.clearCars();
+    setCurrentCarCount(0);
     setIsTraining(false);
   }, [worldRef]);
 
@@ -119,11 +121,13 @@ export default function TrainingCanvas({
     world.spawnerSystem.resetCars(carCount, ControlType.AI, {
       maxSpeed: 0.5,
     });
+    setCurrentCarCount(world.cars.length);
   }, [worldRef, carCount]);
 
   const handleLoadWorld = useCallback(() => {
     loadFromJson();
     // Reset training state since loading clears all cars
+    setCurrentCarCount(0);
     setIsTraining(false);
   }, [loadFromJson]);
 
@@ -170,7 +174,7 @@ export default function TrainingCanvas({
 
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3">
             <p>Status: {isTraining ? "Training..." : "Ready"}</p>
-            <p>Cars: {worldRef.current?.cars.length ?? 0}</p>
+            <p>Cars: {currentCarCount}</p>
           </div>
         </CardContent>
       </Card>

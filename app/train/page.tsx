@@ -18,7 +18,6 @@ export default function TrainPage() {
         <TrainingCanvas
           scene={context.scene}
           camera={context.camera}
-          renderer={context.renderer}
           dom={context.dom}
         />
       )}
