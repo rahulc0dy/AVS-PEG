@@ -48,17 +48,21 @@ export function parseRoadsFromOsmData(osmData: OsmResponse): Graph {
 
   const nodes = rawNodes.filter((n) => usedNodeIds.has(n.id));
 
-  const lats = nodes.map((n) => n.lat);
-  const lons = nodes.map((n) => n.lon);
-
-  if (lats.length === 0 || lons.length === 0) {
+  if (nodes.length === 0) {
     return new Graph([], []);
   }
 
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+
+  for (const node of nodes) {
+    if (node.lat < minLat) minLat = node.lat;
+    if (node.lat > maxLat) maxLat = node.lat;
+    if (node.lon < minLon) minLon = node.lon;
+    if (node.lon > maxLon) maxLon = node.lon;
+  }
   const deltaLat = maxLat - minLat;
   const deltaLon = maxLon - minLon;
 
