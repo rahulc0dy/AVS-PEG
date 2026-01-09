@@ -15,6 +15,20 @@ import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 
 /**
+ * Configuration options for initializing a World instance.
+ */
+export interface WorldConfig {
+  /**
+   * Initial cars to spawn. If not provided, defaults to empty array.
+   * Use `generateTraffic()` to spawn cars after initialization.
+   */
+  initialCars?: {
+    position: Vector2;
+    controlType: ControlType;
+  }[];
+}
+
+/**
  * Responsible for generating visual road geometry from a `Graph`, managing
  * world objects (cars, markings), and providing serialization helpers for
  * save/load. The `World` owns a Three.js `Group` (`worldGroup`) which is
@@ -47,26 +61,34 @@ export class World {
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
+   * @param config - Optional configuration for world initialization
    */
-  constructor(scene: Scene) {
+  constructor(scene: Scene, config?: WorldConfig) {
     this.graph = new Graph();
     this.scene = scene;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
 
-    this.cars = [
-      new Car(
-        new Vector2(0, 0),
-        10,
-        17.5,
-        7,
-        ControlType.HUMAN,
-        this.worldGroup,
-      ),
-      new Car(new Vector2(20, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
-      new Car(new Vector2(40, 0), 10, 17.5, 7, ControlType.AI, this.worldGroup),
-    ];
+    // Initialize with empty car array by default
+    // Cars can be added via config.initialCars or generateTraffic()
+    this.cars = [];
+
+    // If initial cars are provided in config, create them
+    if (config?.initialCars) {
+      for (const carConfig of config.initialCars) {
+        this.cars.push(
+          new Car(
+            carConfig.position,
+            10, // breadth
+            17.5, // length
+            7, // height
+            carConfig.controlType,
+            this.worldGroup,
+          ),
+        );
+      }
+    }
 
     this.markings = [];
 
@@ -85,6 +107,144 @@ export class World {
   }
 
   /**
+   * Generate traffic by spawning multiple cars at random positions on roads.
+   *
+   * @param count - Number of cars to spawn
+   * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
+   * @param options - Optional configuration for car spawning
+   */
+  generateTraffic(
+    count: number,
+    controlType: ControlType,
+    options?: {
+      /** Custom breadth for cars (default: 10) */
+      breadth?: number;
+      /** Custom length for cars (default: 17.5) */
+      length?: number;
+      /** Custom height for cars (default: 7) */
+      height?: number;
+      /** Custom max speed for cars (default: 0.5) */
+      maxSpeed?: number;
+      /** Clear existing cars before spawning (default: true) */
+      clearExisting?: boolean;
+    },
+  ): void {
+    const {
+      breadth = 10,
+      length = 17.5,
+      height = 7,
+      maxSpeed = 0.5,
+      clearExisting = true,
+    } = options ?? {};
+
+    // Optionally clear existing cars
+    if (clearExisting) {
+      for (const car of this.cars) {
+        car.dispose();
+      }
+      this.cars = [];
+    }
+
+    // Minimum distance between car centers to avoid overlap
+    const minDistance = Math.max(breadth, length) * 1.5;
+
+    // Helper to check if a position is too close to existing cars
+    const isTooClose = (x: number, y: number): boolean => {
+      for (const car of this.cars) {
+        const dx = car.position.x - x;
+        const dy = car.position.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDistance) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // If no roads exist, spawn spread out from origin
+    if (this.roads.length === 0) {
+      for (let i = 0; i < count; i++) {
+        // Spread cars in a grid pattern to avoid overlap
+        const cols = Math.ceil(Math.sqrt(count));
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const spacing = minDistance * 1.5;
+        const x = (col - cols / 2) * spacing;
+        const y = row * spacing;
+
+        const car = new Car(
+          new Vector2(x, y),
+          breadth,
+          length,
+          height,
+          controlType,
+          this.worldGroup,
+          0, // angle
+          maxSpeed,
+        );
+        this.cars.push(car);
+      }
+      return;
+    }
+
+    // Spawn cars at random positions along roads, avoiding overlaps
+    const maxAttempts = 50; // Max attempts per car to find a valid position
+    for (let i = 0; i < count; i++) {
+      let placed = false;
+
+      for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
+        // Pick a random road
+        const road = this.roads[Math.floor(Math.random() * this.roads.length)];
+        const skeleton = road.skeleton;
+
+        // Get random position along the road
+        const t = Math.random();
+        const x = skeleton.n1.x + t * (skeleton.n2.x - skeleton.n1.x);
+        const y = skeleton.n1.y + t * (skeleton.n2.y - skeleton.n1.y);
+
+        // Check if position is valid (not too close to other cars)
+        if (!isTooClose(x, y)) {
+          // Calculate road angle for car orientation
+          const angle = Math.atan2(
+            skeleton.n2.y - skeleton.n1.y,
+            skeleton.n2.x - skeleton.n1.x,
+          );
+
+          const car = new Car(
+            new Vector2(x, y),
+            breadth,
+            length,
+            height,
+            controlType,
+            this.worldGroup,
+            angle,
+            maxSpeed,
+          );
+          this.cars.push(car);
+          placed = true;
+        }
+      }
+
+      // If couldn't place after max attempts, skip this car
+      if (!placed) {
+        console.warn(
+          `Could not find valid position for car ${i + 1}/${count} after ${maxAttempts} attempts`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Clear all cars from the world.
+   */
+  clearCars(): void {
+    for (const car of this.cars) {
+      car.dispose();
+    }
+    this.cars = [];
+  }
+
+  /**
    * Update the world state: move cars and update their sensors.
    * This function should be called once per frame.
    */
@@ -92,11 +252,7 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(
-        this.cars.filter((c) => c !== car),
-        this.graph.getEdges(),
-        this.roadWidth,
-      );
+      car.update(this.cars.filter((c) => c !== car));
     }
     for (const marking of this.markings) {
       marking.update();
@@ -240,6 +396,7 @@ export class World {
   fromJson(json: WorldJson): void {
     this.dispose();
     this.markings.length = 0;
+    this.cars = []; // Clear the cars array after disposing
 
     this.graph.fromJson(json.graph);
     this.trafficLightGraph.fromJson(json.trafficLightGraph);
