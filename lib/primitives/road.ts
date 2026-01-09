@@ -15,6 +15,7 @@ import {
   createLaneTexture,
 } from "@/utils/road-surface-texture";
 import { ARROW_SPACING, ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
+import { angle } from "@/utils/math";
 
 /**
  * Represents a road segment in the world, extending {@link Envelope} to provide
@@ -100,13 +101,6 @@ export class Road extends Envelope {
    */
   get isDirected(): boolean {
     return this.skeleton.isDirected;
-  }
-
-  /**
-   * Sets whether this road is one-way (directed).
-   */
-  set isDirected(val: boolean) {
-    this.skeleton.isDirected = val;
   }
 
   /**
@@ -325,11 +319,11 @@ export class Road extends Envelope {
     mesh.position.set((n1.x + n2.x) / 2, 0.03, (n1.y + n2.y) / 2);
 
     // Align mesh with road direction
-    const roadAngle = Math.atan2(n2.y - n1.y, n2.x - n1.x);
+    const roadAngle = angle(this.skeleton.directionVector());
     // Lay flat on XZ plane
     mesh.rotation.x = -Math.PI / 2;
     // Rotate so texture "forward" aligns with n1 → n2
-    mesh.rotation.z = -roadAngle + Math.PI / 2;
+    mesh.rotation.z = -roadAngle - Math.PI / 2;
 
     return mesh;
   }
