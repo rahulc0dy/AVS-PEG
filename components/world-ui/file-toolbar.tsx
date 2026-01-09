@@ -25,13 +25,13 @@ export function FileToolbar({
 }: FileToolbarProps) {
   return (
     <div className="fixed top-4 right-4 z-10 flex flex-col space-y-2">
-      <Button onClick={onImportOsm} color="teal" className="text-xs">
+      <Button onClick={onImportOsm} variant="outline" size="sm">
         Import from OSM
       </Button>
-      <Button onClick={onLoadJson} color="teal" className="text-xs">
+      <Button onClick={onLoadJson} variant="outline" size="sm">
         Import from JSON
       </Button>
-      <Button onClick={onSaveJson} color="teal" className="text-xs">
+      <Button onClick={onSaveJson} size="sm">
         Save to JSON
       </Button>
     </div>
