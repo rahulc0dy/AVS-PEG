@@ -3,8 +3,8 @@ import { getIntersection, Intersection, lerp } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import {
+  BufferAttribute,
   BufferGeometry,
-  Float32BufferAttribute,
   Group,
   Line,
   LineBasicMaterial,
@@ -33,6 +33,9 @@ export class Sensor {
   /** Three.js Group used to render debug lines for the rays. */
   private sensorGroup: Group;
 
+  /** Cached Three.js line meshes, 1:1 with ray index. */
+  private rayLines: Array<Line<BufferGeometry, LineBasicMaterial>>;
+
   /**
    * Create a Sensor attached to `car`.
    * @param car Owner car that provides position/heading for casting rays.
@@ -46,6 +49,7 @@ export class Sensor {
     this.rays = [];
     this.readings = [];
     this.sensorGroup = new Group();
+    this.rayLines = [];
   }
 
   /**
@@ -124,71 +128,87 @@ export class Sensor {
     const minOffset = Math.min(...offsets);
     return touches.find((e) => e.offset == minOffset);
   }
+
+  /**
+   * Ensure we have a cached line mesh (geometry + material) per ray.
+   *
+   * We allocate once and then only mutate the position attribute array in `draw()`.
+   */
+  private ensureRayLines() {
+    // Grow pool
+    for (let i = this.rayLines.length; i < this.rayCount; i++) {
+      const geometry = new BufferGeometry();
+      // 2 points (start/end) => 6 floats
+      const positions = new Float32Array(6);
+      geometry.setAttribute("position", new BufferAttribute(positions, 3));
+      // Precompute bounds for frustum culling updates; will be recomputed on updates.
+      geometry.computeBoundingSphere();
+
+      const material = new LineBasicMaterial({
+        color: 0xff0000,
+        linewidth: 2,
+      });
+
+      const line = new Line(geometry, material);
+      line.visible = false; // default: only show if we have a reading
+
+      this.rayLines.push(line);
+      this.sensorGroup.add(line);
+    }
+
+    // Shrink pool if rayCount reduced
+    while (this.rayLines.length > this.rayCount) {
+      const line = this.rayLines.pop();
+      if (!line) break;
+      this.sensorGroup.remove(line);
+      line.geometry.dispose();
+      line.material.dispose();
+    }
+  }
+
   /**
    * Draw debug lines for the sensor rays into `group`.
    *
-   * Rays are drawn at world Y=2 and Node.y is mapped directly to Three.js
-   * Z when creating the line vertices.
-   *
-   * @param group Parent Three.js `Group` to which the debug lines are added
+   * Only rays with a valid `reading` are rendered; rays with no hit are hidden.
    */
   draw(group: Group) {
-    // Add sensorGroup to the scene (once) and draw lines for each ray.
+    // Add sensorGroup to the scene (once).
     if (!this.sensorGroup.parent) {
       group.add(this.sensorGroup);
     }
 
-    for (let i = 0; i < this.rayCount; i++) {
-      if (!this.rays[i]) continue;
+    this.ensureRayLines();
 
-      const endPos = this.readings[i]
-        ? { x: this.readings[i]!.x, y: this.readings[i]!.y }
-        : this.rays[i].n2;
+    for (let i = 0; i < this.rayCount; i++) {
+      const ray = this.rays[i];
+      const reading = this.readings[i] ?? null;
+      const line = this.rayLines[i];
+
+      // If we haven't updated rays/readings yet, or there's no intersection, don't render this one.
+      if (!ray || !reading) {
+        if (line) line.visible = false;
+        continue;
+      }
+
+      // Visible only when intersection exists
+      line.visible = true;
 
       // Map Node.y directly to Three.js Z when drawing (sensor lines sit at y=2)
-      const points = [
-        this.rays[i].n1.x,
-        2,
-        this.rays[i].n1.y,
-        endPos.x,
-        2,
-        endPos.y,
-      ];
+      const positions = (
+        line.geometry.getAttribute("position") as BufferAttribute
+      ).array as Float32Array;
 
-      let line = this.sensorGroup.children[i] as Line<
-        BufferGeometry,
-        LineBasicMaterial
-      >;
+      positions[0] = ray.n1.x;
+      positions[1] = 2;
+      positions[2] = ray.n1.y;
+      positions[3] = reading.x;
+      positions[4] = 2;
+      positions[5] = reading.y;
 
-      if (line) {
-        // Update existing line
-        line.geometry.setAttribute(
-          "position",
-          new Float32BufferAttribute(points, 3),
-        );
-        line.material.color.set(this.readings[i] ? 0xff0000 : 0xffff00);
-        line.geometry.computeBoundingSphere(); // Important for frustum culling
-      } else {
-        // Create new line if it doesn't exist
-        const geometry = new BufferGeometry();
-        geometry.setAttribute(
-          "position",
-          new Float32BufferAttribute(points, 3),
-        );
-        const material = new LineBasicMaterial({
-          color: this.readings[i] ? 0xff0000 : 0xffff00,
-          linewidth: 2,
-        });
-        line = new Line(geometry, material);
-        this.sensorGroup.add(line);
-      }
-    }
-
-    // Remove any excess lines if rayCount was reduced
-    while (this.sensorGroup.children.length > this.rayCount) {
-      const line = this.sensorGroup.children.pop() as Line;
-      line.geometry.dispose();
-      (line.material as LineBasicMaterial).dispose();
+      const attr = line.geometry.getAttribute("position") as BufferAttribute;
+      attr.needsUpdate = true;
+      line.material.color.set(0xff0000);
+      line.geometry.computeBoundingSphere();
     }
   }
 
@@ -196,15 +216,12 @@ export class Sensor {
    * Dispose sensor debug meshes/materials and detach from the scene.
    */
   dispose() {
-    this.sensorGroup.children.forEach((child) => {
-      const line = child as Line;
-      if (line.geometry) {
-        line.geometry.dispose();
-      }
-      if (line.material) {
-        (line.material as LineBasicMaterial).dispose();
-      }
+    this.rayLines.forEach((line) => {
+      line.geometry.dispose();
+      line.material.dispose();
     });
+    this.rayLines = [];
+
     this.sensorGroup.clear();
     if (this.sensorGroup.parent) {
       this.sensorGroup.parent.remove(this.sensorGroup);
