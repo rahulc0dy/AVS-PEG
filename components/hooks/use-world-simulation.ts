@@ -1,4 +1,4 @@
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
 import { Camera } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";

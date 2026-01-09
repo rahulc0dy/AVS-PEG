@@ -1,6 +1,6 @@
 import { Color, Group, Scene, Vector2 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-import { Road } from "@/lib/primitives/road";
+import { Road } from "@/lib/world/road";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Graph } from "@/lib/primitives/graph";
 import { Car } from "@/lib/car/car";

@@ -1,7 +1,7 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 

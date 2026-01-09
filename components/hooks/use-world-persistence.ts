@@ -1,4 +1,4 @@
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject } from "react";
 
 /**
