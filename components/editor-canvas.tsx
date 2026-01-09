@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
 import OsmModal from "@/components/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
@@ -67,10 +67,6 @@ export default function EditorCanvas({
     const editor = sourceDestinationEditorRef.current;
     if (editor) {
       editor.setMarkingType(sourceDestMarkingType);
-      // Set up callback to update UI when editor changes type (e.g., auto-switch after placing source)
-      editor.setOnMarkingTypeChange((type) => {
-        setSourceDestMarkingType(type);
-      });
     }
   }, [sourceDestinationEditorRef, sourceDestMarkingType]);
 

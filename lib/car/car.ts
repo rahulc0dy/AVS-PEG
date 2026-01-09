@@ -305,36 +305,43 @@ export class Car {
    * collider mesh.
    */
   dispose() {
+    // Dispose sensor
     if (this.sensor) {
       this.sensor.dispose();
     }
-    if (!this.model) return;
-    if (this.model.parent) {
-      this.model.parent.remove(this.model);
-    }
-    this.model.traverse((child: Object3D) => {
-      if (child instanceof Mesh) {
-        child.geometry.dispose();
-        const material = child.material as Material | Material[];
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat.dispose());
-        } else {
-          material.dispose();
-        }
+
+    if (this.model) {
+      // Remove from parent group
+      if (this.model.parent) {
+        this.model.parent.remove(this.model);
       }
-    });
-    this.model = null;
+
+      // Dispose meshes
+      this.model.traverse((child: Object3D) => {
+        if (child instanceof Mesh) {
+          child.geometry.dispose();
+          const material = child.material as Material | Material[];
+          if (Array.isArray(material)) {
+            material.forEach((mat) => mat.dispose());
+          } else {
+            material.dispose();
+          }
+        }
+      });
+      this.model = null;
+    }
     this.loadingModel = false;
 
     if (this.carColliderMesh) {
+      // Remove from parent
+      if (this.carColliderMesh.parent) {
+        this.carColliderMesh.parent.remove(this.carColliderMesh);
+      }
       this.carColliderMesh.geometry.dispose();
       this.carColliderMesh.material.dispose();
+      // Clear the mesh
+      this.carColliderMesh.clear();
       this.carColliderMesh = null;
-    }
-
-    this.group.clear();
-    if (this.group.parent) {
-      this.group.parent.remove(this.group);
     }
   }
 }

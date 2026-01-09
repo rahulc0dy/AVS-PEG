@@ -45,7 +45,7 @@ export default function TrainingCanvas({
 
   const { loadFromJson } = useWorldPersistence(worldRef);
 
-  // Load saved world and spawn training cars on mount
+  // Load saved world on mount (but don't spawn cars yet)
   useEffect(() => {
     if (!world) return;
 
@@ -61,15 +61,7 @@ export default function TrainingCanvas({
         console.warn("Failed to load saved world:", e);
       }
     }
-
-    // Spawn AI cars for training
-    world.generateTraffic(carCount, ControlType.AI, {
-      clearExisting: true,
-      maxSpeed: 0.5,
-    });
-
-    setIsTraining(true);
-  }, [world, carCount]);
+  }, [world]);
 
   const handleSaveBrain = useCallback(() => {
     // Placeholder for brain saving logic
@@ -98,30 +90,42 @@ export default function TrainingCanvas({
     alert("Brain saved! (placeholder)");
   }, [worldRef]);
 
-  const handleResetTraining = useCallback(() => {
+  const handleSpawnCars = useCallback(() => {
     const world = worldRef.current;
     if (!world) return;
 
-    // Regenerate cars
-    world.generateTraffic(carCount, ControlType.AI, {
-      clearExisting: true,
+    // Spawn AI cars for training using SpawnerSystem
+    world.spawnerSystem.spawnCars(carCount, ControlType.AI, {
+      maxSpeed: 0.5,
+    });
+
+    setIsTraining(true);
+  }, [worldRef, carCount]);
+
+  const handleClearCars = useCallback(() => {
+    const world = worldRef.current;
+    if (!world) return;
+
+    // Clear all cars using SpawnerSystem
+    world.spawnerSystem.clearCars();
+    setIsTraining(false);
+  }, [worldRef]);
+
+  const handleResetCars = useCallback(() => {
+    const world = worldRef.current;
+    if (!world) return;
+
+    // Reset cars (clear and respawn) using SpawnerSystem
+    world.spawnerSystem.resetCars(carCount, ControlType.AI, {
       maxSpeed: 0.5,
     });
   }, [worldRef, carCount]);
 
   const handleLoadWorld = useCallback(() => {
     loadFromJson();
-    // After loading, regenerate cars
-    setTimeout(() => {
-      const world = worldRef.current;
-      if (world) {
-        world.generateTraffic(carCount, ControlType.AI, {
-          clearExisting: true,
-          maxSpeed: 0.5,
-        });
-      }
-    }, 100);
-  }, [loadFromJson, worldRef, carCount]);
+    // Reset training state since loading clears all cars
+    setIsTraining(false);
+  }, [loadFromJson]);
 
   return (
     <>
@@ -147,7 +151,15 @@ export default function TrainingCanvas({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Button onClick={handleResetTraining}>Reset Training</Button>
+            <Button onClick={handleSpawnCars} disabled={isTraining}>
+              Spawn Cars
+            </Button>
+            <Button onClick={handleResetCars} disabled={!isTraining}>
+              Reset Cars
+            </Button>
+            <Button onClick={handleClearCars} disabled={!isTraining}>
+              Clear Cars
+            </Button>
             <Button variant="outline" onClick={handleSaveBrain}>
               Save Best Brain
             </Button>
@@ -157,7 +169,7 @@ export default function TrainingCanvas({
           </div>
 
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3">
-            <p>Status: {isTraining ? "Training..." : "Initializing..."}</p>
+            <p>Status: {isTraining ? "Training..." : "Ready"}</p>
             <p>Cars: {worldRef.current?.cars.length ?? 0}</p>
           </div>
         </CardContent>
