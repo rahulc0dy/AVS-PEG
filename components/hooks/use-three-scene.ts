@@ -1,6 +1,6 @@
 import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
-import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import { Camera, Scene, WebGLRenderer } from "three";
 
 /**
  * Configuration options for the Three.js scene setup.
@@ -59,7 +59,9 @@ export function useThreeScene(
 
   // Store config in ref to avoid re-running effect when config object changes
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => {
+    configRef.current = config;
+  });
 
   useEffect(() => {
     if (!mountRef.current) return;

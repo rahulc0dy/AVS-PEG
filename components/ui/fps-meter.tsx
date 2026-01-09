@@ -13,7 +13,7 @@ interface FpsMeterProps {
 export function FpsMeter({ className = "" }: FpsMeterProps) {
   const [fps, setFps] = useState(0);
   const frameCountRef = useRef(0);
-  const lastTimeRef = useRef(performance.now());
+  const lastTimeRef = useRef(0 as DOMHighResTimeStamp);
   const rafIdRef = useRef<number>(0);
 
   useEffect(() => {

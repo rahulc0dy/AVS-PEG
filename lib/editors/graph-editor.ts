@@ -121,6 +121,7 @@ export class GraphEditor extends BaseEditor {
    * @param _pointer - 3D pointer position (x, z used as node coords)
    */
   override handleLeftClick(_pointer: Vector3) {
+    void _pointer; // Required by interface but unused in this implementation
     if (this.hoveredNode) {
       this.selectNode(this.hoveredNode);
       this.isDragging = true;
@@ -136,6 +137,7 @@ export class GraphEditor extends BaseEditor {
    * @param _pointer - 3D pointer position
    */
   override handleRightClick(_pointer: Vector3) {
+    void _pointer; // Required by interface but unused in this implementation
     if (this.selectedNode) {
       this.selectedNode = null;
       this.needsRedraw = true;

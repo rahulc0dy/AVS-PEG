@@ -1,5 +1,5 @@
 import { World, WorldConfig } from "@/lib/world/world";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { GridHelper, Scene } from "three";
 
 /**
@@ -56,7 +56,7 @@ export function useWorld(
 ): UseWorldResult {
   const worldRef = useRef<World | null>(null);
   const gridRef = useRef<GridHelper | null>(null);
-  const [world, setWorld] = useState<World | null>(null);
+  const subscribersRef = useRef<Set<() => void>>(new Set());
 
   const {
     worldConfig,
@@ -65,11 +65,22 @@ export function useWorld(
     gridDivisions = 40,
   } = options ?? {};
 
+  // Use useSyncExternalStore to avoid setState in effect
+  const world = useSyncExternalStore(
+    (callback) => {
+      subscribersRef.current.add(callback);
+      return () => subscribersRef.current.delete(callback);
+    },
+    () => worldRef.current,
+    () => null,
+  );
+
   useEffect(() => {
     // Create the World instance
     const newWorld = new World(scene, worldConfig);
     worldRef.current = newWorld;
-    setWorld(newWorld); // Trigger re-render for dependent hooks
+    // Notify subscribers that world has changed
+    subscribersRef.current.forEach((cb) => cb());
 
     // Add grid helper if enabled
     if (showGrid) {
@@ -90,7 +101,7 @@ export function useWorld(
         gridRef.current.dispose();
         gridRef.current = null;
       }
-      setWorld(null);
+      subscribersRef.current.forEach((cb) => cb());
     };
   }, [scene, worldConfig, showGrid, gridSize, gridDivisions]);
 

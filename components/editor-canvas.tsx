@@ -45,6 +45,9 @@ export default function EditorCanvas({
 
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
+  // Interface requirement but variable unused
+  void renderer;
+  
   // Initialize editors (requires world to be ready)
   const {
     activeMode,

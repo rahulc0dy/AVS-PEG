@@ -10,9 +10,9 @@ import { useTrafficDetector } from "@/components/hooks/use-traffic-detector";
 import { ControlType } from "@/lib/car/controls";
 import {
   Card,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { FpsMeter } from "@/components/ui/fps-meter";
 
@@ -68,14 +68,12 @@ export default function SimulationCanvas({
     }
 
     // Spawn the human-controlled car
-    world.generateTraffic(1, ControlType.HUMAN, {
-      clearExisting: false,
+    world.spawnerSystem.spawnCars(1, ControlType.HUMAN, {
       maxSpeed: 0.5,
     });
 
     // Add some AI traffic
-    world.generateTraffic(5, ControlType.AI, {
-      clearExisting: false,
+    world.spawnerSystem.spawnCars(5, ControlType.AI, {
       maxSpeed: 0.3,
     });
   }, [world]);
