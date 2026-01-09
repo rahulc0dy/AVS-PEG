@@ -10,7 +10,7 @@ import {
   MINIVIEW_Y,
   MINICAM_FOV,
 } from "@/env";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
 import { PerspectiveCamera, Scene, WebGLRenderer, Camera } from "three";
 

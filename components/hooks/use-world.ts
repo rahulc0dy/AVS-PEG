@@ -1,4 +1,4 @@
-import { World, WorldConfig } from "@/lib/world";
+import { World, WorldConfig } from "@/lib/world/world";
 import { useEffect, useRef, useState } from "react";
 import { GridHelper, Scene } from "three";
 

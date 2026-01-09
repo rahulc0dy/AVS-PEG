@@ -8,7 +8,7 @@ import Label from "@/components/ui/label";
 import { getRoadData } from "@/services/osm-service";
 import { parseRoadsFromOsmData } from "@/utils/osm";
 import Link from "next/link";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 
 /**
  * Props for `OsmModal`.
