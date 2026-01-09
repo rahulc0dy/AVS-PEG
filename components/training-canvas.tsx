@@ -34,7 +34,7 @@ export default function TrainingCanvas({
   renderer,
   dom,
 }: TrainingCanvasProps) {
-  const [carCount, setCarCount] = useState(100);
+  const [carCount, setCarCount] = useState(10);
   const [isTraining, setIsTraining] = useState(false);
 
   // Initialize the World instance (no initial cars)
