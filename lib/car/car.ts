@@ -331,5 +331,10 @@ export class Car {
       this.carColliderMesh.material.dispose();
       this.carColliderMesh = null;
     }
+
+    this.group.clear();
+    if (this.group.parent) {
+      this.group.parent.remove(this.group);
+    }
   }
 }
