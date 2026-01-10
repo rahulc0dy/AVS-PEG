@@ -1,5 +1,12 @@
-import { Level } from "@/lib/ai/level";
+import { Level, LevelJson } from "@/lib/ai/level";
 import { getRandomNumberBetween, lerp } from "@/utils/math";
+
+/**
+ * JSON representation of a NeuralNetwork for serialization.
+ */
+export interface NeuralNetworkJson {
+  levels: LevelJson[];
+}
 
 export class NeuralNetwork {
   levels: Level[];
@@ -12,6 +19,32 @@ export class NeuralNetwork {
 
   decide(givenInputs: number[]) {
     return NeuralNetwork.feedForward(givenInputs, this);
+  }
+
+  /**
+   * Serialize the neural network to a JSON object.
+   */
+  toJson(): NeuralNetworkJson {
+    return {
+      levels: this.levels.map((level) => level.toJson()),
+    };
+  }
+
+  /**
+   * Load the neural network state from a JSON object.
+   */
+  fromJson(json: NeuralNetworkJson): void {
+    this.levels = json.levels.map((levelJson) => Level.fromJson(levelJson));
+  }
+
+  /**
+   * Create a NeuralNetwork from a JSON object.
+   */
+  static fromJson(json: NeuralNetworkJson): NeuralNetwork {
+    // Create a dummy network, then replace its levels
+    const network = new NeuralNetwork([1, 1]); // Minimal placeholder
+    network.levels = json.levels.map((levelJson) => Level.fromJson(levelJson));
+    return network;
   }
 
   static feedForward(givenInputs: number[], network: NeuralNetwork) {

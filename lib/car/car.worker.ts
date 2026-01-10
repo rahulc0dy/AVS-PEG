@@ -162,12 +162,23 @@ type WorkerState = {
   damaged: boolean;
   controls: ControlsDto;
   brain: NeuralNetwork | null;
+  /** Best (minimum) distance to destination achieved so far */
+  bestDistanceToDestination: number;
+  /** Whether the car has reached the destination */
+  reachedDestination: boolean;
 };
+
+/** Distance threshold to consider the car has reached the destination */
+const DESTINATION_THRESHOLD = 30;
 
 let state: WorkerState | null = null;
 
 function post(msg: CarWorkerOutboundMessage) {
   self.postMessage(msg);
+}
+
+function defaultDestinationRelative(): { angleDiff: number; distance: number } {
+  return { angleDiff: 0, distance: 1 };
 }
 
 function moveCar(s: WorkerState) {
@@ -223,8 +234,21 @@ function computeTick(tick: CarTickDto): CarStateDto {
   const offsets = readings.map((s) => (s == null ? 0 : 1 - s.offset));
 
   const roadRelative = tick.roadRelative ?? defaultRoadRelative();
-  const nnInputs = offsets.concat([roadRelative.lateral, roadRelative.along]);
-  console.log("NN Inputs:", nnInputs);
+  const destRelative = tick.destinationRelative ?? defaultDestinationRelative();
+
+  // Neural network inputs:
+  // - Sensor offsets (rayCount inputs): obstacle detection
+  // - Road relative lateral: how far from road center
+  // - Road relative along: position along road segment
+  // - Destination angle diff: which way to turn to face destination
+  // - Destination distance: how far to destination
+  const nnInputs = offsets.concat([
+    roadRelative.lateral,
+    roadRelative.along,
+    destRelative.angleDiff,
+    destRelative.distance,
+  ]);
+
   if (init.controlType === ControlType.AI && state.brain) {
     const outputs = state.brain.decide(nnInputs);
     state.controls = {
@@ -250,6 +274,36 @@ function computeTick(tick: CarTickDto): CarStateDto {
     state.damaged = assessDamage(polygon, tick.traffic);
   }
 
+  // Calculate fitness based on distance to destination
+  let fitness = 0;
+  if (init.destinationPosition) {
+    const dx = state.position.x - init.destinationPosition.x;
+    const dy = state.position.y - init.destinationPosition.y;
+    const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
+
+    // Track best distance achieved
+    if (distanceToDestination < state.bestDistanceToDestination) {
+      state.bestDistanceToDestination = distanceToDestination;
+    }
+
+    // Check if reached destination
+    if (distanceToDestination < DESTINATION_THRESHOLD) {
+      state.reachedDestination = true;
+    }
+
+    // Fitness calculation:
+    // Base fitness from best distance achieved (closer = higher)
+    const distanceFitness = 1 / (1 + state.bestDistanceToDestination / 100);
+
+    // Bonus for reaching destination
+    const destinationBonus = state.reachedDestination ? 1.0 : 0;
+
+    // Penalty for being damaged (reduces fitness by 50%)
+    const damagePenalty = state.damaged ? 0.5 : 1.0;
+
+    fitness = (distanceFitness + destinationBonus) * damagePenalty;
+  }
+
   return {
     id: init.id,
     position: { x: state.position.x, y: state.position.y },
@@ -262,6 +316,8 @@ function computeTick(tick: CarTickDto): CarStateDto {
       rays,
       readings,
     },
+    fitness,
+    reachedDestination: state.reachedDestination,
   };
 }
 
@@ -271,6 +327,37 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
   switch (msg.type) {
     case "init": {
       const init: CarInitDto = msg.init;
+
+      // Neural network architecture:
+      // Inputs: rayCount sensors + 4 navigation features (lateral, along, angleDiff, distance)
+      // Hidden layer: 8 neurons (enough to learn steering patterns)
+      // Outputs: 4 controls (forward, left, right, reverse)
+      const inputCount = init.rayCount + 4;
+
+      // Create brain: either from provided JSON (with optional mutation) or random
+      let brain: NeuralNetwork | null = null;
+      if (init.controlType === ControlType.AI) {
+        if (init.brainJson) {
+          // Load brain from provided JSON
+          brain = NeuralNetwork.fromJson(init.brainJson);
+          // Apply mutation if specified
+          if (init.mutationAmount !== undefined && init.mutationAmount > 0) {
+            NeuralNetwork.mutate(brain, init.mutationAmount);
+          }
+        } else {
+          // Create a new random brain with improved architecture
+          brain = new NeuralNetwork([inputCount, 8, 4]);
+        }
+      }
+
+      // Calculate initial distance to destination
+      let initialDistance = Infinity;
+      if (init.destinationPosition) {
+        const dx = init.position.x - init.destinationPosition.x;
+        const dy = init.position.y - init.destinationPosition.y;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+      }
+
       state = {
         init,
         position: { ...init.position },
@@ -281,10 +368,9 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
           init.controlType === ControlType.AI
             ? { forward: true, left: false, right: false, reverse: false }
             : defaultControls(),
-        brain:
-          init.controlType === ControlType.AI
-            ? new NeuralNetwork([init.rayCount + 2, 6, 4])
-            : null,
+        brain,
+        bestDistanceToDestination: initialDistance,
+        reachedDestination: false,
       };
       post({ type: "ready", id: init.id });
       return;
@@ -294,6 +380,16 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
       if (!state) return;
       const newState = computeTick(msg.tick);
       post({ type: "state", state: newState });
+      return;
+    }
+
+    case "getBrain": {
+      if (!state) {
+        post({ type: "brain", id: "", brainJson: null });
+        return;
+      }
+      const brainJson = state.brain ? state.brain.toJson() : null;
+      post({ type: "brain", id: state.init.id, brainJson });
       return;
     }
   }

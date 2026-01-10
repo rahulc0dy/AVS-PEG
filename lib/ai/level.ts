@@ -1,5 +1,15 @@
 import { getRandomNumberBetween } from "@/utils/math";
 
+/**
+ * JSON representation of a Level for serialization.
+ */
+export interface LevelJson {
+  inputs: number[];
+  outputs: number[];
+  biases: number[];
+  weights: number[][];
+}
+
 export class Level {
   inputs: number[];
   outputs: number[];
@@ -17,6 +27,37 @@ export class Level {
     }
 
     Level.randomize(this);
+  }
+
+  /**
+   * Serialize the level to a JSON object.
+   */
+  toJson(): LevelJson {
+    return {
+      inputs: [...this.inputs],
+      outputs: [...this.outputs],
+      biases: [...this.biases],
+      weights: this.weights.map((row) => [...row]),
+    };
+  }
+
+  /**
+   * Load the level state from a JSON object.
+   */
+  fromJson(json: LevelJson): void {
+    this.inputs = [...json.inputs];
+    this.outputs = [...json.outputs];
+    this.biases = [...json.biases];
+    this.weights = json.weights.map((row) => [...row]);
+  }
+
+  /**
+   * Create a Level from a JSON object.
+   */
+  static fromJson(json: LevelJson): Level {
+    const level = new Level(json.inputs.length, json.outputs.length);
+    level.fromJson(json);
+    return level;
   }
 
   private static randomize(level: Level) {

@@ -20,9 +20,21 @@ import type {
   CarTickDto,
   CarWorkerOutboundMessage,
   RoadRelativeDto,
+  DestinationRelativeDto,
   TrafficCarDto,
   WallEdgeDto,
 } from "@/lib/car/worker-protocol";
+import type { NeuralNetworkJson } from "@/lib/ai/network";
+
+/** Options for creating a car with AI training support */
+export interface CarOptions {
+  /** Pre-trained brain to load (if not provided, creates a random brain) */
+  brainJson?: NeuralNetworkJson;
+  /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
+  mutationAmount?: number;
+  /** Destination position for fitness calculation */
+  destinationPosition?: Vector2;
+}
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -68,6 +80,11 @@ export class Car {
   /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
 
+  /** Current fitness score (higher = better performance toward destination) */
+  fitness: number = 0;
+  /** Whether the car has reached the destination */
+  reachedDestination: boolean = false;
+
   private readonly controlType: ControlType;
 
   /** URL used to lazily load the GLTF model for this car. */
@@ -91,6 +108,12 @@ export class Car {
   /** When true, car-to-car overlap does not mark this car as damaged (used when stack-spawning). */
   ignoreCarDamage: boolean = false;
 
+  /** Options passed during construction for AI training */
+  private carOptions?: CarOptions;
+
+  /** Promise resolvers for getBrain requests */
+  private brainResolvers: Array<(brain: NeuralNetworkJson | null) => void> = [];
+
   /**
    * Create a new simulated car.
    * @param position Initial world position (x, y; where y maps to Three.js Z).
@@ -101,6 +124,7 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
+   * @param options Optional car options for AI training.
    */
   constructor(
     position: Vector2,
@@ -111,6 +135,7 @@ export class Car {
     group: Group,
     angle = 0,
     maxSpeed = 0.5,
+    options?: CarOptions,
   ) {
     this.id = `car-${Car.nextId++}`;
     this.position = position;
@@ -130,8 +155,24 @@ export class Car {
     this.controlType = controlType;
     this.controls = new Controls(controlType);
     this.group = group;
+    this.carOptions = options;
 
     this.initWorker();
+  }
+
+  /**
+   * Request the brain data from this car's worker.
+   * Returns a promise that resolves with the brain JSON or null if not available.
+   */
+  getBrain(): Promise<NeuralNetworkJson | null> {
+    return new Promise((resolve) => {
+      if (!this.worker || !this.workerReady) {
+        resolve(null);
+        return;
+      }
+      this.brainResolvers.push(resolve);
+      this.worker.postMessage({ type: "getBrain" });
+    });
   }
 
   update(
@@ -143,6 +184,7 @@ export class Car {
     this.draw(this.group, this.modelUrl);
 
     const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
+    const destinationRelative = this.computeDestinationRelativeFeatures();
 
     const trafficForWorker = this.sensor?.ignoreTraffic ? [] : traffic;
 
@@ -159,11 +201,56 @@ export class Car {
             }
           : undefined,
       roadRelative,
+      destinationRelative,
       walls: walls?.map<WallEdgeDto>((e) => ({
         n1: { x: e.n1.x, y: e.n1.y },
         n2: { x: e.n2.x, y: e.n2.y },
       })),
     });
+  }
+
+  /**
+   * Compute destination-relative features for AI navigation.
+   * Returns angle difference and normalized distance to destination.
+   */
+  private computeDestinationRelativeFeatures(): DestinationRelativeDto {
+    const destPos = this.carOptions?.destinationPosition;
+    if (!destPos) {
+      return { angleDiff: 0, distance: 1 };
+    }
+
+    // Vector from car to destination
+    const dx = destPos.x - this.position.x;
+    const dy = destPos.y - this.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Angle to destination in world coordinates
+    // Car movement uses: x -= sin(angle) * speed, y -= cos(angle) * speed
+    // So car faces direction: (-sin(angle), -cos(angle))
+    // Angle to destination: atan2(-dx, -dy) to match car coordinate system
+    const angleToDestination = Math.atan2(-dx, -dy);
+
+    // Difference between car heading and direction to destination
+    // Normalize to [-PI, PI]
+    let angleDiff = angleToDestination - this.angle;
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+    // Normalize angle diff to [-1, 1] where:
+    // -1 = need to turn left (destination on left)
+    //  0 = destination straight ahead
+    //  1 = need to turn right (destination on right)
+    const normalizedAngleDiff = angleDiff / Math.PI;
+
+    // Normalize distance using sigmoid-like function
+    // This gives smooth gradient: close = 0, far = approaching 1
+    const referenceDistance = 500; // Reference distance for normalization
+    const normalizedDistance = distance / (distance + referenceDistance);
+
+    return {
+      angleDiff: normalizedAngleDiff,
+      distance: normalizedDistance,
+    };
   }
 
   private computeRoadRelativeFeatures(
@@ -257,6 +344,17 @@ export class Car {
             this.requestWorkerTick(queued);
           }
           return;
+
+        case "brain":
+          if (msg.id === this.id) {
+            // Resolve all pending brain requests
+            const resolvers = this.brainResolvers;
+            this.brainResolvers = [];
+            for (const resolve of resolvers) {
+              resolve(msg.brainJson);
+            }
+          }
+          return;
       }
     };
 
@@ -274,6 +372,14 @@ export class Car {
       rayCount: this.sensor?.rayCount ?? 0,
       rayLength: this.sensor?.rayLength ?? 0,
       raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
+      brainJson: this.carOptions?.brainJson,
+      mutationAmount: this.carOptions?.mutationAmount,
+      destinationPosition: this.carOptions?.destinationPosition
+        ? {
+            x: this.carOptions.destinationPosition.x,
+            y: this.carOptions.destinationPosition.y,
+          }
+        : undefined,
     };
 
     this.worker.postMessage({ type: "init", init });
@@ -301,6 +407,8 @@ export class Car {
     this.angle = state.angle;
     this.speed = state.speed;
     this.damaged = state.damaged;
+    this.fitness = state.fitness;
+    this.reachedDestination = state.reachedDestination;
 
     // Keep a main-thread copy for traffic snapshots and any debug visuals.
     this.polygon = new Polygon(state.polygon.map((p) => new Node(p.x, p.y)));

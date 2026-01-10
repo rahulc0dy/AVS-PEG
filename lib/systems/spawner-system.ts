@@ -1,10 +1,11 @@
-import { Car } from "@/lib/car/car";
+import { Car, CarOptions } from "@/lib/car/car";
 import { ControlType } from "@/lib/car/controls";
 import { Road } from "@/lib/world/road";
 import { Group, Vector2 } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { getNearestEdge } from "@/utils/math";
+import type { NeuralNetworkJson } from "@/lib/ai/network";
 
 /**
  * Configuration options for spawning cars.
@@ -18,6 +19,12 @@ export interface SpawnOptions {
   height?: number;
   /** Custom max speed for cars (default: 0.5) */
   maxSpeed?: number;
+  /** Pre-trained brain to load for AI cars */
+  brainJson?: NeuralNetworkJson;
+  /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
+  mutationAmount?: number;
+  /** Destination position for fitness calculation */
+  destinationPosition?: Vector2;
 }
 
 /**
@@ -75,7 +82,16 @@ export class SpawnerSystem {
       length = 17.5,
       height = 7,
       maxSpeed = 0.5,
+      brainJson,
+      mutationAmount,
+      destinationPosition,
     } = options ?? {};
+
+    // Build car options for AI training
+    const carOptions: CarOptions | undefined =
+      controlType === ControlType.AI
+        ? { brainJson, mutationAmount, destinationPosition }
+        : undefined;
 
     // Minimum distance between car centers to avoid overlap
     const minDistance = Math.max(breadth, length) * 1.5;
@@ -113,6 +129,7 @@ export class SpawnerSystem {
           this.worldGroup,
           0, // angle
           maxSpeed,
+          carOptions,
         );
         this.cars.push(car);
       }
@@ -151,6 +168,7 @@ export class SpawnerSystem {
             this.worldGroup,
             angle,
             maxSpeed,
+            carOptions,
           );
           this.cars.push(car);
           placed = true;
@@ -183,7 +201,16 @@ export class SpawnerSystem {
       length = 17.5,
       height = 7,
       maxSpeed = 0.5,
+      brainJson,
+      mutationAmount,
+      destinationPosition,
     } = options ?? {};
+
+    // Build car options for AI training
+    const carOptions: CarOptions | undefined =
+      controlType === ControlType.AI
+        ? { brainJson, mutationAmount, destinationPosition }
+        : undefined;
 
     for (let i = 0; i < count; i++) {
       const car = new Car(
@@ -195,6 +222,7 @@ export class SpawnerSystem {
         this.worldGroup,
         angle,
         maxSpeed,
+        carOptions,
       );
       this.cars.push(car);
     }
