@@ -69,6 +69,9 @@ export class Car {
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
+  /** When true, car-to-car overlap does not mark this car as damaged (used when stack-spawning). */
+  ignoreCarDamage: boolean = false;
+
   /**
    * Create a new simulated car.
    * @param position Initial world position (x, y; where y maps to Three.js Z).
@@ -138,10 +141,12 @@ export class Car {
   private assessDamage(traffic: Car[]): boolean {
     if (this.polygon === null) return false;
 
-    for (let i = 0; i < traffic.length; i++) {
-      if (traffic[i].polygon === null) continue;
-      if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-        return true;
+    if (!this.ignoreCarDamage) {
+      for (let i = 0; i < traffic.length; i++) {
+        if (traffic[i].polygon === null) continue;
+        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
+          return true;
+        }
       }
     }
 
