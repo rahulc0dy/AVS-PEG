@@ -1,5 +1,22 @@
 /// <reference lib="webworker" />
 
+/**
+ * Web Worker for Car Simulation and AI Decision Making
+ *
+ * This worker handles all physics and AI computations for a single car,
+ * running in isolation from the main thread to enable parallel processing.
+ *
+ * Responsibilities:
+ * - Physics simulation (movement, acceleration, steering)
+ * - Sensor ray casting and collision detection
+ * - Neural network inference for AI-controlled cars
+ * - Fitness calculation for evolutionary training
+ *
+ * Communication Protocol:
+ * - Receives: init, tick, getBrain messages
+ * - Sends: ready, state, brain messages
+ */
+
 import { NeuralNetwork } from "@/lib/ai/network";
 import { ControlType } from "@/lib/car/controls";
 import { getIntersection, lerp } from "@/utils/math";
@@ -11,17 +28,37 @@ import type {
   CarWorkerInboundMessage,
   CarWorkerOutboundMessage,
   ControlsDto,
+  PathEdgeDto,
   RayDto,
   TrafficCarDto,
   WallEdgeDto,
 } from "@/lib/car/worker-protocol";
-
 import type { NodeJson } from "@/types/save";
 
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Converts a plain NodeJson object to a Node instance.
+ * Required for geometric calculations that expect Node objects.
+ */
 function toNode(p: NodeJson): Node {
   return new Node(p.x, p.y);
 }
 
+/**
+ * Creates a rectangular polygon representing the car's collision box.
+ *
+ * The polygon is centered at the car's position and rotated by its angle.
+ * Uses polar coordinates for each corner based on the rectangle's diagonal.
+ *
+ * @param position - Center position of the car
+ * @param breadth - Width of the car (perpendicular to direction)
+ * @param length - Length of the car (along direction)
+ * @param angle - Car's rotation angle in radians
+ * @returns Array of 4 corner points forming the car polygon
+ */
 function createCarPolygon(
   position: NodeJson,
   breadth: number,
@@ -51,14 +88,33 @@ function createCarPolygon(
   ];
 }
 
+/** Returns default (inactive) control state. */
 function defaultControls(): ControlsDto {
   return { forward: false, left: false, right: false, reverse: false };
 }
 
+/** Returns default road-relative position (centered on road). */
 function defaultRoadRelative(): { lateral: number; along: number } {
   return { lateral: 0, along: 0 };
 }
 
+// =============================================================================
+// SENSOR SYSTEM
+// =============================================================================
+
+/**
+ * Casts sensor rays from the car's position.
+ *
+ * Rays are spread evenly across the specified angle, centered on the car's
+ * forward direction. Used for obstacle detection by the neural network.
+ *
+ * @param carPos - Current car position
+ * @param carAngle - Car's facing direction in radians
+ * @param rayCount - Number of rays to cast
+ * @param rayLength - Maximum length of each ray
+ * @param raySpreadAngle - Total angle spread for all rays in radians
+ * @returns Array of ray start/end points
+ */
 function castRays(
   carPos: NodeJson,
   carAngle: number,
@@ -86,6 +142,17 @@ function castRays(
   return rays;
 }
 
+/**
+ * Gets the nearest intersection point for a ray against traffic and walls.
+ *
+ * Tests the ray against all traffic car polygons and static wall segments,
+ * returning the closest intersection if any exists.
+ *
+ * @param ray - The ray to test (start and end points)
+ * @param traffic - Array of traffic cars with their polygons
+ * @param walls - Array of static wall edges
+ * @returns Intersection point with offset (0-1 along ray), or null if no hit
+ */
 function getReading(
   ray: RayDto,
   traffic: TrafficCarDto[],
@@ -121,18 +188,23 @@ function getReading(
 
   if (touches.length === 0) return null;
 
-  let minOffset = Infinity;
-  let best: { x: number; y: number; offset: number } | null = null;
-  for (const t of touches) {
-    if (t.offset < minOffset) {
-      minOffset = t.offset;
-      best = t;
-    }
-  }
-
-  return best;
+  return touches.reduce((best, t) => (t.offset < best.offset ? t : best));
 }
 
+// =============================================================================
+// COLLISION DETECTION
+// =============================================================================
+
+/**
+ * Checks if the car polygon intersects with any traffic car.
+ *
+ * Uses edge-to-edge intersection tests between the car's polygon and
+ * all traffic car polygons. Respects the ignoreCarDamage flag on traffic.
+ *
+ * @param selfPoly - The car's collision polygon
+ * @param traffic - Array of traffic cars to test against
+ * @returns True if any collision detected
+ */
 function assessDamage(selfPoly: NodeJson[], traffic: TrafficCarDto[]): boolean {
   for (const car of traffic) {
     const other = car.polygon;
@@ -154,6 +226,10 @@ function assessDamage(selfPoly: NodeJson[], traffic: TrafficCarDto[]): boolean {
   return false;
 }
 
+// =============================================================================
+// WORKER STATE
+// =============================================================================
+
 type WorkerState = {
   init: CarInitDto;
   position: NodeJson;
@@ -162,25 +238,109 @@ type WorkerState = {
   damaged: boolean;
   controls: ControlsDto;
   brain: NeuralNetwork | null;
-  /** Best (minimum) distance to destination achieved so far */
   bestDistanceToDestination: number;
-  /** Whether the car has reached the destination */
   reachedDestination: boolean;
+  tickCount: number;
+  /** Best progress along path achieved (0 to 1) */
+  bestPathProgress: number;
 };
 
-/** Distance threshold to consider the car has reached the destination */
+/** Distance threshold (in world units) to consider destination reached. */
 const DESTINATION_THRESHOLD = 30;
 
+/** Current worker state, initialized on 'init' message. */
 let state: WorkerState | null = null;
 
+/** Sends a message to the main thread. */
 function post(msg: CarWorkerOutboundMessage) {
   self.postMessage(msg);
 }
 
+/** Returns default destination-relative navigation values. */
 function defaultDestinationRelative(): { angleDiff: number; distance: number } {
   return { angleDiff: 0, distance: 1 };
 }
 
+/**
+ * Calculate progress along the path from source to destination.
+ * Returns a value between 0 (at start) and 1 (at destination).
+ */
+function calculatePathProgress(
+  position: NodeJson,
+  pathEdges: PathEdgeDto[] | undefined,
+  totalPathLength: number | undefined,
+): number {
+  if (
+    !pathEdges ||
+    pathEdges.length === 0 ||
+    !totalPathLength ||
+    totalPathLength <= 0
+  ) {
+    // Only log this once per worker
+    return 0;
+  }
+
+  // Find which edge the car is closest to and the projection point
+  let bestEdgeIndex = 0;
+  let bestT = 0;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < pathEdges.length; i++) {
+    const edge = pathEdges[i];
+    const dx = edge.n2.x - edge.n1.x;
+    const dy = edge.n2.y - edge.n1.y;
+    const len2 = dx * dx + dy * dy;
+
+    if (len2 <= 0) continue;
+
+    // Project position onto edge (unclamped to detect beyond endpoints)
+    const t =
+      ((position.x - edge.n1.x) * dx + (position.y - edge.n1.y) * dy) / len2;
+    const tClamped = Math.max(0, Math.min(1, t));
+
+    // Calculate distance to the clamped projection point
+    const projX = edge.n1.x + tClamped * dx;
+    const projY = edge.n1.y + tClamped * dy;
+    const dist = Math.hypot(position.x - projX, position.y - projY);
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestEdgeIndex = i;
+      bestT = tClamped;
+    }
+  }
+
+  // Calculate cumulative distance to the start of the best edge
+  let cumulativeLength = 0;
+  for (let i = 0; i < bestEdgeIndex; i++) {
+    cumulativeLength += pathEdges[i].length;
+  }
+
+  // Add progress within the current edge
+  cumulativeLength += bestT * pathEdges[bestEdgeIndex].length;
+
+  // Normalize to 0-1
+  return cumulativeLength / totalPathLength;
+}
+
+// =============================================================================
+// PHYSICS SIMULATION
+// =============================================================================
+
+/**
+ * Updates car position and angle based on current controls.
+ *
+ * Applies acceleration, friction, and steering physics. The car's movement
+ * is in the direction it's facing, with steering only effective when moving.
+ *
+ * Physics model:
+ * - Forward/reverse: Adds/subtracts acceleration to speed
+ * - Speed is clamped to maxSpeed (forward) or maxSpeed/2 (reverse)
+ * - Friction gradually reduces speed towards zero
+ * - Steering rotates the car, direction depends on movement direction
+ *
+ * @param s - The worker state to update in-place
+ */
 function moveCar(s: WorkerState) {
   const { acceleration, friction, maxSpeed } = s.init;
   const c = s.controls;
@@ -208,10 +368,29 @@ function moveCar(s: WorkerState) {
   };
 }
 
+// =============================================================================
+// MAIN SIMULATION LOOP
+// =============================================================================
+
+/**
+ * Processes a single simulation tick.
+ *
+ * This is the main update function called every frame. It:
+ * 1. Updates controls (from human input or AI decision)
+ * 2. Casts sensor rays and gets readings
+ * 3. Runs neural network inference for AI cars
+ * 4. Applies physics (movement, steering)
+ * 5. Checks for collisions
+ * 6. Calculates fitness for training
+ *
+ * @param tick - Tick data containing traffic, walls, controls, etc.
+ * @returns Updated car state to send back to main thread
+ */
 function computeTick(tick: CarTickDto): CarStateDto {
   if (!state) throw new Error("Worker not initialized");
 
   const init = state.init;
+  state.tickCount++;
 
   // Apply controls
   if (init.controlType === ControlType.HUMAN) {
@@ -274,14 +453,14 @@ function computeTick(tick: CarTickDto): CarStateDto {
     state.damaged = assessDamage(polygon, tick.traffic);
   }
 
-  // Calculate fitness based on distance to destination
+  // Calculate fitness based on path progress (following the road) rather than straight-line distance
   let fitness = 0;
   if (init.destinationPosition) {
     const dx = state.position.x - init.destinationPosition.x;
     const dy = state.position.y - init.destinationPosition.y;
     const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
 
-    // Track best distance achieved
+    // Track best distance achieved (for destination check)
     if (distanceToDestination < state.bestDistanceToDestination) {
       state.bestDistanceToDestination = distanceToDestination;
     }
@@ -291,17 +470,37 @@ function computeTick(tick: CarTickDto): CarStateDto {
       state.reachedDestination = true;
     }
 
-    // Fitness calculation:
-    // Base fitness from best distance achieved (closer = higher)
-    const distanceFitness = 1 / (1 + state.bestDistanceToDestination / 100);
+    // Calculate path progress (0 to 1)
+    const pathProgress = calculatePathProgress(
+      state.position,
+      init.pathEdges,
+      init.totalPathLength,
+    );
 
-    // Bonus for reaching destination
-    const destinationBonus = state.reachedDestination ? 1.0 : 0;
+    // Track best path progress achieved
+    if (pathProgress > state.bestPathProgress) {
+      state.bestPathProgress = pathProgress;
+    }
+
+    // FALLBACK: If no path data, use distance-based fitness instead
+    let progressFitness: number;
+    if (!init.pathEdges || init.pathEdges.length === 0) {
+      // Fallback to distance-based fitness (old behavior)
+      progressFitness = 1 / (1 + state.bestDistanceToDestination / 100);
+    } else {
+      // Primary fitness: path progress (0 to 1)
+      progressFitness = state.bestPathProgress;
+    }
+
+    // Bonus for reaching destination (with time factor - faster = better)
+    const timeBonus = state.reachedDestination
+      ? 1.0 + 0.5 * Math.max(0, 1 - state.tickCount / 3000)
+      : 0;
 
     // Penalty for being damaged (reduces fitness by 50%)
     const damagePenalty = state.damaged ? 0.5 : 1.0;
 
-    fitness = (distanceFitness + destinationBonus) * damagePenalty;
+    fitness = (progressFitness + timeBonus) * damagePenalty;
   }
 
   return {
@@ -328,24 +527,17 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
     case "init": {
       const init: CarInitDto = msg.init;
 
-      // Neural network architecture:
-      // Inputs: rayCount sensors + 4 navigation features (lateral, along, angleDiff, distance)
-      // Hidden layer: 8 neurons (enough to learn steering patterns)
-      // Outputs: 4 controls (forward, left, right, reverse)
-      const inputCount = init.rayCount + 4;
-
       // Create brain: either from provided JSON (with optional mutation) or random
       let brain: NeuralNetwork | null = null;
       if (init.controlType === ControlType.AI) {
         if (init.brainJson) {
-          // Load brain from provided JSON
           brain = NeuralNetwork.fromJson(init.brainJson);
-          // Apply mutation if specified
           if (init.mutationAmount !== undefined && init.mutationAmount > 0) {
             NeuralNetwork.mutate(brain, init.mutationAmount);
           }
         } else {
-          // Create a new random brain with improved architecture
+          // Architecture: rayCount sensors + 4 nav features -> 8 hidden -> 4 outputs
+          const inputCount = init.rayCount + 4;
           brain = new NeuralNetwork([inputCount, 8, 4]);
         }
       }
@@ -371,6 +563,8 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         brain,
         bestDistanceToDestination: initialDistance,
         reachedDestination: false,
+        tickCount: 0,
+        bestPathProgress: 0,
       };
       post({ type: "ready", id: init.id });
       return;

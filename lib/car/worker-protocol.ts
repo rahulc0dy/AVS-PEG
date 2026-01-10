@@ -49,6 +49,15 @@ export type DestinationRelativeDto = {
  */
 export type WallEdgeDto = { n1: NodeJson; n2: NodeJson };
 
+/**
+ * Path edge with length for progress tracking.
+ */
+export type PathEdgeDto = {
+  n1: NodeJson;
+  n2: NodeJson;
+  length: number;
+};
+
 export type CarInitDto = {
   id: string;
   position: NodeJson;
@@ -76,6 +85,12 @@ export type CarInitDto = {
 
   /** Target destination position for fitness calculation */
   destinationPosition?: NodeJson;
+
+  /** Path edges from source to destination for progress tracking */
+  pathEdges?: PathEdgeDto[];
+
+  /** Total length of the path from source to destination */
+  totalPathLength?: number;
 };
 
 export type CarTickDto = {

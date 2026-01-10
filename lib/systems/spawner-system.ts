@@ -6,6 +6,7 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { getNearestEdge } from "@/utils/math";
 import type { NeuralNetworkJson } from "@/lib/ai/network";
+import type { PathEdgeDto } from "@/lib/car/worker-protocol";
 
 /**
  * Configuration options for spawning cars.
@@ -25,6 +26,10 @@ export interface SpawnOptions {
   mutationAmount?: number;
   /** Destination position for fitness calculation */
   destinationPosition?: Vector2;
+  /** Path edges from source to destination */
+  pathEdges?: PathEdgeDto[];
+  /** Total length of the path */
+  totalPathLength?: number;
 }
 
 /**
@@ -85,12 +90,20 @@ export class SpawnerSystem {
       brainJson,
       mutationAmount,
       destinationPosition,
+      pathEdges,
+      totalPathLength,
     } = options ?? {};
 
     // Build car options for AI training
     const carOptions: CarOptions | undefined =
       controlType === ControlType.AI
-        ? { brainJson, mutationAmount, destinationPosition }
+        ? {
+            brainJson,
+            mutationAmount,
+            destinationPosition,
+            pathEdges,
+            totalPathLength,
+          }
         : undefined;
 
     // Minimum distance between car centers to avoid overlap
@@ -204,12 +217,20 @@ export class SpawnerSystem {
       brainJson,
       mutationAmount,
       destinationPosition,
+      pathEdges,
+      totalPathLength,
     } = options ?? {};
 
     // Build car options for AI training
     const carOptions: CarOptions | undefined =
       controlType === ControlType.AI
-        ? { brainJson, mutationAmount, destinationPosition }
+        ? {
+            brainJson,
+            mutationAmount,
+            destinationPosition,
+            pathEdges,
+            totalPathLength,
+          }
         : undefined;
 
     for (let i = 0; i < count; i++) {

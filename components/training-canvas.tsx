@@ -13,6 +13,7 @@ import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { FpsMeter } from "@/components/ui/fps-meter";
 import type { NeuralNetworkJson } from "@/lib/ai/network";
+import type { PathEdgeDto } from "@/lib/car/worker-protocol";
 
 /** LocalStorage key for the best brain */
 const BEST_BRAIN_KEY = "avs-peg-best-brain";
@@ -93,7 +94,7 @@ export default function TrainingCanvas({
         // Validate brain architecture matches current expected input count
         // Current: rayCount (10) + 4 navigation features = 14 inputs
         const expectedInputs = 14; // 10 rays + 4 features (lateral, along, angleDiff, distance)
-        const brainInputs = brainData.brainJson.levels[0]?.inputs?.length ?? 0;
+        const brainInputs = brainData.brainJson.levels[0]?.inputCount ?? 0;
 
         if (brainInputs !== expectedInputs) {
           console.warn(
@@ -224,11 +225,25 @@ export default function TrainingCanvas({
     const pathEdges = world.pathFindingSystem.getPath();
     const destinationPosition = getDestinationPosition();
 
+    // Convert path edges to DTO format with lengths for progress tracking
+    const pathEdgeDtos: PathEdgeDto[] = pathEdges.map((edge) => ({
+      n1: { x: edge.n1.x, y: edge.n1.y },
+      n2: { x: edge.n2.x, y: edge.n2.y },
+      length: edge.length(),
+    }));
+    const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
+
+    console.log(
+      `[Training] Spawning cars - Path edges: ${pathEdgeDtos.length}, Total length: ${totalPathLength.toFixed(2)}, Destination: ${destinationPosition ? `(${destinationPosition.x.toFixed(0)}, ${destinationPosition.y.toFixed(0)})` : "NONE"}`,
+    );
+
     const spawnOptions = {
       maxSpeed: 0.5,
       brainJson: loadedBrainRef.current ?? undefined,
       mutationAmount: loadedBrainRef.current ? mutationAmount : undefined,
       destinationPosition,
+      pathEdges: pathEdgeDtos.length > 0 ? pathEdgeDtos : undefined,
+      totalPathLength: totalPathLength > 0 ? totalPathLength : undefined,
     };
 
     if (stackSpawnAtSource) {
@@ -279,11 +294,21 @@ export default function TrainingCanvas({
     // Increment generation on reset
     setGeneration((g) => g + 1);
 
+    // Convert path edges to DTO format with lengths for progress tracking
+    const pathEdgeDtos: PathEdgeDto[] = pathEdges.map((edge) => ({
+      n1: { x: edge.n1.x, y: edge.n1.y },
+      n2: { x: edge.n2.x, y: edge.n2.y },
+      length: edge.length(),
+    }));
+    const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
+
     const spawnOptions = {
       maxSpeed: 0.5,
       brainJson: loadedBrainRef.current ?? undefined,
       mutationAmount: loadedBrainRef.current ? mutationAmount : undefined,
       destinationPosition,
+      pathEdges: pathEdgeDtos.length > 0 ? pathEdgeDtos : undefined,
+      totalPathLength: totalPathLength > 0 ? totalPathLength : undefined,
     };
 
     if (stackSpawnAtSource) {

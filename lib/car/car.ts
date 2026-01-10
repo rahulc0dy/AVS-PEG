@@ -23,6 +23,7 @@ import type {
   DestinationRelativeDto,
   TrafficCarDto,
   WallEdgeDto,
+  PathEdgeDto,
 } from "@/lib/car/worker-protocol";
 import type { NeuralNetworkJson } from "@/lib/ai/network";
 
@@ -34,6 +35,10 @@ export interface CarOptions {
   mutationAmount?: number;
   /** Destination position for fitness calculation */
   destinationPosition?: Vector2;
+  /** Path edges from source to destination for progress tracking */
+  pathEdges?: PathEdgeDto[];
+  /** Total length of the path */
+  totalPathLength?: number;
 }
 
 /**
@@ -380,6 +385,8 @@ export class Car {
             y: this.carOptions.destinationPosition.y,
           }
         : undefined,
+      pathEdges: this.carOptions?.pathEdges,
+      totalPathLength: this.carOptions?.totalPathLength,
     };
 
     this.worker.postMessage({ type: "init", init });
