@@ -26,6 +26,12 @@ export type RoadRelativeDto = {
   along: number;
 };
 
+/**
+ * Static wall segments the car's sensors should treat as obstacles.
+ * Used for invisible path borders (and can be extended later for road borders).
+ */
+export type WallEdgeDto = { n1: NodeJson; n2: NodeJson };
+
 export type CarInitDto = {
   id: string;
   position: NodeJson;
@@ -51,6 +57,9 @@ export type CarTickDto = {
   controls?: ControlsDto;
   /** Road-relative features for AI input (computed on main thread). */
   roadRelative?: RoadRelativeDto;
+
+  /** Static wall segments to include in sensor ray tests (e.g., path borders). */
+  walls?: WallEdgeDto[];
 };
 
 export type CarStateDto = {

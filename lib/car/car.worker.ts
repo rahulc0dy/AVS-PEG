@@ -13,6 +13,7 @@ import type {
   ControlsDto,
   RayDto,
   TrafficCarDto,
+  WallEdgeDto,
 } from "@/lib/car/worker-protocol";
 
 import type { NodeJson } from "@/types/save";
@@ -88,6 +89,7 @@ function castRays(
 function getReading(
   ray: RayDto,
   traffic: TrafficCarDto[],
+  walls: WallEdgeDto[] = [],
 ): { x: number; y: number; offset: number } | null {
   const touches: { x: number; y: number; offset: number }[] = [];
 
@@ -104,6 +106,17 @@ function getReading(
       );
       if (value) touches.push(value);
     }
+  }
+
+  // Also test static wall segments (e.g., invisible path borders)
+  for (const wall of walls) {
+    const value = getIntersection(
+      toNode(ray.start),
+      toNode(ray.end),
+      toNode(wall.n1),
+      toNode(wall.n2),
+    );
+    if (value) touches.push(value);
   }
 
   if (touches.length === 0) return null;
@@ -205,7 +218,8 @@ function computeTick(tick: CarTickDto): CarStateDto {
     init.raySpreadAngle,
   );
 
-  const readings = rays.map((ray) => getReading(ray, tick.traffic));
+  const walls = tick.walls ?? [];
+  const readings = rays.map((ray) => getReading(ray, tick.traffic, walls));
   const offsets = readings.map((s) => (s == null ? 0 : 1 - s.offset));
 
   const roadRelative = tick.roadRelative ?? defaultRoadRelative();

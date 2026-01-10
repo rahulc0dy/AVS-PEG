@@ -14,6 +14,8 @@ import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
+import { Envelope } from "@/lib/primitives/envelope";
+import { ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 
 /**
  * Configuration options for initializing a World instance.
@@ -60,6 +62,9 @@ export class World {
 
   /** Spawner system for managing car spawning. */
   spawnerSystem!: SpawnerSystem;
+
+  /** Border segments for the currently computed path corridor (union of path envelopes). */
+  pathBorders: Edge[] = [];
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -124,7 +129,12 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(this.cars.filter((c) => c !== car));
+      car.update(
+        this.cars.filter((c) => c !== car),
+        this.pathFindingSystem.getPath(),
+        ROAD_WIDTH,
+        this.pathBorders,
+      );
     }
     for (const marking of this.markings) {
       marking.update();
@@ -140,6 +150,7 @@ export class World {
    */
   generate() {
     this.roadBorders = [];
+    this.pathBorders = [];
 
     const graphEdges = this.graph.getEdges();
 
@@ -204,6 +215,30 @@ export class World {
       // Clear the path if either marking is missing
       this.pathFindingSystem.reset();
     }
+
+    // Rebuild path corridor borders whenever the path changes.
+    this.rebuildPathBorders();
+  }
+
+  /**
+   * Build a thick corridor around the current path edges, union those envelopes,
+   * and keep the resulting outline edges as `pathBorders`.
+   */
+  private rebuildPathBorders() {
+    const pathEdges = this.pathFindingSystem.getPath();
+    if (!pathEdges || pathEdges.length === 0) {
+      this.pathBorders = [];
+      return;
+    }
+
+    // Use road width for now so borders align with the driveable corridor.
+    // If you want a narrower corridor, reduce `corridorWidth`.
+    const corridorWidth = ROAD_WIDTH;
+
+    const envelopes = pathEdges.map(
+      (e) => new Envelope(e, corridorWidth, ROAD_ROUNDNESS).poly,
+    );
+    this.pathBorders = Polygon.union(envelopes);
   }
 
   /**
@@ -226,6 +261,12 @@ export class World {
     for (const edge of this.pathFindingSystem.getPath()) {
       edge.draw(this.worldGroup, { width: 4, color: new Color(0x00ff00) });
     }
+
+    // Optional debug: render computed path borders faintly.
+    // Comment this out to keep them fully invisible.
+    // for (const edge of this.pathBorders) {
+    //   edge.draw(this.worldGroup, { width: 2, color: new Color(0x00aa00) });
+    // }
 
     this.scene.add(this.worldGroup);
   }

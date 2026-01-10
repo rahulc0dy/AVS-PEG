@@ -21,6 +21,7 @@ import type {
   CarWorkerOutboundMessage,
   RoadRelativeDto,
   TrafficCarDto,
+  WallEdgeDto,
 } from "@/lib/car/worker-protocol";
 
 /**
@@ -133,7 +134,12 @@ export class Car {
     this.initWorker();
   }
 
-  update(traffic: Car[], roadEdges?: Edge[], roadWidth?: number) {
+  update(
+    traffic: Car[],
+    roadEdges?: Edge[],
+    roadWidth?: number,
+    walls?: Edge[],
+  ) {
     this.draw(this.group, this.modelUrl);
 
     const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
@@ -153,6 +159,10 @@ export class Car {
             }
           : undefined,
       roadRelative,
+      walls: walls?.map<WallEdgeDto>((e) => ({
+        n1: { x: e.n1.x, y: e.n1.y },
+        n2: { x: e.n2.x, y: e.n2.y },
+      })),
     });
   }
 
