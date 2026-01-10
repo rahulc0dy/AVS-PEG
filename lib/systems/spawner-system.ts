@@ -2,6 +2,9 @@ import { Car } from "@/lib/car/car";
 import { ControlType } from "@/lib/car/controls";
 import { Road } from "@/lib/world/road";
 import { Group, Vector2 } from "three";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { getNearestEdge } from "@/utils/math";
 
 /**
  * Configuration options for spawning cars.
@@ -164,6 +167,120 @@ export class SpawnerSystem {
   }
 
   /**
+   * Spawn multiple cars at the exact same position.
+   *
+   * This intentionally allows overlaps (used for certain training scenarios).
+   */
+  spawnCarsAtPosition(
+    count: number,
+    controlType: ControlType,
+    position: Vector2,
+    angle: number = 0,
+    options?: SpawnOptions,
+  ): void {
+    const {
+      breadth = 10,
+      length = 17.5,
+      height = 7,
+      maxSpeed = 0.5,
+    } = options ?? {};
+
+    for (let i = 0; i < count; i++) {
+      const car = new Car(
+        new Vector2(position.x, position.y),
+        breadth,
+        length,
+        height,
+        controlType,
+        this.worldGroup,
+        angle,
+        maxSpeed,
+      );
+      this.cars.push(car);
+    }
+  }
+
+  /**
+   * Spawn multiple cars stacked/overlapping at the world's Source marking.
+   *
+   * If no source marking exists, falls back to the default random-road spawning.
+   */
+  spawnCarsAtSource(
+    count: number,
+    controlType: ControlType,
+    sourcePosition: Vector2 | null | undefined,
+    options?: SpawnOptions,
+    pathEdges?: Edge[],
+  ): void {
+    if (!sourcePosition) {
+      this.spawnCars(count, controlType, options);
+      return;
+    }
+
+    const initialCount = count;
+
+    const srcNode = new Node(sourcePosition.x, sourcePosition.y);
+
+    // Choose a direction in the CAR angle convention.
+    // Car move uses:
+    //   x -= sin(angle) * speed
+    //   y -= cos(angle) * speed
+    // so a world direction vector (dx, dy) corresponds to:
+    //   angle = atan2(-dx, -dy)
+    let dirAngle = 0;
+    if (pathEdges && pathEdges.length > 0) {
+      const e0 = pathEdges[0];
+      const d1 = (e0.n1.x - srcNode.x) ** 2 + (e0.n1.y - srcNode.y) ** 2;
+      const d2 = (e0.n2.x - srcNode.x) ** 2 + (e0.n2.y - srcNode.y) ** 2;
+      const from = d1 <= d2 ? e0.n1 : e0.n2;
+      const to = d1 <= d2 ? e0.n2 : e0.n1;
+
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      dirAngle = Math.atan2(-dx, -dy);
+    } else {
+      if (this.roads.length > 0) {
+        let bestRoad = this.roads[0];
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (const road of this.roads) {
+          const { n1, n2 } = road.skeleton;
+          const d1 = (n1.x - srcNode.x) ** 2 + (n1.y - srcNode.y) ** 2;
+          const d2 = (n2.x - srcNode.x) ** 2 + (n2.y - srcNode.y) ** 2;
+          const d = Math.min(d1, d2);
+          if (d < bestDist) {
+            bestDist = d;
+            bestRoad = road;
+          }
+        }
+        const dx = bestRoad.skeleton.n2.x - bestRoad.skeleton.n1.x;
+        const dy = bestRoad.skeleton.n2.y - bestRoad.skeleton.n1.y;
+        dirAngle = Math.atan2(-dx, -dy);
+      }
+    }
+
+    // Spawn position: project source onto the closest graph edge (better than using the raw marker).
+    const nearEdge = getNearestEdge(
+      srcNode,
+      this.roads.map((r) => r.skeleton),
+    );
+    let spawnPos = new Vector2(srcNode.x, srcNode.y);
+    if (nearEdge) {
+      spawnPos = this.projectPointOntoEdge(srcNode, nearEdge);
+    }
+
+    this.spawnCarsAtPosition(count, controlType, spawnPos, dirAngle, options);
+
+    // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
+    // (so overlapped spawns can still move). World/road collisions are unaffected.
+    for (let i = this.cars.length - 1; i >= 0 && count > 0; i--) {
+      const car = this.cars[i];
+      car.ignoreCarDamage = true;
+      if (car.sensor) car.sensor.ignoreTraffic = true;
+      count--;
+    }
+  }
+
+  /**
    * Clear all cars from the world.
    */
   clearCars(): void {
@@ -187,6 +304,48 @@ export class SpawnerSystem {
   ): void {
     this.clearCars();
     this.spawnCars(count, controlType, options);
+  }
+
+  /**
+   * Reset cars by clearing existing and spawning new ones at the source.
+   */
+  resetCarsAtSource(
+    count: number,
+    controlType: ControlType,
+    sourcePosition: Vector2 | null | undefined,
+    options?: SpawnOptions,
+    pathEdges?: Edge[],
+  ): void {
+    this.clearCars();
+    this.spawnCarsAtSource(
+      count,
+      controlType,
+      sourcePosition,
+      options,
+      pathEdges,
+    );
+  }
+
+  private projectPointOntoEdge(p: Node, e: Edge): Vector2 {
+    const ax = e.n1.x;
+    const ay = e.n1.y;
+    const bx = e.n2.x;
+    const by = e.n2.y;
+
+    const abx = bx - ax;
+    const aby = by - ay;
+    const apx = p.x - ax;
+    const apy = p.y - ay;
+
+    const abLenSq = abx * abx + aby * aby;
+    if (abLenSq <= 1e-9) {
+      return new Vector2(ax, ay);
+    }
+
+    let t = (apx * abx + apy * aby) / abLenSq;
+    t = Math.max(0, Math.min(1, t));
+
+    return new Vector2(ax + abx * t, ay + aby * t);
   }
 
   /**

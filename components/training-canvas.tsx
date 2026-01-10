@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { Camera, Scene } from "three";
+import { Camera, Scene, Vector2 } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
+import Checkbox from "@/components/ui/checkbox";
 import { FpsMeter } from "@/components/ui/fps-meter";
 
 interface TrainingCanvasProps {
@@ -35,6 +36,7 @@ export default function TrainingCanvas({
   const [carCount, setCarCount] = useState(10);
   const [isTraining, setIsTraining] = useState(false);
   const [currentCarCount, setCurrentCarCount] = useState(0);
+  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(false);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -94,14 +96,33 @@ export default function TrainingCanvas({
     const world = worldRef.current;
     if (!world) return;
 
-    // Spawn AI cars for training using SpawnerSystem
-    world.spawnerSystem.spawnCars(carCount, ControlType.AI, {
-      maxSpeed: 0.5,
-    });
+    const source = world.markings.find((m) => m.type === "source");
+    const sourcePos = source
+      ? new Vector2(source.position.x, source.position.y)
+      : undefined;
+
+    const pathEdges = world.pathFindingSystem.getPath();
+
+    if (stackSpawnAtSource) {
+      world.spawnerSystem.spawnCarsAtSource(
+        carCount,
+        ControlType.AI,
+        sourcePos,
+        {
+          maxSpeed: 0.5,
+        },
+        pathEdges,
+      );
+    } else {
+      // current behavior
+      world.spawnerSystem.spawnCars(carCount, ControlType.AI, {
+        maxSpeed: 0.5,
+      });
+    }
 
     setCurrentCarCount(world.cars.length);
     setIsTraining(true);
-  }, [worldRef, carCount]);
+  }, [worldRef, carCount, stackSpawnAtSource]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;
@@ -117,12 +138,32 @@ export default function TrainingCanvas({
     const world = worldRef.current;
     if (!world) return;
 
-    // Reset cars (clear and respawn) using SpawnerSystem
-    world.spawnerSystem.resetCars(carCount, ControlType.AI, {
-      maxSpeed: 0.5,
-    });
+    const source = world.markings.find((m) => m.type === "source");
+    const sourcePos = source
+      ? new Vector2(source.position.x, source.position.y)
+      : undefined;
+
+    const pathEdges = world.pathFindingSystem.getPath();
+
+    if (stackSpawnAtSource) {
+      world.spawnerSystem.resetCarsAtSource(
+        carCount,
+        ControlType.AI,
+        sourcePos,
+        {
+          maxSpeed: 0.5,
+        },
+        pathEdges,
+      );
+    } else {
+      // current behavior
+      world.spawnerSystem.resetCars(carCount, ControlType.AI, {
+        maxSpeed: 0.5,
+      });
+    }
+
     setCurrentCarCount(world.cars.length);
-  }, [worldRef, carCount]);
+  }, [worldRef, carCount, stackSpawnAtSource]);
 
   const handleLoadWorld = useCallback(() => {
     loadFromJson();
@@ -170,6 +211,15 @@ export default function TrainingCanvas({
             <Button variant="outline" onClick={handleLoadWorld}>
               Load World
             </Button>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-zinc-400">Stack spawn at Source</Label>
+            <Checkbox
+              checked={stackSpawnAtSource}
+              onChange={(e) => setStackSpawnAtSource(e.target.checked)}
+              aria-label="Stack spawn cars at source"
+            />
           </div>
 
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3">

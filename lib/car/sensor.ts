@@ -36,6 +36,9 @@ export class Sensor {
   /** Cached Three.js line meshes, 1:1 with ray index. */
   private rayLines: Array<Line<BufferGeometry, LineBasicMaterial>>;
 
+  /** When true, sensor rays ignore other cars (useful when cars overlap at spawn). */
+  ignoreTraffic: boolean = false;
+
   /**
    * Create a Sensor attached to `car`.
    * @param car Owner car that provides position/heading for casting rays.
@@ -62,8 +65,9 @@ export class Sensor {
   update(traffic: Car[]) {
     this.castRays();
     this.readings = [];
+    const effectiveTraffic = this.ignoreTraffic ? [] : traffic;
     for (let i = 0; i < this.rays.length; i++) {
-      this.readings.push(this.getReading(this.rays[i], traffic));
+      this.readings.push(this.getReading(this.rays[i], effectiveTraffic));
     }
   }
 

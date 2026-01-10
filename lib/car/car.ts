@@ -87,6 +87,20 @@ export class Car {
   private tickInFlight = false;
   private queuedTick: CarTickDto | null = null;
 
+  /** When true, car-to-car overlap does not mark this car as damaged (used when stack-spawning). */
+  ignoreCarDamage: boolean = false;
+
+  /**
+   * Create a new simulated car.
+   * @param position Initial world position (x, y; where y maps to Three.js Z).
+   * @param breadth Vehicle width along X.
+   * @param length Vehicle length along Z.
+   * @param height Vehicle height along Y.
+   * @param controlType Input scheme (human/ai/none).
+   * @param group Parent group that will receive the car's meshes.
+   * @param angle Initial heading in radians.
+   * @param maxSpeed Maximum forward speed.
+   */
   constructor(
     position: Vector2,
     breadth: number,
@@ -231,6 +245,12 @@ export class Car {
             this.requestWorkerTick(queued);
           }
           return;
+    if (!this.ignoreCarDamage) {
+      for (let i = 0; i < traffic.length; i++) {
+        if (traffic[i].polygon === null) continue;
+        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
+          return true;
+        }
       }
     };
 
