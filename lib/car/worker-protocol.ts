@@ -16,6 +16,7 @@ export type ControlsDto = {
 export type TrafficCarDto = {
   id: string;
   polygon: NodeJson[];
+  ignoreCarDamage: boolean;
 };
 
 export type RoadRelativeDto = {

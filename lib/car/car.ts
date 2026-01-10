@@ -138,9 +138,11 @@ export class Car {
 
     const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
 
+    const trafficForWorker = this.sensor?.ignoreTraffic ? [] : traffic;
+
     // All simulation is done in this car's dedicated worker.
     this.requestWorkerTick({
-      traffic: traffic.map((c) => c.toTrafficCarDto()),
+      traffic: trafficForWorker.map((c) => c.toTrafficCarDto()),
       controls:
         this.controlType === ControlType.HUMAN
           ? {
@@ -245,12 +247,6 @@ export class Car {
             this.requestWorkerTick(queued);
           }
           return;
-    if (!this.ignoreCarDamage) {
-      for (let i = 0; i < traffic.length; i++) {
-        if (traffic[i].polygon === null) continue;
-        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-          return true;
-        }
       }
     };
 
@@ -315,6 +311,7 @@ export class Car {
     return {
       id: this.id,
       polygon: this.polygon?.nodes.map((n) => ({ x: n.x, y: n.y })) ?? [],
+      ignoreCarDamage: this.ignoreCarDamage,
     };
   }
 

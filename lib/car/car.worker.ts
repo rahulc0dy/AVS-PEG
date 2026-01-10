@@ -124,15 +124,16 @@ function assessDamage(selfPoly: NodeJson[], traffic: TrafficCarDto[]): boolean {
   for (const car of traffic) {
     const other = car.polygon;
     if (!other || other.length < 3) continue;
-
-    for (let i = 0; i < selfPoly.length; i++) {
-      const a1 = selfPoly[i];
-      const a2 = selfPoly[(i + 1) % selfPoly.length];
-      for (let j = 0; j < other.length; j++) {
-        const b1 = other[j];
-        const b2 = other[(j + 1) % other.length];
-        if (getIntersection(toNode(a1), toNode(a2), toNode(b1), toNode(b2))) {
-          return true;
+    if (!car.ignoreCarDamage) {
+      for (let i = 0; i < selfPoly.length; i++) {
+        const a1 = selfPoly[i];
+        const a2 = selfPoly[(i + 1) % selfPoly.length];
+        for (let j = 0; j < other.length; j++) {
+          const b1 = other[j];
+          const b2 = other[(j + 1) % other.length];
+          if (getIntersection(toNode(a1), toNode(a2), toNode(b1), toNode(b2))) {
+            return true;
+          }
         }
       }
     }
