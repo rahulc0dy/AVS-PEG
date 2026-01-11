@@ -93,16 +93,34 @@ export type CarInitDto = {
   totalPathLength?: number;
 };
 
-export type CarTickDto = {
+/**
+ * Latest environment snapshot sent from the main thread.
+ * This is a "last-write-wins" input; the worker simulates using the most recent snapshot.
+ */
+export type CarSnapshotDto = {
+  seq: number;
   traffic: TrafficCarDto[];
   controls?: ControlsDto;
   /** Road-relative features for AI input (computed on main thread). */
   roadRelative?: RoadRelativeDto;
   /** Destination-relative features for AI navigation. */
   destinationRelative?: DestinationRelativeDto;
-
   /** Static wall segments to include in sensor ray tests (e.g., path borders). */
   walls?: WallEdgeDto[];
+};
+
+/** Runtime worker configuration (can be changed without re-init). */
+export type CarWorkerConfigDto = {
+  /** Fixed simulation step size in milliseconds (default ~16.667). */
+  fixedDtMs?: number;
+  /** Scale wall-clock time (2 = twice as fast). */
+  timeScale?: number;
+  /** Maximum number of fixed steps to run per loop to avoid spiral-of-death. */
+  maxCatchUpSteps?: number;
+  /** Upper bound on wall-clock delta used for catch-up (ms). */
+  maxWallDeltaMs?: number;
+  /** Cap how often state messages are posted back to main thread. */
+  publishHz?: number;
 };
 
 export type CarStateDto = {
@@ -121,6 +139,13 @@ export type CarStateDto = {
   fitness: number;
   /** Whether the car has reached the destination */
   reachedDestination: boolean;
+
+  /** Worker-owned simulated time (ms since start). */
+  simTimeMs?: number;
+  /** Total fixed steps simulated so far. */
+  stepIndex?: number;
+  /** Snapshot sequence number used for the most recent simulation step. */
+  snapshotSeqUsed?: number;
 };
 
 /** Request from main thread to get the brain data from the worker */
@@ -137,7 +162,10 @@ export type BrainResponseDto = {
 
 export type CarWorkerInboundMessage =
   | { type: "init"; init: CarInitDto }
-  | { type: "tick"; tick: CarTickDto }
+  | { type: "start" }
+  | { type: "stop" }
+  | { type: "configure"; config: CarWorkerConfigDto }
+  | { type: "snapshot"; snapshot: CarSnapshotDto }
   | { type: "getBrain" };
 
 export type CarWorkerOutboundMessage =

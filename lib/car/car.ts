@@ -16,8 +16,8 @@ import { Edge } from "@/lib/primitives/edge";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import type {
   CarInitDto,
+  CarSnapshotDto,
   CarStateDto,
-  CarTickDto,
   CarWorkerOutboundMessage,
   RoadRelativeDto,
   DestinationRelativeDto,
@@ -107,8 +107,9 @@ export class Car {
 
   private worker: Worker | null = null;
   private workerReady = false;
-  private tickInFlight = false;
-  private queuedTick: CarTickDto | null = null;
+
+  /** Monotonically increasing snapshot sequence number sent to the worker. */
+  private snapshotSeq = 0;
 
   /** When true, car-to-car overlap does not mark this car as damaged (used when stack-spawning). */
   ignoreCarDamage: boolean = false;
@@ -193,8 +194,9 @@ export class Car {
 
     const trafficForWorker = this.sensor?.ignoreTraffic ? [] : traffic;
 
-    // All simulation is done in this car's dedicated worker.
-    this.requestWorkerTick({
+    // Publish latest environment snapshot. The worker owns simulation time.
+    this.sendWorkerSnapshot({
+      seq: ++this.snapshotSeq,
       traffic: trafficForWorker.map((c) => c.toTrafficCarDto()),
       controls:
         this.controlType === ControlType.HUMAN
@@ -335,18 +337,14 @@ export class Car {
         case "ready":
           if (msg.id === this.id) {
             this.workerReady = true;
+            // Start autonomous simulation loop.
+            this.worker?.postMessage({ type: "start" });
           }
           return;
 
         case "state":
           if (msg.state.id === this.id) {
             this.applyWorkerState(msg.state);
-          }
-          this.tickInFlight = false;
-          if (this.queuedTick) {
-            const queued = this.queuedTick;
-            this.queuedTick = null;
-            this.requestWorkerTick(queued);
           }
           return;
 
@@ -392,21 +390,9 @@ export class Car {
     this.worker.postMessage({ type: "init", init });
   }
 
-  private requestWorkerTick(tick: CarTickDto) {
-    if (!this.worker) return;
-    if (!this.workerReady) {
-      // Queue until the worker is ready so we don't drop early frames.
-      this.queuedTick = tick;
-      return;
-    }
-
-    if (this.tickInFlight) {
-      this.queuedTick = tick;
-      return;
-    }
-
-    this.tickInFlight = true;
-    this.worker.postMessage({ type: "tick", tick });
+  private sendWorkerSnapshot(snapshot: CarSnapshotDto) {
+    if (!this.worker || !this.workerReady) return;
+    this.worker.postMessage({ type: "snapshot", snapshot });
   }
 
   private applyWorkerState(state: CarStateDto) {
@@ -515,6 +501,12 @@ export class Car {
    */
   dispose() {
     if (this.worker) {
+      // Stop loop first (best-effort), then terminate.
+      try {
+        this.worker.postMessage({ type: "stop" });
+      } catch {
+        // ignore
+      }
       this.worker.terminate();
       this.worker = null;
     }

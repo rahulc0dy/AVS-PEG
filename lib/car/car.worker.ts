@@ -23,8 +23,9 @@ import { getIntersection, lerp } from "@/utils/math";
 import { Node } from "@/lib/primitives/node";
 import type {
   CarInitDto,
+  CarSnapshotDto,
   CarStateDto,
-  CarTickDto,
+  CarWorkerConfigDto,
   CarWorkerInboundMessage,
   CarWorkerOutboundMessage,
   ControlsDto,
@@ -96,6 +97,66 @@ function defaultControls(): ControlsDto {
 /** Returns default road-relative position (centered on road). */
 function defaultRoadRelative(): { lateral: number; along: number } {
   return { lateral: 0, along: 0 };
+}
+
+/** Returns default destination-relative features. */
+function defaultDestinationRelative(): { angleDiff: number; distance: number } {
+  return { angleDiff: 0, distance: 1 };
+}
+
+/**
+ * Returns the closest point on segment AB to point P.
+ */
+function closestPointOnSegment(
+  p: NodeJson,
+  a: NodeJson,
+  b: NodeJson,
+): { x: number; y: number; t: number } {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const apx = p.x - a.x;
+  const apy = p.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  if (len2 <= 0) return { x: a.x, y: a.y, t: 0 };
+  const t = (apx * abx + apy * aby) / len2;
+  const tClamped = Math.max(0, Math.min(1, t));
+  return { x: a.x + abx * tClamped, y: a.y + aby * tClamped, t: tClamped };
+}
+
+/**
+ * Calculate normalized progress (0..1) along a polyline path composed of edges.
+ * We find the closest point on any edge and convert that to a cumulative distance.
+ */
+function calculatePathProgress(
+  position: NodeJson,
+  pathEdges?: PathEdgeDto[],
+  totalPathLength?: number,
+): number {
+  if (!pathEdges || pathEdges.length === 0) return 0;
+
+  const total = totalPathLength ?? pathEdges.reduce((s, e) => s + e.length, 0);
+  if (total <= 0) return 0;
+
+  let bestDist = Infinity;
+  let bestProgress = 0;
+
+  let cumulativeBefore = 0;
+  for (const edge of pathEdges) {
+    const cp = closestPointOnSegment(position, edge.n1, edge.n2);
+    const dx = position.x - cp.x;
+    const dy = position.y - cp.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+
+    if (d < bestDist) {
+      bestDist = d;
+      bestProgress = (cumulativeBefore + cp.t * edge.length) / total;
+    }
+
+    cumulativeBefore += edge.length;
+  }
+
+  // Clamp to [0, 1]
+  return Math.max(0, Math.min(1, bestProgress));
 }
 
 // =============================================================================
@@ -281,76 +342,80 @@ const DESTINATION_THRESHOLD = 30;
 /** Current worker state, initialized on 'init' message. */
 let state: WorkerState | null = null;
 
+// =============================================================================
+// RUNTIME LOOP (worker owns time)
+// =============================================================================
+
+type Runtime = {
+  running: boolean;
+  lastWallTimeMs: number;
+  accumulatorMs: number;
+  simTimeMs: number;
+  stepIndex: number;
+
+  fixedDtMs: number;
+  timeScale: number;
+  maxCatchUpSteps: number;
+  maxWallDeltaMs: number;
+  publishHz: number;
+
+  lastPublishWallMs: number;
+
+  latestSnapshot: CarSnapshotDto | null;
+  latestSnapshotSeq: number;
+};
+
+const runtime: Runtime = {
+  running: false,
+  lastWallTimeMs: 0,
+  accumulatorMs: 0,
+  simTimeMs: 0,
+  stepIndex: 0,
+
+  fixedDtMs: 1000 / 60,
+  timeScale: 1,
+  maxCatchUpSteps: 8,
+  maxWallDeltaMs: 250,
+  publishHz: 30,
+
+  lastPublishWallMs: 0,
+
+  latestSnapshot: null,
+  latestSnapshotSeq: -1,
+};
+
+function applyConfig(config: CarWorkerConfigDto) {
+  if (config.fixedDtMs !== undefined && config.fixedDtMs > 0) {
+    runtime.fixedDtMs = config.fixedDtMs;
+  }
+  if (config.timeScale !== undefined && config.timeScale > 0) {
+    runtime.timeScale = config.timeScale;
+  }
+  if (config.maxCatchUpSteps !== undefined && config.maxCatchUpSteps > 0) {
+    runtime.maxCatchUpSteps = config.maxCatchUpSteps;
+  }
+  if (config.maxWallDeltaMs !== undefined && config.maxWallDeltaMs > 0) {
+    runtime.maxWallDeltaMs = config.maxWallDeltaMs;
+  }
+  if (config.publishHz !== undefined && config.publishHz >= 0) {
+    runtime.publishHz = config.publishHz;
+  }
+}
+
 /** Sends a message to the main thread. */
 function post(msg: CarWorkerOutboundMessage) {
   self.postMessage(msg);
 }
 
-/** Returns default destination-relative navigation values. */
-function defaultDestinationRelative(): { angleDiff: number; distance: number } {
-  return { angleDiff: 0, distance: 1 };
-}
-
-/**
- * Calculate progress along the path from source to destination.
- * Returns a value between 0 (at start) and 1 (at destination).
- */
-function calculatePathProgress(
-  position: NodeJson,
-  pathEdges: PathEdgeDto[] | undefined,
-  totalPathLength: number | undefined,
-): number {
-  if (
-    !pathEdges ||
-    pathEdges.length === 0 ||
-    !totalPathLength ||
-    totalPathLength <= 0
-  ) {
-    // Only log this once per worker
-    return 0;
-  }
-
-  // Find which edge the car is closest to and the projection point
-  let bestEdgeIndex = 0;
-  let bestT = 0;
-  let bestDist = Infinity;
-
-  for (let i = 0; i < pathEdges.length; i++) {
-    const edge = pathEdges[i];
-    const dx = edge.n2.x - edge.n1.x;
-    const dy = edge.n2.y - edge.n1.y;
-    const len2 = dx * dx + dy * dy;
-
-    if (len2 <= 0) continue;
-
-    // Project position onto edge (unclamped to detect beyond endpoints)
-    const t =
-      ((position.x - edge.n1.x) * dx + (position.y - edge.n1.y) * dy) / len2;
-    const tClamped = Math.max(0, Math.min(1, t));
-
-    // Calculate distance to the clamped projection point
-    const projX = edge.n1.x + tClamped * dx;
-    const projY = edge.n1.y + tClamped * dy;
-    const dist = Math.hypot(position.x - projX, position.y - projY);
-
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestEdgeIndex = i;
-      bestT = tClamped;
-    }
-  }
-
-  // Calculate cumulative distance to the start of the best edge
-  let cumulativeLength = 0;
-  for (let i = 0; i < bestEdgeIndex; i++) {
-    cumulativeLength += pathEdges[i].length;
-  }
-
-  // Add progress within the current edge
-  cumulativeLength += bestT * pathEdges[bestEdgeIndex].length;
-
-  // Normalize to 0-1
-  return cumulativeLength / totalPathLength;
+function defaultSnapshot(): CarSnapshotDto {
+  return {
+    seq: -1,
+    traffic: [],
+    controls: undefined,
+    roadRelative: { lateral: 0, along: 0 },
+    destinationRelative: { angleDiff: 0, distance: 1 },
+    walls: [],
+  };
 }
 
 // =============================================================================
@@ -360,36 +425,34 @@ function calculatePathProgress(
 /**
  * Updates car position and angle based on current controls.
  *
- * Applies acceleration, friction, and steering physics. The car's movement
- * is in the direction it's facing, with steering only effective when moving.
- *
- * Physics model:
- * - Forward/reverse: Adds/subtracts acceleration to speed
- * - Speed is clamped to maxSpeed (forward) or maxSpeed/2 (reverse)
- * - Friction gradually reduces speed towards zero
- * - Steering rotates the car, direction depends on movement direction
- *
- * @param s - The worker state to update in-place
+ * NOTE: This version is dt-aware. All per-second rates are derived from the
+ * original per-tick constants assuming a 60Hz loop.
  */
-function moveCar(s: WorkerState) {
+function moveCar(s: WorkerState, dtSeconds: number) {
   const { acceleration, friction, maxSpeed } = s.init;
   const c = s.controls;
 
-  if (c.forward) s.speed += acceleration;
-  if (c.reverse) s.speed -= acceleration;
+  // Original code treated acceleration/friction as "per-tick". Convert to per-second using 60Hz.
+  const accelPerSec = acceleration * 60;
+  const frictionPerSec = friction * 60;
+
+  if (c.forward) s.speed += accelPerSec * dtSeconds;
+  if (c.reverse) s.speed -= accelPerSec * dtSeconds;
 
   if (s.speed > maxSpeed) s.speed = maxSpeed;
   if (s.speed < -maxSpeed / 2) s.speed = -maxSpeed / 2;
 
-  if (s.speed > 0) s.speed -= friction;
-  if (s.speed < 0) s.speed += friction;
+  if (s.speed > 0) s.speed -= frictionPerSec * dtSeconds;
+  if (s.speed < 0) s.speed += frictionPerSec * dtSeconds;
 
-  if (Math.abs(s.speed) < friction) s.speed = 0;
+  if (Math.abs(s.speed) < frictionPerSec * dtSeconds) s.speed = 0;
 
   if (s.speed !== 0) {
     const flip = s.speed > 0 ? 1 : -1;
-    if (c.left) s.angle += 0.03 * flip;
-    if (c.right) s.angle -= 0.03 * flip;
+    // Original steering: 0.03 rad/tick at 60Hz.
+    const steerRadPerSec = 0.03 * 60;
+    if (c.left) s.angle += steerRadPerSec * dtSeconds * flip;
+    if (c.right) s.angle -= steerRadPerSec * dtSeconds * flip;
   }
 
   s.position = {
@@ -399,24 +462,10 @@ function moveCar(s: WorkerState) {
 }
 
 // =============================================================================
-// MAIN SIMULATION LOOP
+// MAIN SIMULATION STEP
 // =============================================================================
 
-/**
- * Processes a single simulation tick.
- *
- * This is the main update function called every frame. It:
- * 1. Updates controls (from human input or AI decision)
- * 2. Casts sensor rays and gets readings
- * 3. Runs neural network inference for AI cars
- * 4. Applies physics (movement, steering)
- * 5. Checks for collisions
- * 6. Calculates fitness for training
- *
- * @param tick - Tick data containing traffic, walls, controls, etc.
- * @returns Updated car state to send back to main thread
- */
-function computeTick(tick: CarTickDto): CarStateDto {
+function computeStep(snapshot: CarSnapshotDto, dtSeconds: number): CarStateDto {
   if (!state) throw new Error("Worker not initialized");
 
   const init = state.init;
@@ -424,12 +473,12 @@ function computeTick(tick: CarTickDto): CarStateDto {
 
   // Apply controls
   if (init.controlType === ControlType.HUMAN) {
-    state.controls = tick.controls ?? defaultControls();
+    state.controls = snapshot.controls ?? defaultControls();
   } else if (init.controlType === ControlType.NONE) {
     state.controls = defaultControls();
   }
 
-  // Sensors + AI decide (must happen before move to match existing logic)
+  // Sensors + AI decide
   const rays = castRays(
     state.position,
     state.angle,
@@ -438,19 +487,14 @@ function computeTick(tick: CarTickDto): CarStateDto {
     init.raySpreadAngle,
   );
 
-  const walls = tick.walls ?? [];
-  const readings = rays.map((ray) => getReading(ray, tick.traffic, walls));
+  const walls = snapshot.walls ?? [];
+  const readings = rays.map((ray) => getReading(ray, snapshot.traffic, walls));
   const offsets = readings.map((s) => (s == null ? 0 : 1 - s.offset));
 
-  const roadRelative = tick.roadRelative ?? defaultRoadRelative();
-  const destRelative = tick.destinationRelative ?? defaultDestinationRelative();
+  const roadRelative = snapshot.roadRelative ?? defaultRoadRelative();
+  const destRelative =
+    snapshot.destinationRelative ?? defaultDestinationRelative();
 
-  // Neural network inputs:
-  // - Sensor offsets (rayCount inputs): obstacle detection
-  // - Road relative lateral: how far from road center
-  // - Road relative along: position along road segment
-  // - Destination angle diff: which way to turn to face destination
-  // - Destination distance: how far to destination
   const nnInputs = offsets.concat([
     roadRelative.lateral,
     roadRelative.along,
@@ -470,7 +514,7 @@ function computeTick(tick: CarTickDto): CarStateDto {
 
   // Movement + collisions
   if (!state.damaged) {
-    moveCar(state);
+    moveCar(state, dtSeconds);
   }
 
   const polygon = createCarPolygon(
@@ -480,19 +524,15 @@ function computeTick(tick: CarTickDto): CarStateDto {
     state.angle,
   );
   if (!state.damaged) {
-    // Collision with other cars
-    state.damaged = assessDamage(polygon, tick.traffic);
-
-    // Collision with static walls (e.g., path borders)
+    state.damaged = assessDamage(polygon, snapshot.traffic);
     if (!state.damaged) {
       state.damaged = assessWallDamage(polygon, walls);
     }
   }
 
-  // Calculate fitness based on path progress (following the road) rather than straight-line distance
+  // Fitness
   let fitness = 0;
   if (init.destinationPosition) {
-    // If the car is damaged (e.g., hit path borders), it is excluded from fitness.
     if (state.damaged) {
       fitness = 0;
     } else {
@@ -500,39 +540,30 @@ function computeTick(tick: CarTickDto): CarStateDto {
       const dy = state.position.y - init.destinationPosition.y;
       const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
 
-      // Track best distance achieved (for destination check)
       if (distanceToDestination < state.bestDistanceToDestination) {
         state.bestDistanceToDestination = distanceToDestination;
       }
 
-      // Check if reached destination
       if (distanceToDestination < DESTINATION_THRESHOLD) {
         state.reachedDestination = true;
       }
 
-      // Calculate path progress (0 to 1)
       const pathProgress = calculatePathProgress(
         state.position,
         init.pathEdges,
         init.totalPathLength,
       );
-
-      // Track best path progress achieved
       if (pathProgress > state.bestPathProgress) {
         state.bestPathProgress = pathProgress;
       }
 
-      // FALLBACK: If no path data, use distance-based fitness instead
       let progressFitness: number;
       if (!init.pathEdges || init.pathEdges.length === 0) {
-        // Fallback to distance-based fitness (old behavior)
         progressFitness = 1 / (1 + state.bestDistanceToDestination / 100);
       } else {
-        // Primary fitness: path progress (0 to 1)
         progressFitness = state.bestPathProgress;
       }
 
-      // Bonus for reaching destination (with time factor - faster = better)
       const timeBonus = state.reachedDestination
         ? 1.0 + 0.5 * Math.max(0, 1 - state.tickCount / 3000)
         : 0;
@@ -555,8 +586,79 @@ function computeTick(tick: CarTickDto): CarStateDto {
     },
     fitness,
     reachedDestination: state.reachedDestination,
+    simTimeMs: runtime.simTimeMs,
+    stepIndex: runtime.stepIndex,
+    snapshotSeqUsed: snapshot.seq,
   };
 }
+
+function shouldPublishState(nowMs: number): boolean {
+  if (runtime.publishHz === 0) return false;
+  const intervalMs = runtime.publishHz > 0 ? 1000 / runtime.publishHz : 0;
+  if (intervalMs === 0) return true;
+  return nowMs - runtime.lastPublishWallMs >= intervalMs;
+}
+
+function loopOnce() {
+  if (!runtime.running || !state) return;
+
+  const nowMs = performance.now();
+  if (runtime.lastWallTimeMs === 0) {
+    runtime.lastWallTimeMs = nowMs;
+    runtime.lastPublishWallMs = nowMs;
+  }
+
+  let wallDeltaMs = nowMs - runtime.lastWallTimeMs;
+  runtime.lastWallTimeMs = nowMs;
+
+  if (!Number.isFinite(wallDeltaMs) || wallDeltaMs < 0) wallDeltaMs = 0;
+  if (wallDeltaMs > runtime.maxWallDeltaMs)
+    wallDeltaMs = runtime.maxWallDeltaMs;
+
+  runtime.accumulatorMs += wallDeltaMs * runtime.timeScale;
+
+  const snapshot = runtime.latestSnapshot ?? defaultSnapshot();
+  const dtSeconds = runtime.fixedDtMs / 1000;
+
+  let steps = 0;
+  let lastState: CarStateDto | null = null;
+  while (
+    runtime.accumulatorMs >= runtime.fixedDtMs &&
+    steps < runtime.maxCatchUpSteps
+  ) {
+    const s = computeStep(snapshot, dtSeconds);
+    lastState = s;
+    runtime.accumulatorMs -= runtime.fixedDtMs;
+    runtime.simTimeMs += runtime.fixedDtMs;
+    runtime.stepIndex++;
+    steps++;
+  }
+
+  if (lastState && shouldPublishState(nowMs)) {
+    runtime.lastPublishWallMs = nowMs;
+    post({ type: "state", state: lastState });
+  }
+
+  // Keep the loop going.
+  setTimeout(loopOnce, 0);
+}
+
+function startLoop() {
+  if (runtime.running) return;
+  runtime.running = true;
+  runtime.lastWallTimeMs = 0;
+  runtime.accumulatorMs = 0;
+  runtime.lastPublishWallMs = 0;
+  setTimeout(loopOnce, 0);
+}
+
+function stopLoop() {
+  runtime.running = false;
+}
+
+// =============================================================================
+// EXISTING FUNCTIONS (unchanged below this point, except message handling)
+// =============================================================================
 
 self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
   const msg = event.data;
@@ -605,14 +707,39 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         bestPathProgress: 0,
       };
 
+      // Reset runtime
+      runtime.simTimeMs = 0;
+      runtime.stepIndex = 0;
+      runtime.accumulatorMs = 0;
+      runtime.lastWallTimeMs = 0;
+      runtime.latestSnapshot = null;
+      runtime.latestSnapshotSeq = -1;
+
       post({ type: "ready", id: init.id });
       return;
     }
 
-    case "tick": {
-      const tick = msg.tick;
-      const next = computeTick(tick);
-      post({ type: "state", state: next });
+    case "configure": {
+      applyConfig(msg.config);
+      return;
+    }
+
+    case "snapshot": {
+      const snap = msg.snapshot;
+      if (snap.seq >= runtime.latestSnapshotSeq) {
+        runtime.latestSnapshot = snap;
+        runtime.latestSnapshotSeq = snap.seq;
+      }
+      return;
+    }
+
+    case "start": {
+      startLoop();
+      return;
+    }
+
+    case "stop": {
+      stopLoop();
       return;
     }
 
