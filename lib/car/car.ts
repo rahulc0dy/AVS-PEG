@@ -7,6 +7,8 @@ import {
   Color,
   BoxGeometry,
   MeshBasicMaterial,
+  RingGeometry,
+  DoubleSide,
 } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
@@ -102,6 +104,19 @@ export class Car {
   /** Mesh used to visualize the car collider (optional, created lazily). */
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
 
+  /** Mesh used to highlight this car when it's selected as "best" during training. */
+  private bestHighlightRing: Mesh<RingGeometry, MeshBasicMaterial> | null =
+    null;
+
+  /**
+   * Original material colors cached so we can restore after highlight is disabled.
+   * We use WeakMap so materials are not strongly retained after model disposal.
+   */
+  private originalMaterialColors: WeakMap<
+    Material,
+    { color?: Color; emissive?: Color }
+  > = new WeakMap();
+
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
@@ -186,8 +201,9 @@ export class Car {
     roadEdges?: Edge[],
     roadWidth?: number,
     walls?: Edge[],
+    highlightBest: boolean = false,
   ) {
-    this.draw(this.group, this.modelUrl);
+    this.draw(this.group, this.modelUrl, undefined, { highlightBest });
 
     const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
     const destinationRelative = this.computeDestinationRelativeFeatures();
@@ -434,8 +450,16 @@ export class Car {
    * @param target Parent group where meshes are added
    * @param url GLTF model URL
    * @param loader Optional `GLTFLoader` to reuse
+   * @param options Rendering options (e.g., highlight the best car)
    */
-  draw(target: Group, url: string, loader?: GLTFLoader) {
+  draw(
+    target: Group,
+    url: string,
+    loader?: GLTFLoader,
+    options?: { highlightBest?: boolean },
+  ) {
+    const highlightBest = options?.highlightBest ?? false;
+
     if (this.sensor) {
       this.sensor.draw(target);
     }
@@ -452,6 +476,9 @@ export class Car {
           this.model.position.set(this.position.x, 0, this.position.y);
           this.model.rotation.set(0, this.angle, 0);
           target.add(this.model);
+
+          // Make sure the highlight visuals match immediately after load.
+          this.applyBestHighlight(highlightBest);
         },
         undefined,
         () => {
@@ -468,6 +495,8 @@ export class Car {
       target.add(this.model);
     }
 
+    this.applyBestHighlight(highlightBest);
+
     if (!this.carColliderMesh) {
       const carGeometry = new BoxGeometry(
         this.breadth,
@@ -479,8 +508,7 @@ export class Car {
         transparent: true,
         opacity: 0.1,
       });
-      const carMesh = new Mesh(carGeometry, carMaterial);
-      this.carColliderMesh = carMesh;
+      this.carColliderMesh = new Mesh(carGeometry, carMaterial);
     }
     this.carColliderMesh.position.set(
       this.position.x,
@@ -492,6 +520,101 @@ export class Car {
     if (!target.children.includes(this.carColliderMesh)) {
       target.add(this.carColliderMesh);
     }
+  }
+
+  /**
+   * Toggle the "best car" highlight visuals.
+   * This is designed to be cheap on every frame (no material cloning).
+   */
+  private applyBestHighlight(enabled: boolean) {
+    // Ring indicator under the car.
+    if (enabled) {
+      if (!this.bestHighlightRing) {
+        const geometry = new RingGeometry(8, 11, 48);
+        const material = new MeshBasicMaterial({
+          color: new Color(0xffd400),
+          transparent: true,
+          opacity: 0.9,
+          side: DoubleSide,
+          depthTest: false,
+        });
+        this.bestHighlightRing = new Mesh(geometry, material);
+        // Lay flat on the ground.
+        this.bestHighlightRing.rotation.set(-Math.PI / 2, 0, 0);
+        // Slightly above the ground to avoid z-fighting.
+        this.bestHighlightRing.position.set(
+          this.position.x,
+          0.05,
+          this.position.y,
+        );
+      }
+
+      this.bestHighlightRing.position.set(
+        this.position.x,
+        0.05,
+        this.position.y,
+      );
+      if (this.bestHighlightRing.parent !== this.group) {
+        this.group.add(this.bestHighlightRing);
+      }
+    } else if (this.bestHighlightRing) {
+      if (this.bestHighlightRing.parent) {
+        this.bestHighlightRing.parent.remove(this.bestHighlightRing);
+      }
+    }
+
+    // Emissive/material tint on the model (if it has materials).
+    if (!this.model) return;
+
+    const highlightColor = new Color(0xffd400);
+
+    this.model.traverse((child: Object3D) => {
+      // Some Object3D instances are not Mesh; rely on presence of `material`.
+      const anyChild = child as unknown as { material?: unknown };
+      if (!anyChild.material) return;
+
+      const mesh = child as unknown as Mesh;
+
+      const materials = Array.isArray(mesh.material)
+        ? (mesh.material as Material[])
+        : ([mesh.material] as Material[]);
+
+      for (const mat of materials) {
+        // Cache original colors the first time we see this material.
+        if (!this.originalMaterialColors.has(mat)) {
+          const anyMat = mat as unknown as { color?: Color; emissive?: Color };
+          this.originalMaterialColors.set(mat, {
+            color: anyMat.color ? anyMat.color.clone() : undefined,
+            emissive: anyMat.emissive ? anyMat.emissive.clone() : undefined,
+          });
+        }
+
+        const anyMat = mat as unknown as {
+          color?: Color;
+          emissive?: Color;
+          emissiveIntensity?: number;
+        };
+
+        if (enabled) {
+          if (anyMat.emissive) {
+            anyMat.emissive.copy(highlightColor);
+            anyMat.emissiveIntensity = 1.5;
+          } else if (anyMat.color) {
+            // Fallback for non-standard materials: brighten base color.
+            anyMat.color.lerp(highlightColor, 0.5);
+          }
+        } else {
+          const original = this.originalMaterialColors.get(mat);
+          if (original?.emissive && anyMat.emissive) {
+            anyMat.emissive.copy(original.emissive);
+            anyMat.emissiveIntensity = 1;
+          }
+          if (original?.color && anyMat.color) {
+            anyMat.color.copy(original.color);
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -524,14 +647,19 @@ export class Car {
 
       // Dispose meshes
       this.model.traverse((child: Object3D) => {
-        if (child instanceof Mesh) {
-          child.geometry.dispose();
-          const material = child.material as Material | Material[];
-          if (Array.isArray(material)) {
-            material.forEach((mat) => mat.dispose());
-          } else {
-            material.dispose();
-          }
+        const anyChild = child as unknown as {
+          geometry?: { dispose?: () => void };
+          material?: unknown;
+        };
+        if (!anyChild.geometry || !anyChild.material) return;
+
+        const mesh = child as unknown as Mesh;
+        mesh.geometry.dispose();
+        const material = mesh.material as Material | Material[];
+        if (Array.isArray(material)) {
+          material.forEach((mat) => mat.dispose());
+        } else {
+          material.dispose();
         }
       });
       this.model = null;
@@ -548,6 +676,15 @@ export class Car {
       // Clear the mesh
       this.carColliderMesh.clear();
       this.carColliderMesh = null;
+    }
+
+    if (this.bestHighlightRing) {
+      if (this.bestHighlightRing.parent) {
+        this.bestHighlightRing.parent.remove(this.bestHighlightRing);
+      }
+      this.bestHighlightRing.geometry.dispose();
+      this.bestHighlightRing.material.dispose();
+      this.bestHighlightRing = null;
     }
   }
 }

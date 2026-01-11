@@ -38,6 +38,9 @@ export interface WorldConfig {
  * re-created each draw and attached to the provided `Scene`.
  */
 export class World {
+  /** If set, the car with this id will be rendered with an extra highlight (used in training mode). */
+  bestCarId: string | null = null;
+
   /** Underlying road graph (nodes and edges). */
   graph: Graph;
   /** Three.js scene where the world will be rendered. */
@@ -129,11 +132,13 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
+      const highlightBest = !!this.bestCarId && car.id === this.bestCarId;
       car.update(
         this.cars.filter((c) => c !== car),
         this.pathFindingSystem.getPath(),
         ROAD_WIDTH,
         this.pathBorders,
+        highlightBest,
       );
     }
     for (const marking of this.markings) {

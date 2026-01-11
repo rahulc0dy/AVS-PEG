@@ -56,6 +56,7 @@ export default function TrainingCanvas({
   const [generation, setGeneration] = useState(1);
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
+  const [bestCarId, setBestCarId] = useState<string | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
 
   // Ref to track the loaded brain for spawning
@@ -125,19 +126,40 @@ export default function TrainingCanvas({
       const world = worldRef.current;
       if (!world || world.cars.length === 0) return;
 
-      // Find best fitness and count cars that reached destination
-      let best = 0;
+      // Find best car: prefer reachedDestination, then by fitness
+      let bestCar = world.cars.find((c) => !c.damaged) ?? null;
       let reached = 0;
+
       for (const car of world.cars) {
-        if (!car.damaged && car.fitness > best) {
-          best = car.fitness;
+        if (car.damaged) continue;
+
+        if (car.reachedDestination) reached++;
+
+        if (!bestCar) {
+          bestCar = car;
+          continue;
         }
-        if (!car.damaged && car.reachedDestination) {
-          reached++;
+
+        if (car.reachedDestination && !bestCar.reachedDestination) {
+          bestCar = car;
+          continue;
+        }
+        if (!car.reachedDestination && bestCar.reachedDestination) {
+          continue;
+        }
+        if (car.fitness > bestCar.fitness) {
+          bestCar = car;
         }
       }
+
+      const best = bestCar?.fitness ?? 0;
       setBestFitness(best);
       setCarsReachedDestination(reached);
+
+      const id = bestCar?.id ?? null;
+      setBestCarId(id);
+      // Bridge into render layer
+      world.bestCarId = id;
     }, 500);
 
     return () => clearInterval(interval);
@@ -286,6 +308,8 @@ export default function TrainingCanvas({
     if (!world) return;
 
     world.spawnerSystem.clearCars();
+    world.bestCarId = null;
+    setBestCarId(null);
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
@@ -348,10 +372,13 @@ export default function TrainingCanvas({
   const handleLoadWorld = useCallback(() => {
     loadFromJson();
     // Reset training state since loading clears all cars
+    const world = worldRef.current;
+    if (world) world.bestCarId = null;
+    setBestCarId(null);
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
-  }, [loadFromJson]);
+  }, [loadFromJson, worldRef]);
 
   return (
     <>
@@ -430,6 +457,7 @@ export default function TrainingCanvas({
             <p>Generation: {generation}</p>
             <p>Cars: {currentCarCount}</p>
             <p>Best Fitness: {(bestFitness ?? 0).toFixed(4)}</p>
+            <p>Best Car: {bestCarId ?? "—"}</p>
             <p>Reached Destination: {carsReachedDestination}</p>
             <p>Brain: {hasLoadedBrain ? "Loaded ✓" : "None (random start)"}</p>
           </div>
