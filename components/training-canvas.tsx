@@ -56,6 +56,7 @@ export default function TrainingCanvas({
   const [generation, setGeneration] = useState(1);
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
+  const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
 
   // Ref to track the loaded brain for spawning
   const loadedBrainRef = useRef<NeuralNetworkJson | null>(null);
@@ -103,6 +104,7 @@ export default function TrainingCanvas({
           localStorage.removeItem(BEST_BRAIN_KEY);
         } else {
           loadedBrainRef.current = brainData.brainJson;
+          setHasLoadedBrain(true);
           setGeneration(brainData.generation + 1);
           setBestFitness(brainData.fitness);
           console.log(
@@ -127,10 +129,10 @@ export default function TrainingCanvas({
       let best = 0;
       let reached = 0;
       for (const car of world.cars) {
-        if (car.fitness > best) {
+        if (!car.damaged && car.fitness > best) {
           best = car.fitness;
         }
-        if (car.reachedDestination) {
+        if (!car.damaged && car.reachedDestination) {
           reached++;
         }
       }
@@ -148,10 +150,18 @@ export default function TrainingCanvas({
       return;
     }
 
+    const eligibleCars = world.cars.filter((c) => !c.damaged);
+    if (eligibleCars.length === 0) {
+      alert(
+        "All cars are damaged (crashed). There's no eligible brain to save.",
+      );
+      return;
+    }
+
     // Find the best performing car
     // Priority: cars that reached destination, then by fitness
-    let bestCar = world.cars[0];
-    for (const car of world.cars) {
+    let bestCar = eligibleCars[0];
+    for (const car of eligibleCars) {
       // Prioritize cars that reached destination
       if (car.reachedDestination && !bestCar.reachedDestination) {
         bestCar = car;
@@ -187,6 +197,7 @@ export default function TrainingCanvas({
 
     localStorage.setItem(BEST_BRAIN_KEY, JSON.stringify(savedBrain));
     loadedBrainRef.current = brainJson;
+    setHasLoadedBrain(true);
 
     const message = bestCar.reachedDestination
       ? `Brain saved! Car reached destination. Generation: ${generation}, Fitness: ${bestCar.fitness.toFixed(4)}`
@@ -198,6 +209,7 @@ export default function TrainingCanvas({
   const handleDiscardBrain = useCallback(() => {
     localStorage.removeItem(BEST_BRAIN_KEY);
     loadedBrainRef.current = null;
+    setHasLoadedBrain(false);
     setGeneration(1);
     setBestFitness(0);
     alert("Saved brain discarded!");
@@ -419,10 +431,7 @@ export default function TrainingCanvas({
             <p>Cars: {currentCarCount}</p>
             <p>Best Fitness: {(bestFitness ?? 0).toFixed(4)}</p>
             <p>Reached Destination: {carsReachedDestination}</p>
-            <p>
-              Brain:{" "}
-              {loadedBrainRef.current ? "Loaded ✓" : "None (random start)"}
-            </p>
+            <p>Brain: {hasLoadedBrain ? "Loaded ✓" : "None (random start)"}</p>
           </div>
         </CardContent>
       </Card>

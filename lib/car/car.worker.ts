@@ -226,6 +226,36 @@ function assessDamage(selfPoly: NodeJson[], traffic: TrafficCarDto[]): boolean {
   return false;
 }
 
+/**
+ * Checks if the car polygon intersects with any static wall segment (path borders).
+ */
+function assessWallDamage(
+  selfPoly: NodeJson[],
+  walls: WallEdgeDto[] = [],
+): boolean {
+  if (!walls || walls.length === 0) return false;
+
+  for (let i = 0; i < selfPoly.length; i++) {
+    const a1 = selfPoly[i];
+    const a2 = selfPoly[(i + 1) % selfPoly.length];
+
+    for (const wall of walls) {
+      if (
+        getIntersection(
+          toNode(a1),
+          toNode(a2),
+          toNode(wall.n1),
+          toNode(wall.n2),
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // =============================================================================
 // WORKER STATE
 // =============================================================================
@@ -450,57 +480,65 @@ function computeTick(tick: CarTickDto): CarStateDto {
     state.angle,
   );
   if (!state.damaged) {
+    // Collision with other cars
     state.damaged = assessDamage(polygon, tick.traffic);
+
+    // Collision with static walls (e.g., path borders)
+    if (!state.damaged) {
+      state.damaged = assessWallDamage(polygon, walls);
+    }
   }
 
   // Calculate fitness based on path progress (following the road) rather than straight-line distance
   let fitness = 0;
   if (init.destinationPosition) {
-    const dx = state.position.x - init.destinationPosition.x;
-    const dy = state.position.y - init.destinationPosition.y;
-    const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
-
-    // Track best distance achieved (for destination check)
-    if (distanceToDestination < state.bestDistanceToDestination) {
-      state.bestDistanceToDestination = distanceToDestination;
-    }
-
-    // Check if reached destination
-    if (distanceToDestination < DESTINATION_THRESHOLD) {
-      state.reachedDestination = true;
-    }
-
-    // Calculate path progress (0 to 1)
-    const pathProgress = calculatePathProgress(
-      state.position,
-      init.pathEdges,
-      init.totalPathLength,
-    );
-
-    // Track best path progress achieved
-    if (pathProgress > state.bestPathProgress) {
-      state.bestPathProgress = pathProgress;
-    }
-
-    // FALLBACK: If no path data, use distance-based fitness instead
-    let progressFitness: number;
-    if (!init.pathEdges || init.pathEdges.length === 0) {
-      // Fallback to distance-based fitness (old behavior)
-      progressFitness = 1 / (1 + state.bestDistanceToDestination / 100);
+    // If the car is damaged (e.g., hit path borders), it is excluded from fitness.
+    if (state.damaged) {
+      fitness = 0;
     } else {
-      // Primary fitness: path progress (0 to 1)
-      progressFitness = state.bestPathProgress;
+      const dx = state.position.x - init.destinationPosition.x;
+      const dy = state.position.y - init.destinationPosition.y;
+      const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
+
+      // Track best distance achieved (for destination check)
+      if (distanceToDestination < state.bestDistanceToDestination) {
+        state.bestDistanceToDestination = distanceToDestination;
+      }
+
+      // Check if reached destination
+      if (distanceToDestination < DESTINATION_THRESHOLD) {
+        state.reachedDestination = true;
+      }
+
+      // Calculate path progress (0 to 1)
+      const pathProgress = calculatePathProgress(
+        state.position,
+        init.pathEdges,
+        init.totalPathLength,
+      );
+
+      // Track best path progress achieved
+      if (pathProgress > state.bestPathProgress) {
+        state.bestPathProgress = pathProgress;
+      }
+
+      // FALLBACK: If no path data, use distance-based fitness instead
+      let progressFitness: number;
+      if (!init.pathEdges || init.pathEdges.length === 0) {
+        // Fallback to distance-based fitness (old behavior)
+        progressFitness = 1 / (1 + state.bestDistanceToDestination / 100);
+      } else {
+        // Primary fitness: path progress (0 to 1)
+        progressFitness = state.bestPathProgress;
+      }
+
+      // Bonus for reaching destination (with time factor - faster = better)
+      const timeBonus = state.reachedDestination
+        ? 1.0 + 0.5 * Math.max(0, 1 - state.tickCount / 3000)
+        : 0;
+
+      fitness = progressFitness + timeBonus;
     }
-
-    // Bonus for reaching destination (with time factor - faster = better)
-    const timeBonus = state.reachedDestination
-      ? 1.0 + 0.5 * Math.max(0, 1 - state.tickCount / 3000)
-      : 0;
-
-    // Penalty for being damaged (reduces fitness by 50%)
-    const damagePenalty = state.damaged ? 0.5 : 1.0;
-
-    fitness = (progressFitness + timeBonus) * damagePenalty;
   }
 
   return {
@@ -566,24 +604,24 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         tickCount: 0,
         bestPathProgress: 0,
       };
+
       post({ type: "ready", id: init.id });
       return;
     }
 
     case "tick": {
-      if (!state) return;
-      const newState = computeTick(msg.tick);
-      post({ type: "state", state: newState });
+      const tick = msg.tick;
+      const next = computeTick(tick);
+      post({ type: "state", state: next });
       return;
     }
 
     case "getBrain": {
-      if (!state) {
-        post({ type: "brain", id: "", brainJson: null });
-        return;
-      }
-      const brainJson = state.brain ? state.brain.toJson() : null;
-      post({ type: "brain", id: state.init.id, brainJson });
+      post({
+        type: "brain",
+        id: state?.init.id ?? "unknown",
+        brainJson: state?.brain ? state.brain.toJson() : null,
+      });
       return;
     }
   }
