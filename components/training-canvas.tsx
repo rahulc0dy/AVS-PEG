@@ -14,6 +14,8 @@ import Checkbox from "@/components/ui/checkbox";
 import { FpsMeter } from "@/components/ui/fps-meter";
 import type { NeuralNetworkJson } from "@/lib/ai/network";
 import type { PathEdgeDto } from "@/lib/car/worker-protocol";
+import { downloadTextFile, pickAndReadJsonFile } from "@/utils/browser";
+import { exportBrainJson, importBrainJson } from "@/lib/ai/brain-io";
 
 /** LocalStorage key for the best brain */
 const BEST_BRAIN_KEY = "avs-peg-best-brain";
@@ -72,6 +74,8 @@ export default function TrainingCanvas({
 
   // Load saved world on mount (but don't spawn cars yet)
   useEffect(() => {
+    // This effect intentionally hydrates local state from localStorage on mount.
+
     if (!world) return;
 
     // Try to load saved world from localStorage
@@ -93,20 +97,26 @@ export default function TrainingCanvas({
       try {
         const brainData: SavedBrain = JSON.parse(savedBrain);
 
-        // Validate brain architecture matches current expected input count
-        // Current: rayCount (10) + 4 navigation features = 14 inputs
-        const expectedInputs = 14; // 10 rays + 4 features (lateral, along, angleDiff, distance)
-        const brainInputs = brainData.brainJson.levels[0]?.inputCount ?? 0;
+        const expectedInputs = 14; // 10 rays + 4 features
+        const expectedOutputs = 4; // forward/left/right/reverse
 
-        if (brainInputs !== expectedInputs) {
+        const imported = importBrainJson(brainData.brainJson, {
+          expectedInputCount: expectedInputs,
+          expectedOutputCount: expectedOutputs,
+        });
+
+        if (!imported.ok) {
           console.warn(
-            `Saved brain has incompatible architecture (${brainInputs} inputs, expected ${expectedInputs}). Discarding.`,
+            `Saved brain is incompatible (${imported.error}). Discarding.`,
           );
           localStorage.removeItem(BEST_BRAIN_KEY);
         } else {
-          loadedBrainRef.current = brainData.brainJson;
+          loadedBrainRef.current = imported.brain;
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setHasLoadedBrain(true);
+
           setGeneration(brainData.generation + 1);
+
           setBestFitness(brainData.fitness);
           console.log(
             `Loaded brain from generation ${brainData.generation} with fitness ${brainData.fitness.toFixed(4)}`,
@@ -227,6 +237,84 @@ export default function TrainingCanvas({
 
     alert(message);
   }, [worldRef, generation]);
+
+  const handleExportBrain = useCallback(async () => {
+    const world = worldRef.current;
+    if (!world || world.cars.length === 0) {
+      alert("No cars available to export a brain from!");
+      return;
+    }
+
+    const eligibleCars = world.cars.filter((c) => !c.damaged);
+    if (eligibleCars.length === 0) {
+      alert(
+        "All cars are damaged (crashed). There's no eligible brain to export.",
+      );
+      return;
+    }
+
+    // Same selection logic as Save Best Brain
+    let bestCar = eligibleCars[0];
+    for (const car of eligibleCars) {
+      if (car.reachedDestination && !bestCar.reachedDestination) {
+        bestCar = car;
+        continue;
+      }
+      if (!car.reachedDestination && bestCar.reachedDestination) {
+        continue;
+      }
+      if (car.fitness > bestCar.fitness) {
+        bestCar = car;
+      }
+    }
+
+    const brainJson = await bestCar.getBrain();
+    if (!brainJson) {
+      alert("Failed to get brain from best car!");
+      return;
+    }
+
+    const fileJson = exportBrainJson({
+      brain: brainJson,
+      fitness: bestCar.fitness,
+      generation,
+    });
+
+    const filename = `avs-peg-brain-gen-${generation}.json`;
+    downloadTextFile({
+      filename,
+      content: JSON.stringify(fileJson, null, 2),
+      mimeType: "application/json;charset=utf-8",
+    });
+  }, [worldRef, generation]);
+
+  const handleImportBrain = useCallback(async () => {
+    const expectedInputs = 14; // 10 rays + 4 features
+    const expectedOutputs = 4; // forward/left/right/reverse
+
+    const picked = await pickAndReadJsonFile();
+    if (!picked.ok) {
+      alert(picked.error);
+      return;
+    }
+
+    const imported = importBrainJson(picked.json, {
+      expectedInputCount: expectedInputs,
+      expectedOutputCount: expectedOutputs,
+    });
+
+    if (!imported.ok) {
+      alert(`Invalid/incompatible brain file. ${imported.error}`);
+      return;
+    }
+
+    loadedBrainRef.current = imported.brain;
+    setHasLoadedBrain(true);
+
+    alert(
+      `Brain imported${picked.filename ? ` from ${picked.filename}` : ""}. New spawns will use it.`,
+    );
+  }, []);
 
   const handleDiscardBrain = useCallback(() => {
     localStorage.removeItem(BEST_BRAIN_KEY);
@@ -434,6 +522,12 @@ export default function TrainingCanvas({
           <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
             <Button variant="outline" onClick={handleSaveBrain}>
               Save Best Brain
+            </Button>
+            <Button variant="outline" onClick={handleExportBrain}>
+              Export Brain (JSON)
+            </Button>
+            <Button variant="outline" onClick={handleImportBrain}>
+              Import Brain (JSON)
             </Button>
             <Button variant="outline" onClick={handleDiscardBrain}>
               Discard Saved Brain
