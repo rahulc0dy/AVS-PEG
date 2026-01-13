@@ -12,7 +12,11 @@ import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { FpsMeter } from "@/components/ui/fps-meter";
-import type { NeuralNetworkJson } from "@/lib/ai/network";
+import { NeuralNetworkVisualizer } from "@/components/ui/neural-network-visualizer";
+import type {
+  NeuralNetworkJson,
+  NeuralNetworkStateJson,
+} from "@/lib/ai/network";
 import type { PathEdgeDto } from "@/lib/car/worker-protocol";
 import { downloadTextFile, pickAndReadJsonFile } from "@/utils/browser";
 import { exportBrainJson, importBrainJson } from "@/lib/ai/brain-io";
@@ -60,6 +64,12 @@ export default function TrainingCanvas({
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
+  const [showNeuralNetwork, setShowNeuralNetwork] = useState(true);
+  const [bestCarBrain, setBestCarBrain] = useState<NeuralNetworkJson | null>(
+    null,
+  );
+  const [bestCarNetworkState, setBestCarNetworkState] =
+    useState<NeuralNetworkStateJson | null>(null);
 
   // Ref to track the loaded brain for spawning
   const loadedBrainRef = useRef<NeuralNetworkJson | null>(null);
@@ -128,11 +138,11 @@ export default function TrainingCanvas({
     }
   }, [world]);
 
-  // Update fitness stats periodically
+  // Update fitness stats and neural network state periodically
   useEffect(() => {
     if (!isTraining) return;
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const world = worldRef.current;
       if (!world || world.cars.length === 0) return;
 
@@ -170,10 +180,24 @@ export default function TrainingCanvas({
       setBestCarId(id);
       // Bridge into render layer
       world.bestCarId = id;
-    }, 500);
+
+      // Update neural network state for visualization
+      if (bestCar && showNeuralNetwork) {
+        // Get real-time network state from the car
+        setBestCarNetworkState(bestCar.networkState);
+
+        // Get brain structure (only if not already loaded)
+        if (!bestCarBrain) {
+          const brain = await bestCar.getBrain();
+          if (brain) {
+            setBestCarBrain(brain);
+          }
+        }
+      }
+    }, 100); // Update more frequently for smooth visualization
 
     return () => clearInterval(interval);
-  }, [isTraining, worldRef]);
+  }, [isTraining, worldRef, showNeuralNetwork, bestCarBrain]);
 
   const handleSaveBrain = useCallback(async () => {
     const world = worldRef.current;
@@ -383,6 +407,8 @@ export default function TrainingCanvas({
     setCurrentCarCount(world.cars.length);
     setIsTraining(true);
     setCarsReachedDestination(0);
+    setBestCarBrain(null);
+    setBestCarNetworkState(null);
   }, [
     worldRef,
     carCount,
@@ -401,6 +427,8 @@ export default function TrainingCanvas({
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
+    setBestCarBrain(null);
+    setBestCarNetworkState(null);
   }, [worldRef]);
 
   const handleResetCars = useCallback(() => {
@@ -449,6 +477,8 @@ export default function TrainingCanvas({
 
     setCurrentCarCount(world.cars.length);
     setCarsReachedDestination(0);
+    setBestCarBrain(null);
+    setBestCarNetworkState(null);
   }, [
     worldRef,
     carCount,
@@ -546,6 +576,15 @@ export default function TrainingCanvas({
             />
           </div>
 
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-zinc-400">Show Neural Network</Label>
+            <Checkbox
+              checked={showNeuralNetwork}
+              onChange={(e) => setShowNeuralNetwork(e.target.checked)}
+              aria-label="Show neural network visualization"
+            />
+          </div>
+
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3 space-y-1">
             <p>Status: {isTraining ? "Training..." : "Ready"}</p>
             <p>Generation: {generation}</p>
@@ -557,6 +596,31 @@ export default function TrainingCanvas({
           </div>
         </CardContent>
       </Card>
+
+      {/* Neural Network Visualizer */}
+      {showNeuralNetwork && isTraining && (
+        <Card className="absolute top-12 right-4 z-10 border-zinc-700 bg-zinc-900 text-zinc-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-zinc-50 text-sm">
+              Best Car Neural Network
+              {bestCarId && (
+                <span className="text-zinc-400 font-normal ml-2">
+                  ({bestCarId})
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            <NeuralNetworkVisualizer
+              brain={bestCarBrain}
+              networkState={bestCarNetworkState}
+              width={450}
+              height={400}
+              showLabels={false}
+            />
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

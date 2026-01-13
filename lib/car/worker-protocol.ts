@@ -1,7 +1,10 @@
 import { ControlType } from "@/lib/car/controls";
 import type { NodeJson } from "@/types/save";
 import type { Intersection } from "@/utils/math";
-import type { NeuralNetworkJson } from "@/lib/ai/network";
+import type {
+  NeuralNetworkJson,
+  NeuralNetworkStateJson,
+} from "@/lib/ai/network";
 
 export type IntersectionDto = Intersection;
 
@@ -146,6 +149,8 @@ export type CarStateDto = {
   stepIndex?: number;
   /** Snapshot sequence number used for the most recent simulation step. */
   snapshotSeqUsed?: number;
+  /** Current neural network state for visualization (only for AI-controlled cars) */
+  networkState?: NeuralNetworkStateJson;
 };
 
 /** Request from main thread to get the brain data from the worker */

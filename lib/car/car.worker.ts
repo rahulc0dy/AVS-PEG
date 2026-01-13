@@ -666,6 +666,7 @@ function computeStep(snapshot: CarSnapshotDto, dtSeconds: number): CarStateDto {
     simTimeMs: runtime.simTimeMs,
     stepIndex: runtime.stepIndex,
     snapshotSeqUsed: snapshot.seq,
+    networkState: state.brain ? state.brain.getState() : undefined,
   };
 }
 

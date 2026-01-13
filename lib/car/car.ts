@@ -91,6 +91,8 @@ export class Car {
   fitness: number = 0;
   /** Whether the car has reached the destination */
   reachedDestination: boolean = false;
+  /** Current neural network state for visualization (only for AI-controlled cars) */
+  networkState: import("@/lib/ai/network").NeuralNetworkStateJson | null = null;
 
   private readonly controlType: ControlType;
 
@@ -418,6 +420,7 @@ export class Car {
     this.damaged = state.damaged;
     this.fitness = state.fitness;
     this.reachedDestination = state.reachedDestination;
+    this.networkState = state.networkState ?? null;
 
     // Keep a main-thread copy for traffic snapshots and any debug visuals.
     this.polygon = new Polygon(state.polygon.map((p) => new Node(p.x, p.y)));

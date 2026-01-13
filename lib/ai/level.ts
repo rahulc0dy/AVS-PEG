@@ -11,6 +11,23 @@ export interface LevelJson {
 }
 
 /**
+ * Real-time state of a neural network level for visualization.
+ * Contains current activation values and network structure.
+ */
+export interface LevelStateJson {
+  /** Current input values to this level */
+  inputs: number[];
+  /** Current output values (after activation) */
+  outputs: number[];
+  /** Bias values for each output neuron */
+  biases: number[];
+  /** Weight matrix [inputIndex][outputIndex] */
+  weights: number[][];
+  /** Raw sums before activation (weighted inputs) for visualization */
+  sums: number[];
+}
+
+/**
  * A single layer in a neural network.
  *
  * Each level connects inputs to outputs through weighted connections.
@@ -25,6 +42,8 @@ export class Level {
   biases: number[];
   /** Weight matrix [inputIndex][outputIndex] */
   weights: number[][];
+  /** Raw sums before activation (for visualization) */
+  sums: number[];
 
   /**
    * Create a new neural network level.
@@ -35,6 +54,7 @@ export class Level {
     this.inputs = new Array(inputCount).fill(0);
     this.outputs = new Array(outputCount).fill(0);
     this.biases = new Array(outputCount).fill(0);
+    this.sums = new Array(outputCount).fill(0);
 
     this.weights = [];
     for (let i = 0; i < inputCount; i++) {
@@ -42,6 +62,19 @@ export class Level {
     }
 
     Level.randomize(this);
+  }
+
+  /**
+   * Get the current state of this level for visualization.
+   */
+  getState(): LevelStateJson {
+    return {
+      inputs: [...this.inputs],
+      outputs: [...this.outputs],
+      biases: [...this.biases],
+      weights: this.weights.map((row) => [...row]),
+      sums: [...this.sums],
+    };
   }
 
   /**
@@ -102,6 +135,9 @@ export class Level {
       for (let j = 0; j < level.inputs.length; j++) {
         sum += level.inputs[j] * level.weights[j][i];
       }
+
+      // Store sum for visualization
+      level.sums[i] = sum;
 
       // Step activation: 1 if sum > bias, else 0
       level.outputs[i] = sum > level.biases[i] ? 1 : 0;

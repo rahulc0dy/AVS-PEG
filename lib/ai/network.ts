@@ -1,4 +1,4 @@
-import { Level, LevelJson } from "@/lib/ai/level";
+import { Level, LevelJson, LevelStateJson } from "@/lib/ai/level";
 import { getRandomNumberBetween, lerp } from "@/utils/math";
 
 /**
@@ -6,6 +6,19 @@ import { getRandomNumberBetween, lerp } from "@/utils/math";
  */
 export interface NeuralNetworkJson {
   levels: LevelJson[];
+}
+
+/**
+ * Real-time state of the neural network for visualization.
+ * Contains current inputs, outputs, and activations for each level.
+ */
+export interface NeuralNetworkStateJson {
+  /** Current input values to the network */
+  inputs: number[];
+  /** Current output values from the network */
+  outputs: number[];
+  /** State of each level (including weights and biases for visualization) */
+  levels: LevelStateJson[];
 }
 
 /**
@@ -60,6 +73,21 @@ export class NeuralNetwork {
   getOutputCount(): number {
     const lastLevel = this.levels[this.levels.length - 1];
     return lastLevel?.outputs.length ?? 0;
+  }
+
+  /**
+   * Get the current state of the network for visualization.
+   * Call this after decide() to get the latest activations.
+   */
+  getState(): NeuralNetworkStateJson {
+    const firstLevel = this.levels[0];
+    const lastLevel = this.levels[this.levels.length - 1];
+
+    return {
+      inputs: firstLevel ? [...firstLevel.inputs] : [],
+      outputs: lastLevel ? [...lastLevel.outputs] : [],
+      levels: this.levels.map((level) => level.getState()),
+    };
   }
 
   /**
