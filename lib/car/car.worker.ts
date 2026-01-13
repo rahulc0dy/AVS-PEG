@@ -105,58 +105,133 @@ function defaultDestinationRelative(): { angleDiff: number; distance: number } {
 }
 
 /**
- * Returns the closest point on segment AB to point P.
+ * Calculate normalized progress (0..1) along a polyline path composed of ordered edges.
+ *
+ * Directional metric:
+ * - Edges are assumed to be in travel order (n1 -> n2).
+ * - We project the car position onto a small window of segments around the best-so-far progress,
+ *   selecting the closest projection within that window.
+ * - This avoids snapping to a geometrically close but topologically far segment (e.g. at crossings).
+ * - If the car is far from the path, we keep the previous progress (no teleporting).
  */
-function closestPointOnSegment(
-  p: NodeJson,
-  a: NodeJson,
-  b: NodeJson,
-): { x: number; y: number; t: number } {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const apx = p.x - a.x;
-  const apy = p.y - a.y;
-  const len2 = abx * abx + aby * aby;
-  if (len2 <= 0) return { x: a.x, y: a.y, t: 0 };
-  const t = (apx * abx + apy * aby) / len2;
-  const tClamped = Math.max(0, Math.min(1, t));
-  return { x: a.x + abx * tClamped, y: a.y + aby * tClamped, t: tClamped };
-}
-
-/**
- * Calculate normalized progress (0..1) along a polyline path composed of edges.
- * We find the closest point on any edge and convert that to a cumulative distance.
- */
-function calculatePathProgress(
+function calculatePathProgressDirectional(
   position: NodeJson,
-  pathEdges?: PathEdgeDto[],
-  totalPathLength?: number,
+  pathEdges: PathEdgeDto[] | undefined,
+  totalPathLength: number | undefined,
+  bestProgressSoFar: number,
+  opts?: {
+    backWindow?: number;
+    forwardWindow?: number;
+    /** If closest projection is farther than this, keep bestProgressSoFar. */
+    offPathDistanceThreshold?: number;
+    /** Allow small backward motion (in world units) before we freeze at bestProgressSoFar. */
+    backwardEpsilonWorld?: number;
+  },
 ): number {
   if (!pathEdges || pathEdges.length === 0) return 0;
 
-  const total = totalPathLength ?? pathEdges.reduce((s, e) => s + e.length, 0);
+  const total =
+    totalPathLength ?? pathEdges.reduce((s, e) => s + (e.length ?? 0), 0);
   if (total <= 0) return 0;
 
-  let bestDist = Infinity;
-  let bestProgress = 0;
+  const backWindow = opts?.backWindow ?? 1;
+  const forwardWindow = opts?.forwardWindow ?? 3;
+  const offPathDistanceThreshold = opts?.offPathDistanceThreshold ?? 200;
+  const backwardEpsilonWorld = opts?.backwardEpsilonWorld ?? 5;
 
-  let cumulativeBefore = 0;
-  for (const edge of pathEdges) {
-    const cp = closestPointOnSegment(position, edge.n1, edge.n2);
-    const dx = position.x - cp.x;
-    const dy = position.y - cp.y;
-    const d = Math.sqrt(dx * dx + dy * dy);
+  // Clamp incoming progress.
+  const bestSoFar = Math.max(0, Math.min(1, bestProgressSoFar));
+  const bestWorld = bestSoFar * total;
 
-    if (d < bestDist) {
-      bestDist = d;
-      bestProgress = (cumulativeBefore + cp.t * edge.length) / total;
+  // Determine the segment index containing bestWorld.
+  let bestIndex = 0;
+  let cumulative = 0;
+  for (let i = 0; i < pathEdges.length; i++) {
+    const len = pathEdges[i].length ?? 0;
+    if (bestWorld <= cumulative + len) {
+      bestIndex = i;
+      break;
     }
-
-    cumulativeBefore += edge.length;
+    cumulative += len;
+    bestIndex = i;
   }
 
-  // Clamp to [0, 1]
-  return Math.max(0, Math.min(1, bestProgress));
+  const startIndex = Math.max(0, bestIndex - backWindow);
+  const endIndex = Math.min(pathEdges.length - 1, bestIndex + forwardWindow);
+
+  // We never want progress selection to go meaningfully backwards.
+  const minCandidateWorld = Math.max(0, bestWorld - backwardEpsilonWorld);
+
+  let bestDist = Infinity;
+  let bestCandidateWorld = bestWorld; // default = keep current progress
+  let foundAny = false;
+
+  let prefixBefore = 0;
+  for (let i = 0; i < pathEdges.length; i++) {
+    const edge = pathEdges[i];
+    const len = edge.length ?? 0;
+
+    // Only consider edges in the window.
+    if (i < startIndex || i > endIndex) {
+      prefixBefore += len;
+      continue;
+    }
+
+    const a = edge.n1;
+    const b = edge.n2;
+
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const apx = position.x - a.x;
+    const apy = position.y - a.y;
+
+    const abLen2 = abx * abx + aby * aby;
+    let t = 0;
+    if (abLen2 > 0) {
+      t = (apx * abx + apy * aby) / abLen2;
+    }
+    const tClamped = Math.max(0, Math.min(1, t));
+
+    const cx = a.x + abx * tClamped;
+    const cy = a.y + aby * tClamped;
+
+    const dx = position.x - cx;
+    const dy = position.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const candidateWorld = prefixBefore + tClamped * len;
+
+    // Directional constraint: ignore projections that move us behind best-so-far.
+    if (candidateWorld + 1e-6 < minCandidateWorld) {
+      prefixBefore += len;
+      continue;
+    }
+
+    foundAny = true;
+
+    // Rank: closest to path; tie-breaker prefers further forward.
+    if (
+      dist < bestDist - 1e-6 ||
+      (Math.abs(dist - bestDist) <= 1e-6 && candidateWorld > bestCandidateWorld)
+    ) {
+      bestDist = dist;
+      bestCandidateWorld = candidateWorld;
+    }
+
+    prefixBefore += len;
+  }
+
+  // If nothing valid in-window, or we're far from the path, do not advance progress.
+  if (
+    !foundAny ||
+    !Number.isFinite(bestDist) ||
+    bestDist > offPathDistanceThreshold
+  ) {
+    return bestSoFar;
+  }
+
+  const progress = bestCandidateWorld / total;
+  return Math.max(0, Math.min(1, progress));
 }
 
 // =============================================================================
@@ -183,6 +258,7 @@ function castRays(
   rayLength: number,
   raySpreadAngle: number,
 ): RayDto[] {
+  raySpreadAngle = Math.PI / 1.5;
   const rays: RayDto[] = [];
   for (let i = 0; i < rayCount; i++) {
     const rayAngle =
@@ -548,10 +624,11 @@ function computeStep(snapshot: CarSnapshotDto, dtSeconds: number): CarStateDto {
         state.reachedDestination = true;
       }
 
-      const pathProgress = calculatePathProgress(
+      const pathProgress = calculatePathProgressDirectional(
         state.position,
         init.pathEdges,
         init.totalPathLength,
+        state.bestPathProgress,
       );
       if (pathProgress > state.bestPathProgress) {
         state.bestPathProgress = pathProgress;
