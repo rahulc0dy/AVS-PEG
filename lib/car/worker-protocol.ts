@@ -47,6 +47,22 @@ export type DestinationRelativeDto = {
 };
 
 /**
+ * Path direction features for AI navigation along a path.
+ * This helps the car follow curves by providing the direction of the path
+ * at the car's current position, rather than just the final destination.
+ */
+export type PathDirectionDto = {
+  /**
+   * Angle difference between car heading and the path direction at current position.
+   * Normalized to [-1, 1]:
+   * -1 = need to turn hard left to follow path
+   *  0 = car is aligned with path direction
+   *  1 = need to turn hard right to follow path
+   */
+  angleDiff: number;
+};
+
+/**
  * Static wall segments the car's sensors should treat as obstacles.
  * Used for invisible path borders (and can be extended later for road borders).
  */
@@ -108,6 +124,8 @@ export type CarSnapshotDto = {
   roadRelative?: RoadRelativeDto;
   /** Destination-relative features for AI navigation. */
   destinationRelative?: DestinationRelativeDto;
+  /** Path direction at current position for following curves. */
+  pathDirection?: PathDirectionDto;
   /** Static wall segments to include in sensor ray tests (e.g., path borders). */
   walls?: WallEdgeDto[];
 };

@@ -23,6 +23,7 @@ import type {
   CarWorkerOutboundMessage,
   RoadRelativeDto,
   DestinationRelativeDto,
+  PathDirectionDto,
   TrafficCarDto,
   WallEdgeDto,
   PathEdgeDto,
@@ -209,6 +210,7 @@ export class Car {
 
     const roadRelative = this.computeRoadRelativeFeatures(roadEdges, roadWidth);
     const destinationRelative = this.computeDestinationRelativeFeatures();
+    const pathDirection = this.computePathDirectionFeatures(roadEdges);
 
     const trafficForWorker = this.sensor?.ignoreTraffic ? [] : traffic;
 
@@ -227,6 +229,7 @@ export class Car {
           : undefined,
       roadRelative,
       destinationRelative,
+      pathDirection,
       walls: walls?.map<WallEdgeDto>((e) => ({
         n1: { x: e.n1.x, y: e.n1.y },
         n2: { x: e.n2.x, y: e.n2.y },
@@ -276,6 +279,216 @@ export class Car {
       angleDiff: normalizedAngleDiff,
       distance: normalizedDistance,
     };
+  }
+
+  /**
+   * Compute path direction feature for AI navigation along curves.
+   * Returns the angle difference between car heading and path direction
+   * at the car's current position.
+   *
+   * The path edges are ordered from source to destination. We find which
+   * edge the car is closest to and determine the correct travel direction
+   * based on connectivity with the next edge in the sequence.
+   */
+  private computePathDirectionFeatures(roadEdges?: Edge[]): PathDirectionDto {
+    if (!roadEdges || roadEdges.length === 0) {
+      return { angleDiff: 0 };
+    }
+
+    const px = this.position.x;
+    const py = this.position.y;
+
+    // Find the nearest edge and its index
+    let bestDist = Infinity;
+    let bestEdgeIndex = -1;
+    let bestT = 0;
+
+    for (let i = 0; i < roadEdges.length; i++) {
+      const edge = roadEdges[i];
+      const x1 = edge.n1.x;
+      const y1 = edge.n1.y;
+      const x2 = edge.n2.x;
+      const y2 = edge.n2.y;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len2 = dx * dx + dy * dy;
+      if (len2 <= 0) continue;
+
+      // Project point onto segment (clamped)
+      const t = ((px - x1) * dx + (py - y1) * dy) / len2;
+      const tClamped = Math.max(0, Math.min(1, t));
+      const projX = x1 + tClamped * dx;
+      const projY = y1 + tClamped * dy;
+
+      const vx = px - projX;
+      const vy = py - projY;
+      const dist = Math.hypot(vx, vy);
+
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestEdgeIndex = i;
+        bestT = tClamped;
+      }
+    }
+
+    if (bestEdgeIndex < 0) {
+      return { angleDiff: 0 };
+    }
+
+    const bestEdge = roadEdges[bestEdgeIndex];
+    const nextEdge = roadEdges[bestEdgeIndex + 1];
+
+    // Determine the correct travel direction for this edge based on connectivity
+    // The path is ordered source→destination, so we check which endpoint
+    // connects to the next edge (if exists) or previous edge
+    let edgeDx: number;
+    let edgeDy: number;
+
+    if (nextEdge) {
+      // Check which end of bestEdge connects to nextEdge
+      const n2ToNext1 = Math.hypot(
+        bestEdge.n2.x - nextEdge.n1.x,
+        bestEdge.n2.y - nextEdge.n1.y,
+      );
+      const n2ToNext2 = Math.hypot(
+        bestEdge.n2.x - nextEdge.n2.x,
+        bestEdge.n2.y - nextEdge.n2.y,
+      );
+      const n1ToNext1 = Math.hypot(
+        bestEdge.n1.x - nextEdge.n1.x,
+        bestEdge.n1.y - nextEdge.n1.y,
+      );
+      const n1ToNext2 = Math.hypot(
+        bestEdge.n1.x - nextEdge.n2.x,
+        bestEdge.n1.y - nextEdge.n2.y,
+      );
+
+      // If n2 connects to next edge, direction is n1→n2
+      // If n1 connects to next edge, direction is n2→n1
+      const n2ConnectsToNext =
+        Math.min(n2ToNext1, n2ToNext2) < Math.min(n1ToNext1, n1ToNext2);
+
+      if (n2ConnectsToNext) {
+        // Travel direction is n1 → n2
+        edgeDx = bestEdge.n2.x - bestEdge.n1.x;
+        edgeDy = bestEdge.n2.y - bestEdge.n1.y;
+      } else {
+        // Travel direction is n2 → n1
+        edgeDx = bestEdge.n1.x - bestEdge.n2.x;
+        edgeDy = bestEdge.n1.y - bestEdge.n2.y;
+      }
+    } else if (bestEdgeIndex > 0) {
+      // Last edge - check connectivity with previous edge
+      const prevEdge = roadEdges[bestEdgeIndex - 1];
+      const n1ToPrev1 = Math.hypot(
+        bestEdge.n1.x - prevEdge.n1.x,
+        bestEdge.n1.y - prevEdge.n1.y,
+      );
+      const n1ToPrev2 = Math.hypot(
+        bestEdge.n1.x - prevEdge.n2.x,
+        bestEdge.n1.y - prevEdge.n2.y,
+      );
+      const n2ToPrev1 = Math.hypot(
+        bestEdge.n2.x - prevEdge.n1.x,
+        bestEdge.n2.y - prevEdge.n1.y,
+      );
+      const n2ToPrev2 = Math.hypot(
+        bestEdge.n2.x - prevEdge.n2.x,
+        bestEdge.n2.y - prevEdge.n2.y,
+      );
+
+      // If n1 connects to prev edge, direction is n1→n2
+      // If n2 connects to prev edge, direction is n2→n1
+      const n1ConnectsToPrev =
+        Math.min(n1ToPrev1, n1ToPrev2) < Math.min(n2ToPrev1, n2ToPrev2);
+
+      if (n1ConnectsToPrev) {
+        // Travel direction is n1 → n2
+        edgeDx = bestEdge.n2.x - bestEdge.n1.x;
+        edgeDy = bestEdge.n2.y - bestEdge.n1.y;
+      } else {
+        // Travel direction is n2 → n1
+        edgeDx = bestEdge.n1.x - bestEdge.n2.x;
+        edgeDy = bestEdge.n1.y - bestEdge.n2.y;
+      }
+    } else {
+      // Single edge path - use n1→n2 as default direction
+      edgeDx = bestEdge.n2.x - bestEdge.n1.x;
+      edgeDy = bestEdge.n2.y - bestEdge.n1.y;
+    }
+
+    // If near the end of current segment and there's a next segment, blend toward it
+    // This helps smooth transitions at corners
+    let targetDx = edgeDx;
+    let targetDy = edgeDy;
+
+    if (bestT > 0.7 && nextEdge) {
+      // Determine next edge direction based on how it connects
+      let nextDx: number;
+      let nextDy: number;
+
+      // The "end" of current edge in travel direction
+      const currentEndX =
+        edgeDx > 0 || edgeDy > 0
+          ? edgeDx >= 0
+            ? bestEdge.n2.x
+            : bestEdge.n1.x
+          : edgeDx <= 0
+            ? bestEdge.n1.x
+            : bestEdge.n2.x;
+      const currentEndY =
+        edgeDy > 0 || edgeDx > 0
+          ? edgeDy >= 0
+            ? bestEdge.n2.y
+            : bestEdge.n1.y
+          : edgeDy <= 0
+            ? bestEdge.n1.y
+            : bestEdge.n2.y;
+
+      // Check which end of nextEdge is closer to currentEnd
+      const distToN1 = Math.hypot(
+        nextEdge.n1.x - currentEndX,
+        nextEdge.n1.y - currentEndY,
+      );
+      const distToN2 = Math.hypot(
+        nextEdge.n2.x - currentEndX,
+        nextEdge.n2.y - currentEndY,
+      );
+
+      if (distToN1 < distToN2) {
+        // Next edge goes n1→n2
+        nextDx = nextEdge.n2.x - nextEdge.n1.x;
+        nextDy = nextEdge.n2.y - nextEdge.n1.y;
+      } else {
+        // Next edge goes n2→n1
+        nextDx = nextEdge.n1.x - nextEdge.n2.x;
+        nextDy = nextEdge.n1.y - nextEdge.n2.y;
+      }
+
+      // Blend based on how close to end of current segment
+      const blend = (bestT - 0.7) / 0.3;
+      targetDx = edgeDx * (1 - blend) + nextDx * blend;
+      targetDy = edgeDy * (1 - blend) + nextDy * blend;
+    }
+
+    // Convert path direction to car angle convention
+    // Car movement: x -= sin(angle) * speed, y -= cos(angle) * speed
+    // So direction vector (-sin(angle), -cos(angle)) corresponds to angle
+    // For a target direction (dx, dy): angle = atan2(-dx, -dy)
+    const pathAngle = Math.atan2(-targetDx, -targetDy);
+
+    // Calculate angle difference between car heading and path direction
+    let angleDiff = pathAngle - this.angle;
+
+    // Normalize to [-PI, PI]
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+    // Normalize to [-1, 1]
+    const normalizedAngleDiff = angleDiff / Math.PI;
+
+    return { angleDiff: normalizedAngleDiff };
   }
 
   private computeRoadRelativeFeatures(

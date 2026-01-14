@@ -107,7 +107,7 @@ export default function TrainingCanvas({
       try {
         const brainData: SavedBrain = JSON.parse(savedBrain);
 
-        const expectedInputs = 14; // 10 rays + 4 features
+        const expectedInputs = 15; // 10 rays + 5 features (lateral, along, pathAngleDiff, destAngleDiff, destDistance)
         const expectedOutputs = 4; // forward/left/right/reverse
 
         const imported = importBrainJson(brainData.brainJson, {
@@ -313,7 +313,7 @@ export default function TrainingCanvas({
   }, [worldRef, generation]);
 
   const handleImportBrain = useCallback(async () => {
-    const expectedInputs = 14; // 10 rays + 4 features
+    const expectedInputs = 15; // 10 rays + 5 features (lateral, along, pathAngleDiff, destAngleDiff, destDistance)
     const expectedOutputs = 4; // forward/left/right/reverse
 
     const picked = await pickAndReadJsonFile();

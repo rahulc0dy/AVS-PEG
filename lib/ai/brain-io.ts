@@ -86,23 +86,26 @@ export function validateNeuralNetworkJson(
       return { ok: false, error: `Level ${i} must be an object.` };
     }
 
-    const inputCount = getProp(lvlUnknown, "inputCount");
-    const outputCount = getProp(lvlUnknown, "outputCount");
+    const inputCountRaw = getProp(lvlUnknown, "inputCount");
+    const outputCountRaw = getProp(lvlUnknown, "outputCount");
     const biases = getProp(lvlUnknown, "biases");
     const weights = getProp(lvlUnknown, "weights");
 
-    if (!Number.isInteger(inputCount) || inputCount <= 0) {
+    if (!Number.isInteger(inputCountRaw) || (inputCountRaw as number) <= 0) {
       return {
         ok: false,
         error: `Level ${i} inputCount must be a positive integer.`,
       };
     }
-    if (!Number.isInteger(outputCount) || outputCount <= 0) {
+    if (!Number.isInteger(outputCountRaw) || (outputCountRaw as number) <= 0) {
       return {
         ok: false,
         error: `Level ${i} outputCount must be a positive integer.`,
       };
     }
+
+    const inputCount = inputCountRaw as number;
+    const outputCount = outputCountRaw as number;
 
     if (!isNumberArray(biases, outputCount)) {
       return {
@@ -171,7 +174,7 @@ export function validateNeuralNetworkJson(
     };
   }
 
-  return { ok: true, brain: json as NeuralNetworkJson };
+  return { ok: true, brain: json as unknown as NeuralNetworkJson };
 }
 
 /**

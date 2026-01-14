@@ -104,11 +104,100 @@ function defaultDestinationRelative(): { angleDiff: number; distance: number } {
   return { angleDiff: 0, distance: 1 };
 }
 
+/** Returns default path direction features. */
+function defaultPathDirection(): { angleDiff: number } {
+  return { angleDiff: 0 };
+}
+
+/**
+ * Determine the correct travel direction for each edge in the path.
+ * Returns a normalized version of the path edges where all edges are
+ * oriented in the travel direction (from source toward destination).
+ */
+function normalizePathEdgeDirections(
+  pathEdges: PathEdgeDto[],
+): { n1: NodeJson; n2: NodeJson; length: number }[] {
+  if (pathEdges.length === 0) return [];
+  if (pathEdges.length === 1) return [pathEdges[0]];
+
+  const result: { n1: NodeJson; n2: NodeJson; length: number }[] = [];
+
+  for (let i = 0; i < pathEdges.length; i++) {
+    const edge = pathEdges[i];
+    const nextEdge = pathEdges[i + 1];
+    const prevEdge = i > 0 ? result[i - 1] : null;
+
+    let n1: NodeJson;
+    let n2: NodeJson;
+
+    if (nextEdge) {
+      // Check which end of this edge connects to the next edge
+      const n2ToNext1 = Math.hypot(
+        edge.n2.x - nextEdge.n1.x,
+        edge.n2.y - nextEdge.n1.y,
+      );
+      const n2ToNext2 = Math.hypot(
+        edge.n2.x - nextEdge.n2.x,
+        edge.n2.y - nextEdge.n2.y,
+      );
+      const n1ToNext1 = Math.hypot(
+        edge.n1.x - nextEdge.n1.x,
+        edge.n1.y - nextEdge.n1.y,
+      );
+      const n1ToNext2 = Math.hypot(
+        edge.n1.x - nextEdge.n2.x,
+        edge.n1.y - nextEdge.n2.y,
+      );
+
+      const n2ConnectsToNext =
+        Math.min(n2ToNext1, n2ToNext2) < Math.min(n1ToNext1, n1ToNext2);
+
+      if (n2ConnectsToNext) {
+        // n1 → n2 is travel direction
+        n1 = edge.n1;
+        n2 = edge.n2;
+      } else {
+        // n2 → n1 is travel direction
+        n1 = edge.n2;
+        n2 = edge.n1;
+      }
+    } else if (prevEdge) {
+      // Last edge - check which end connects to previous edge's end
+      const n1ToPrevEnd = Math.hypot(
+        edge.n1.x - prevEdge.n2.x,
+        edge.n1.y - prevEdge.n2.y,
+      );
+      const n2ToPrevEnd = Math.hypot(
+        edge.n2.x - prevEdge.n2.x,
+        edge.n2.y - prevEdge.n2.y,
+      );
+
+      if (n1ToPrevEnd < n2ToPrevEnd) {
+        // n1 connects to prev, so n1 → n2 is travel direction
+        n1 = edge.n1;
+        n2 = edge.n2;
+      } else {
+        // n2 connects to prev, so n2 → n1 is travel direction
+        n1 = edge.n2;
+        n2 = edge.n1;
+      }
+    } else {
+      // Single edge, use as-is
+      n1 = edge.n1;
+      n2 = edge.n2;
+    }
+
+    result.push({ n1, n2, length: edge.length });
+  }
+
+  return result;
+}
+
 /**
  * Calculate normalized progress (0..1) along a polyline path composed of ordered edges.
  *
  * Directional metric:
- * - Edges are assumed to be in travel order (n1 -> n2).
+ * - Edges are normalized to travel order first.
  * - We project the car position onto a small window of segments around the best-so-far progress,
  *   selecting the closest projection within that window.
  * - This avoids snapping to a geometrically close but topologically far segment (e.g. at crossings).
@@ -130,8 +219,11 @@ function calculatePathProgressDirectional(
 ): number {
   if (!pathEdges || pathEdges.length === 0) return 0;
 
+  // Normalize edge directions so n1→n2 is always the travel direction
+  const normalizedEdges = normalizePathEdgeDirections(pathEdges);
+
   const total =
-    totalPathLength ?? pathEdges.reduce((s, e) => s + (e.length ?? 0), 0);
+    totalPathLength ?? normalizedEdges.reduce((s, e) => s + (e.length ?? 0), 0);
   if (total <= 0) return 0;
 
   const backWindow = opts?.backWindow ?? 1;
@@ -146,8 +238,8 @@ function calculatePathProgressDirectional(
   // Determine the segment index containing bestWorld.
   let bestIndex = 0;
   let cumulative = 0;
-  for (let i = 0; i < pathEdges.length; i++) {
-    const len = pathEdges[i].length ?? 0;
+  for (let i = 0; i < normalizedEdges.length; i++) {
+    const len = normalizedEdges[i].length ?? 0;
     if (bestWorld <= cumulative + len) {
       bestIndex = i;
       break;
@@ -157,7 +249,10 @@ function calculatePathProgressDirectional(
   }
 
   const startIndex = Math.max(0, bestIndex - backWindow);
-  const endIndex = Math.min(pathEdges.length - 1, bestIndex + forwardWindow);
+  const endIndex = Math.min(
+    normalizedEdges.length - 1,
+    bestIndex + forwardWindow,
+  );
 
   // We never want progress selection to go meaningfully backwards.
   const minCandidateWorld = Math.max(0, bestWorld - backwardEpsilonWorld);
@@ -167,8 +262,8 @@ function calculatePathProgressDirectional(
   let foundAny = false;
 
   let prefixBefore = 0;
-  for (let i = 0; i < pathEdges.length; i++) {
-    const edge = pathEdges[i];
+  for (let i = 0; i < normalizedEdges.length; i++) {
+    const edge = normalizedEdges[i];
     const len = edge.length ?? 0;
 
     // Only consider edges in the window.
@@ -570,10 +665,19 @@ function computeStep(snapshot: CarSnapshotDto, dtSeconds: number): CarStateDto {
   const roadRelative = snapshot.roadRelative ?? defaultRoadRelative();
   const destRelative =
     snapshot.destinationRelative ?? defaultDestinationRelative();
+  const pathDirection = snapshot.pathDirection ?? defaultPathDirection();
 
+  // Neural network inputs:
+  // - offsets: 10 sensor ray readings (0 = no obstacle, 1 = very close obstacle)
+  // - roadRelative.lateral: lateral position on road (-1 to 1)
+  // - roadRelative.along: longitudinal position along road segment (-1 to 1)
+  // - pathDirection.angleDiff: angle to follow path direction (-1 to 1) - MOST IMPORTANT for navigation
+  // - destRelative.angleDiff: angle to final destination (-1 to 1)
+  // - destRelative.distance: normalized distance to destination (0 to 1)
   const nnInputs = offsets.concat([
     roadRelative.lateral,
     roadRelative.along,
+    pathDirection.angleDiff, // New: direction to follow the path
     destRelative.angleDiff,
     destRelative.distance,
   ]);
@@ -754,8 +858,9 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
             NeuralNetwork.mutate(brain, init.mutationAmount);
           }
         } else {
-          // Architecture: rayCount sensors + 4 nav features -> 8 hidden -> 4 outputs
-          const inputCount = init.rayCount + 4;
+          // Architecture: rayCount sensors + 5 nav features -> 8 hidden -> 4 outputs
+          // Nav features: lateral, along, pathDirection.angleDiff, destAngleDiff, destDistance
+          const inputCount = init.rayCount + 5;
           brain = new NeuralNetwork([inputCount, 8, 4]);
         }
       }
