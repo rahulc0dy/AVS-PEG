@@ -858,10 +858,10 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
             NeuralNetwork.mutate(brain, init.mutationAmount);
           }
         } else {
-          // Architecture: rayCount sensors + 5 nav features -> 8 hidden -> 4 outputs
+          // Architecture: rayCount sensors + 5 nav features -> 8 hidden -> 6 hidden -> 4 outputs
           // Nav features: lateral, along, pathDirection.angleDiff, destAngleDiff, destDistance
           const inputCount = init.rayCount + 5;
-          brain = new NeuralNetwork([inputCount, 8, 4]);
+          brain = new NeuralNetwork([inputCount, 8, 6, 4]);
         }
       }
 
