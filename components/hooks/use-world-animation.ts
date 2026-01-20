@@ -1,7 +1,7 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 
@@ -23,6 +23,7 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
  * @param controlsRef - Ref to `OrbitControls` used to update control state each frame.
  * @param graphEditorRef - Ref to the `GraphEditor` instance; used to draw editor overlays and detect editor-driven visual changes.
  * @param trafficLightEditorRef - Ref to the `TrafficLightEditor`; updated with world edges after generation.
+ * @param sourceDestinationEditorRef - Ref to the `SourceDestinationEditor`; used to draw source and destination of a vehicle path.
  * @param worldRef - Ref to the `World` instance which is generated, drawn and updated.
  */
 export function useWorldAnimation(

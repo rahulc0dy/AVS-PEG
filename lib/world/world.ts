@@ -1,6 +1,6 @@
 import { Color, Group, Scene, Vector2 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-import { Road } from "@/lib/primitives/road";
+import { Road } from "@/lib/world/road";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Graph } from "@/lib/primitives/graph";
 import { Car } from "@/lib/car/car";
@@ -13,6 +13,20 @@ import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
+
+/**
+ * Configuration options for initializing a World instance.
+ */
+export interface WorldConfig {
+  /**
+   * Initial cars to spawn. If not provided, defaults to empty array.
+   * Use `generateTraffic()` to spawn cars after initialization.
+   */
+  initialCars?: {
+    position: Vector2;
+    controlType: ControlType;
+  }[];
+}
 
 /**
  * Responsible for generating visual road geometry from a `Graph`, managing
@@ -43,36 +57,40 @@ export class World {
 
   pathFindingSystem!: PathFindingSystem;
 
+  /** TODO: Spawner system for managing car spawning. */
+
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
+   * @param config - Optional configuration for world initialization
    */
-  constructor(scene: Scene) {
+  constructor(scene: Scene, config?: WorldConfig) {
     this.graph = new Graph();
     this.scene = scene;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
 
-    this.cars = [
-      new Car(
-        new Vector2(0, 0),
-        10,
-        17.5,
-        7,
-        ControlType.HUMAN,
-        this.worldGroup,
-      ),
-      new Car(
-        new Vector2(20, 0),
-        10,
-        17.5,
-        7,
-        ControlType.NONE,
-        this.worldGroup,
-      ),
-    ];
+    // Initialize with empty car array by default
+    // Cars can be added via config.initialCars or generateTraffic()
+    this.cars = [];
+
+    // If initial cars are provided in config, create them
+    if (config?.initialCars) {
+      for (const carConfig of config.initialCars) {
+        this.cars.push(
+          new Car(
+            carConfig.position,
+            10, // breadth
+            17.5, // length
+            7, // height
+            carConfig.controlType,
+            this.worldGroup,
+          ),
+        );
+      }
+    }
 
     this.markings = [];
 
@@ -152,6 +170,8 @@ export class World {
 
     // 3. Compute the union of all road polygons to derive continuous borders
     this.roadBorders = Polygon.union(this.roads.map((r) => r.poly));
+
+    // TODO: Update spawner system with new roads reference
 
     // Update path finding after regenerating roads
     this.updatePath();
@@ -242,6 +262,7 @@ export class World {
   fromJson(json: WorldJson): void {
     this.dispose();
     this.markings.length = 0;
+    this.cars = []; // Clear the cars array after disposing
 
     this.graph.fromJson(json.graph);
     this.trafficLightGraph.fromJson(json.trafficLightGraph);
@@ -307,6 +328,8 @@ export class World {
         }
       }
     }
+
+    // TODO: Update spawner system with new references after loading
 
     // Update path finding after loading markings
     this.updatePath();

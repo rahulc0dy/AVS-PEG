@@ -4,6 +4,7 @@ import WorldComponent from "@/components/world";
 import { setupScene } from "@/utils/rendering";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
+import FpsMeter from "@/components/ui/fps-meter";
 
 export default function WorldPage() {
   /**
@@ -52,6 +53,7 @@ export default function WorldPage() {
 
   return (
     <div className="w-screen h-screen relative">
+      <FpsMeter />
       <div ref={mountRef} className="w-full h-full" />
       {renderContext && (
         <WorldComponent
