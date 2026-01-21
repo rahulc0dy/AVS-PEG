@@ -44,7 +44,6 @@ export default function TrainingCanvas({
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
-  const [showNeuralNetwork, setShowNeuralNetwork] = useState(true);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -202,15 +201,6 @@ export default function TrainingCanvas({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-zinc-400">Show Neural Network</Label>
-            <Checkbox
-              checked={showNeuralNetwork}
-              onChange={(e) => setShowNeuralNetwork(e.target.checked)}
-              aria-label="Show neural network visualization"
-            />
-          </div>
-
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3 space-y-1">
             <p>Status: {isTraining ? "Training..." : "Ready"}</p>
             <p>Generation: {generation}</p>
@@ -222,25 +212,6 @@ export default function TrainingCanvas({
           </div>
         </CardContent>
       </Card>
-
-      {/* Neural Network Visualizer */}
-      {showNeuralNetwork && isTraining && (
-        <Card className="absolute top-12 right-4 z-10 border-zinc-700 bg-zinc-900 text-zinc-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-zinc-50 text-sm">
-              Best Car Neural Network
-              {bestCarId && (
-                <span className="text-zinc-400 font-normal ml-2">
-                  ({bestCarId})
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2">
-            {/*  TODO: Neural Network Visualiser */}
-          </CardContent>
-        </Card>
-      )}
     </>
   );
 }
