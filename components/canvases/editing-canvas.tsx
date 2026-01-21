@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Camera, Scene, WebGLRenderer } from "three";
-import OsmModal from "@/components/osm-modal";
+import OsmModal from "@/components/world-ui/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { useWorldEditors } from "@/components/hooks/use-world-editors";
 import { useWorldAnimation } from "@/components/hooks/use-world-animation";
