@@ -41,13 +41,13 @@ export class PathFindingSystem {
 
     if (!startEdge || !endEdge) {
       console.log("No valid start or end edge found");
-      this.path = [];
+      this.setPath([]);
       return;
     }
 
     // If both points lie on the same edge, that's trivially the path.
     if (startEdge.equals(endEdge)) {
-      this.path = [startEdge];
+      this.setPath([startEdge]);
       return;
     }
 
@@ -74,12 +74,12 @@ export class PathFindingSystem {
 
     if ((dist.get(endNode) ?? Infinity) === Infinity) {
       console.log("No path found between the specified points");
-      this.path = [];
+      this.setPath([]);
       return;
     }
 
     // Reconstruct path (edges) from endNode back to startNode
-    this.path = [];
+    this.setPath([]);
     let cursor: Node | null = endNode;
     while (cursor && !cursor.equals(startNode)) {
       const e: Edge | null = prevEdge.get(cursor as Node) ?? null;
@@ -91,13 +91,18 @@ export class PathFindingSystem {
 
     if (!cursor || !cursor.equals(startNode)) {
       console.log("Failed to reconstruct path");
-      this.path = [];
+      this.setPath([]);
       return;
     }
 
     this.updatePathPolygon();
 
     return;
+  }
+
+  private setPath(path: Edge[]) {
+    this.path = path;
+    this.updatePathPolygon();
   }
 
   /**
@@ -257,6 +262,8 @@ export class PathFindingSystem {
 
         group.add(pathBorderMesh);
       }
+
+      this.needsRedraw = false;
     } else {
       for (const mesh of this.pathBorderMeshes) {
         if (!mesh.parent) {
