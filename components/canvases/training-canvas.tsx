@@ -10,6 +10,7 @@ import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
+import { useToast } from "@/components/ui/toast";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -48,6 +49,8 @@ export default function TrainingCanvas({
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
 
+  const { toast } = useToast();
+
   // Run the simulation loop (no editors)
   useWorldSimulation(worldRef, camera, dom);
 
@@ -59,6 +62,7 @@ export default function TrainingCanvas({
 
   const handleSaveBrain = useCallback(async () => {
     // TODO: Brain save to local storage
+    toast("Saved Brain", "success");
   }, [worldRef, generation]);
 
   const handleExportBrain = useCallback(async () => {
