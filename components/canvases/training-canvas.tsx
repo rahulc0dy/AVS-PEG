@@ -126,7 +126,7 @@ export default function TrainingCanvas({
 
   return (
     <>
-      <Card className="absolute top-12 left-4 z-10 w-72 border-zinc-700 bg-zinc-900 text-zinc-50">
+      <Card className="absolute top-16 left-4 z-10 w-72 border-zinc-700 bg-zinc-900 text-zinc-50">
         <CardHeader className="pb-3">
           <CardTitle className="text-zinc-50">Training Mode</CardTitle>
         </CardHeader>
@@ -174,6 +174,15 @@ export default function TrainingCanvas({
             </Button>
           </div>
 
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-zinc-400">Stack spawn at Source</Label>
+            <Checkbox
+              checked={stackSpawnAtSource}
+              onChange={(e) => setStackSpawnAtSource(e.target.checked)}
+              aria-label="Stack spawn cars at source"
+            />
+          </div>
+
           <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
             <Button variant="outline" onClick={handleSaveBrain}>
               Save Best Brain
@@ -190,15 +199,6 @@ export default function TrainingCanvas({
             <Button variant="outline" onClick={handleLoadWorld}>
               Load World
             </Button>
-          </div>
-
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-zinc-400">Stack spawn at Source</Label>
-            <Checkbox
-              checked={stackSpawnAtSource}
-              onChange={(e) => setStackSpawnAtSource(e.target.checked)}
-              aria-label="Stack spawn cars at source"
-            />
           </div>
 
           <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3 space-y-1">
