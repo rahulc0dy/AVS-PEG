@@ -235,6 +235,13 @@ export class PathFindingSystem {
   draw(group: Group) {
     if (this.needsRedraw || this.pathBorderMeshes.length === 0) {
       this.dispose();
+
+      const roadBorderMaterial = new MeshBasicMaterial({
+        color: new Color(0x00ff00),
+        transparent: true,
+        opacity: 0.5,
+      });
+
       for (const edge of this.pathBorders) {
         const roadBorderHeight = 10;
         const roadBorderGeometry = new BoxGeometry(
@@ -242,11 +249,6 @@ export class PathFindingSystem {
           roadBorderHeight,
           1,
         );
-        const roadBorderMaterial = new MeshBasicMaterial({
-          color: new Color(0x00ff00),
-          transparent: true,
-          opacity: 0.5,
-        });
         const pathBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
 
         pathBorderMesh.position.set(
