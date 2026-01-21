@@ -13,9 +13,12 @@ import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
  */
 export class PathFindingSystem {
   private graph: Graph;
-  private path: Edge[] = [];
 
+  private path: Edge[] = [];
   private pathBorders: Edge[] = [];
+
+  private needsRedraw: boolean = false;
+  private pathBorderMeshes: Mesh[] = [];
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -124,6 +127,8 @@ export class PathFindingSystem {
     this.pathBorders = Polygon.union(
       pathEnvelopes.map((envelope) => envelope.poly),
     );
+
+    this.needsRedraw = true;
   }
 
   /**
@@ -221,30 +226,52 @@ export class PathFindingSystem {
   }
 
   draw(group: Group) {
-    for (const edge of this.pathBorders) {
-      const roadBorderHeight = 10;
-      const roadBorderGeometry = new BoxGeometry(
-        distance(edge.n1, edge.n2),
-        roadBorderHeight,
-        1,
-      );
-      const roadBorderMaterial = new MeshBasicMaterial({
-        color: new Color(0x00ff00),
-        transparent: true,
-        opacity: 0.5,
-      });
-      const pathBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
+    if (this.needsRedraw || this.pathBorderMeshes.length === 0) {
+      this.dispose();
+      for (const edge of this.pathBorders) {
+        const roadBorderHeight = 10;
+        const roadBorderGeometry = new BoxGeometry(
+          distance(edge.n1, edge.n2),
+          roadBorderHeight,
+          1,
+        );
+        const roadBorderMaterial = new MeshBasicMaterial({
+          color: new Color(0x00ff00),
+          transparent: true,
+          opacity: 0.5,
+        });
+        const pathBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
 
-      pathBorderMesh.position.set(
-        (edge.n1.x + edge.n2.x) / 2,
-        roadBorderHeight / 2,
-        (edge.n1.y + edge.n2.y) / 2,
-      );
-      pathBorderMesh.rotation.y = -angle(
-        new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
-      );
+        pathBorderMesh.position.set(
+          (edge.n1.x + edge.n2.x) / 2,
+          roadBorderHeight / 2,
+          (edge.n1.y + edge.n2.y) / 2,
+        );
+        pathBorderMesh.rotation.y = -angle(
+          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
+        );
 
-      group.add(pathBorderMesh);
+        this.pathBorderMeshes.push(pathBorderMesh);
+
+        group.add(pathBorderMesh);
+      }
+    } else {
+      for (const mesh of this.pathBorderMeshes) {
+        if (!mesh.parent) {
+          group.add(mesh);
+        }
+      }
     }
+  }
+
+  dispose() {
+    for (const mesh of this.pathBorderMeshes) {
+      mesh.geometry.dispose();
+      (mesh.material as MeshBasicMaterial).dispose();
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+    }
+    this.pathBorderMeshes = [];
   }
 }
