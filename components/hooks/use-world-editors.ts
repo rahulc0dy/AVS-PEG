@@ -59,7 +59,7 @@ export function useWorldEditors(
   // Sync graphRoadType state with the editor instance
   useEffect(() => {
     if (graphEditorRef.current) {
-      graphEditorRef.current.isDirected = graphRoadType === "one-way";
+      graphEditorRef.current.drawDirectedEdge = graphRoadType === "one-way";
     }
   }, [graphRoadType]);
 
@@ -74,7 +74,7 @@ export function useWorldEditors(
       }
     });
     // Initialize with current state
-    graphEditor.isDirected = graphRoadType === "one-way";
+    graphEditor.drawDirectedEdge = graphRoadType === "one-way";
     graphEditorRef.current = graphEditor;
 
     const trafficLightEditor = new TrafficLightEditor(
