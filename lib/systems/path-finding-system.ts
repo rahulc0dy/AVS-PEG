@@ -1,7 +1,11 @@
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { distance, getNearestEdge } from "@/utils/math";
+import { angle, distance, getNearestEdge } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Envelope } from "@/lib/primitives/envelope";
+import { ROAD_WIDTH } from "@/env";
+import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.
@@ -10,6 +14,8 @@ import { Edge } from "@/lib/primitives/edge";
 export class PathFindingSystem {
   private graph: Graph;
   private path: Edge[] = [];
+
+  private pathBorders: Edge[] = [];
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -86,6 +92,8 @@ export class PathFindingSystem {
       return;
     }
 
+    this.updatePathPolygon();
+
     return;
   }
 
@@ -96,11 +104,26 @@ export class PathFindingSystem {
     return this.path;
   }
 
+  public getPathBorders(): Edge[] {
+    return this.pathBorders;
+  }
+
   /**
    * Clears the current path.
    */
   public reset() {
     this.path = [];
+  }
+
+  private updatePathPolygon() {
+    const pathEnvelopes: Envelope[] = [];
+    for (const edge of this.path) {
+      pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));
+    }
+
+    this.pathBorders = Polygon.union(
+      pathEnvelopes.map((envelope) => envelope.poly),
+    );
   }
 
   /**
@@ -195,5 +218,33 @@ export class PathFindingSystem {
     }
 
     return { dist, prevEdge, prevNode };
+  }
+
+  draw(group: Group) {
+    for (const edge of this.pathBorders) {
+      const roadBorderHeight = 10;
+      const roadBorderGeometry = new BoxGeometry(
+        distance(edge.n1, edge.n2),
+        roadBorderHeight,
+        1,
+      );
+      const roadBorderMaterial = new MeshBasicMaterial({
+        color: new Color(0x00ff00),
+        transparent: true,
+        opacity: 0.5,
+      });
+      const pathBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
+
+      pathBorderMesh.position.set(
+        (edge.n1.x + edge.n2.x) / 2,
+        roadBorderHeight / 2,
+        (edge.n1.y + edge.n2.y) / 2,
+      );
+      pathBorderMesh.rotation.y = -angle(
+        new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
+      );
+
+      group.add(pathBorderMesh);
+    }
   }
 }

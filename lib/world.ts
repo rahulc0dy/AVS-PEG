@@ -194,9 +194,7 @@ export class World {
       edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
     }
 
-    for (const edge of this.pathFindingSystem.getPath()) {
-      edge.draw(this.worldGroup, { width: 4, color: new Color(0x00ff00) });
-    }
+    this.pathFindingSystem.draw(this.worldGroup);
 
     this.scene.add(this.worldGroup);
   }
