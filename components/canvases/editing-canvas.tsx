@@ -51,12 +51,15 @@ export default function EditorCanvas({
   const {
     activeMode,
     setMode,
+    // Get the new graph road type values
+    graphRoadType,
+    setGraphRoadType,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
     controlsRef,
   } = useWorldEditors(
-    world, // Pass the state value, not ref, so editors re-initialize when world is ready
+    world,
     scene,
     camera,
     dom,
@@ -99,6 +102,9 @@ export default function EditorCanvas({
       <ModeControls
         activeMode={activeMode}
         setMode={setMode}
+        // Pass the new props to ModeControls
+        graphRoadType={graphRoadType}
+        onGraphRoadTypeChange={setGraphRoadType}
         sourceDestinationMarkingType={sourceDestMarkingType}
         onSourceDestinationTypeChange={handleSourceDestTypeChange}
       />

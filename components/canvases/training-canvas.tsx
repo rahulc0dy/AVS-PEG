@@ -62,8 +62,7 @@ export default function TrainingCanvas({
 
   const handleSaveBrain = useCallback(async () => {
     // TODO: Brain save to local storage
-    toast("Saved Brain", "success");
-  }, [worldRef, generation]);
+  }, []);
 
   const handleExportBrain = useCallback(async () => {
     // TODO: Brain export logic

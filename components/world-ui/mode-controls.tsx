@@ -1,11 +1,15 @@
 import { EditorMode } from "@/types/editor";
 import { SourceDestinationMarkingType } from "@/lib/editors/source-destination-editor";
+import { GraphRoadType } from "@/components/hooks/use-world-editors"; // Import the type
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 interface ModeControlsProps {
   activeMode: EditorMode;
   setMode: (mode: EditorMode) => void;
+  // New props for graph road type
+  graphRoadType?: GraphRoadType;
+  onGraphRoadTypeChange?: (type: GraphRoadType) => void;
   sourceDestinationMarkingType?: SourceDestinationMarkingType;
   onSourceDestinationTypeChange?: (type: SourceDestinationMarkingType) => void;
 }
@@ -63,32 +67,32 @@ function ToolButton({
   );
 }
 
-interface ContextMenuProps {
-  x: number;
-  y: number;
-  onSelect: (type: SourceDestinationMarkingType) => void;
-  onClose: () => void;
-  currentType: SourceDestinationMarkingType;
-}
-
-function ContextMenu({
-  x,
-  y,
-  onSelect,
-  onClose,
-  currentType,
-}: ContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
+// Reuse logic for closing on outside click
+function useClickOutside(
+  ref: React.RefObject<HTMLElement | null>,
+  handler: () => void,
+) {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        handler();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+  }, [ref, handler]);
+}
+
+interface BaseContextMenuProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function BaseContextMenu({ x, y, onClose, children }: BaseContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, onClose);
 
   return (
     <div
@@ -96,6 +100,28 @@ function ContextMenu({
       className="fixed z-100 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-36"
       style={{ left: x, top: y, transform: "translateY(-100%)" }}
     >
+      {children}
+    </div>
+  );
+}
+
+interface SourceDestContextMenuProps {
+  x: number;
+  y: number;
+  onSelect: (type: SourceDestinationMarkingType) => void;
+  onClose: () => void;
+  currentType: SourceDestinationMarkingType;
+}
+
+function SourceDestContextMenu({
+  x,
+  y,
+  onSelect,
+  onClose,
+  currentType,
+}: SourceDestContextMenuProps) {
+  return (
+    <BaseContextMenu x={x} y={y} onClose={onClose}>
       <button
         onClick={() => onSelect("source")}
         className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
@@ -118,41 +144,95 @@ function ContextMenu({
         <span className="w-2 h-2 rounded-full bg-rose-500" />
         Destination
       </button>
-    </div>
+    </BaseContextMenu>
   );
 }
 
-/**
- * Controls to switch between editor modes - tldraw/figma style toolbar.
- *
- * A horizontal bar with icon buttons where the active mode is highlighted.
- * Right-click on source-destination button shows a context menu to choose mode.
- *
- * @param {object} props - Component props.
- * @param {EditorMode} props.activeMode - Currently selected editor mode.
- * @param {(mode: EditorMode) => void} props.setMode - Setter to change the active mode.
- * @returns {JSX.Element} Mode controls UI.
- */
+// New Graph Context Menu
+interface GraphContextMenuProps {
+  x: number;
+  y: number;
+  onSelect: (type: GraphRoadType) => void;
+  onClose: () => void;
+  currentType: GraphRoadType;
+}
+
+function GraphContextMenu({
+  x,
+  y,
+  onSelect,
+  onClose,
+  currentType,
+}: GraphContextMenuProps) {
+  return (
+    <BaseContextMenu x={x} y={y} onClose={onClose}>
+      <button
+        onClick={() => onSelect("two-way")}
+        className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
+          currentType === "two-way"
+            ? "bg-white/10 text-white"
+            : "text-zinc-300 hover:bg-zinc-700"
+        }`}
+      >
+        <span className="w-4 text-center">⇄</span>
+        Two-way Road
+      </button>
+      <button
+        onClick={() => onSelect("one-way")}
+        className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
+          currentType === "one-way"
+            ? "bg-white/10 text-white"
+            : "text-zinc-300 hover:bg-zinc-700"
+        }`}
+      >
+        <span className="w-4 text-center">→</span>
+        One-way Road
+      </button>
+    </BaseContextMenu>
+  );
+}
+
 export function ModeControls({
   activeMode,
   setMode,
+  graphRoadType = "two-way",
+  onGraphRoadTypeChange,
   sourceDestinationMarkingType = "source",
   onSourceDestinationTypeChange,
 }: ModeControlsProps) {
-  const [contextMenu, setContextMenu] = useState<{
+  // Separate state for different context menus
+  const [sourceDestMenu, setSourceDestMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [graphMenu, setGraphMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
-  const handleSourceDestContextMenu = (e: React.MouseEvent) => {
+  // Graph Handler
+  const handleGraphContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    setGraphMenu({ x: e.clientX, y: e.clientY });
+    setSourceDestMenu(null); // Close other menu
   };
 
-  const handleContextMenuSelect = (type: SourceDestinationMarkingType) => {
+  const handleGraphTypeSelect = (type: GraphRoadType) => {
+    onGraphRoadTypeChange?.(type);
+    setMode("graph");
+    setGraphMenu(null);
+  };
+
+  // Source-Dest Handler
+  const handleSourceDestContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setSourceDestMenu({ x: e.clientX, y: e.clientY });
+    setGraphMenu(null); // Close other menu
+  };
+
+  const handleSourceDestTypeSelect = (type: SourceDestinationMarkingType) => {
     onSourceDestinationTypeChange?.(type);
     setMode("source-destination");
-    setContextMenu(null);
+    setSourceDestMenu(null);
   };
 
   return (
@@ -163,8 +243,16 @@ export function ModeControls({
             mode="graph"
             activeMode={activeMode}
             onClick={() => setMode("graph")}
+            onContextMenu={handleGraphContextMenu}
             icon="/icons/graph.png"
-            alt="Graph Editor"
+            alt="Graph Editor (Right-click for options)"
+            badge={
+              activeMode === "graph"
+                ? graphRoadType === "one-way"
+                  ? "→"
+                  : "⇄"
+                : undefined
+            }
           />
           <ToolButton
             mode="traffic-lights"
@@ -192,13 +280,23 @@ export function ModeControls({
         </div>
       </div>
 
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onSelect={handleContextMenuSelect}
-          onClose={() => setContextMenu(null)}
+      {sourceDestMenu && (
+        <SourceDestContextMenu
+          x={sourceDestMenu.x}
+          y={sourceDestMenu.y}
+          onSelect={handleSourceDestTypeSelect}
+          onClose={() => setSourceDestMenu(null)}
           currentType={sourceDestinationMarkingType}
+        />
+      )}
+
+      {graphMenu && (
+        <GraphContextMenu
+          x={graphMenu.x}
+          y={graphMenu.y}
+          onSelect={handleGraphTypeSelect}
+          onClose={() => setGraphMenu(null)}
+          currentType={graphRoadType}
         />
       )}
     </>

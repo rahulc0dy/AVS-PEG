@@ -7,23 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 
-/**
- * Hook to initialize and manage world editors and controls.
- *
- * This hook sets up `OrbitControls`, `GraphEditor`, `TrafficLightEditor`,
- * and `SourceDestinationEditor`, wiring pointer events to the active editor.
- *
- * NOTE: This hook requires a World instance to be provided. Use `useWorld` hook
- * to create the World instance first, then pass `worldRef.current` to this hook.
- *
- * @param {World} world - The World instance to edit.
- * @param {Scene} scene - Three.js scene to attach helpers and editor objects to.
- * @param {Camera} camera - Three.js camera used by `OrbitControls` and raycasting.
- * @param {HTMLElement} dom - DOM element used for pointer event listeners and control target.
- * @param {(evt: PointerEvent) => void} updatePointer - Callback that updates the pointer/raycaster state.
- * @param {() => Vector3} getIntersectPoint - Function that returns the current pointer intersection point on the ground plane.
- * @returns Object containing the current mode, setter, and refs for editors and controls.
- */
+// Define the type for road direction
+export type GraphRoadType = "two-way" | "one-way";
+
 export function useWorldEditors(
   world: World | null,
   scene: Scene,
@@ -33,6 +19,9 @@ export function useWorldEditors(
   getIntersectPoint: () => Vector3,
 ) {
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
+  // New state for road type
+  const [graphRoadType, setGraphRoadType] = useState<GraphRoadType>("two-way");
+
   const modeRef = useRef<EditorMode>("graph");
 
   const graphEditorRef = useRef<GraphEditor | null>(null);
@@ -42,15 +31,13 @@ export function useWorldEditors(
   );
   const controlsRef = useRef<OrbitControls | null>(null);
 
-  // Disable both editors (safe to call even if an editor isn't initialized)
+  // ... (disableEditors and setMode functions remain the same) ...
   const disableEditors = () => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
   };
 
-  // Switch the active editor mode and enable the corresponding editor.
-  // Also keep a ref copy (`modeRef`) to read from event handlers without re-subscribing.
   const setMode = (mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;
@@ -69,22 +56,25 @@ export function useWorldEditors(
     }
   };
 
+  // Sync graphRoadType state with the editor instance
   useEffect(() => {
-    // Don't initialize editors until world is ready
+    if (graphEditorRef.current) {
+      graphEditorRef.current.isDirected = graphRoadType === "one-way";
+    }
+  }, [graphRoadType]);
+
+  useEffect(() => {
     if (!world) return;
 
-    // Create orbit controls attached to the provided `dom` element so
-    // camera orbiting is enabled for the user.
     controlsRef.current = new OrbitControls(camera, dom);
 
-    // GraphEditor receives a callback that reports whether the user is
-    // actively dragging. While dragging, disable OrbitControls to avoid
-    // camera interference with editor interactions.
     const graphEditor = new GraphEditor(world.graph, scene, (isDragging) => {
       if (controlsRef.current) {
         controlsRef.current.enabled = !isDragging;
       }
     });
+    // Initialize with current state
+    graphEditor.isDirected = graphRoadType === "one-way";
     graphEditorRef.current = graphEditor;
 
     const trafficLightEditor = new TrafficLightEditor(
@@ -101,14 +91,13 @@ export function useWorldEditors(
       world.roadBorders,
       world.markings,
       world.worldGroup,
-      () => world.updatePath(), // Callback: updates path on source/destination change
+      () => world.updatePath(),
     );
     sourceDestinationEditorRef.current = sourceDestinationEditor;
 
     modeRef.current = "graph";
     graphEditor.enable();
 
-    // Cleanup created resources when the component unmounts or deps change.
     return () => {
       if (controlsRef.current) {
         controlsRef.current.dispose();
@@ -120,6 +109,7 @@ export function useWorldEditors(
     };
   }, [world, scene, camera, dom]);
 
+  // ... (Event listeners logic remains the same) ...
   useEffect(() => {
     // Don't set up event listeners until world and editors are ready
     if (!world) return;
@@ -237,6 +227,8 @@ export function useWorldEditors(
   return {
     activeMode,
     setMode,
+    graphRoadType, // Return state
+    setGraphRoadType, // Return setter
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
