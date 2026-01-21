@@ -116,6 +116,8 @@ export class PathFindingSystem {
    */
   public reset() {
     this.path = [];
+    this.pathBorders = [];
+    this.needsRedraw = true;
   }
 
   private updatePathPolygon() {
