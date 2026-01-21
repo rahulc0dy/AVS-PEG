@@ -98,7 +98,10 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(this.cars.filter((c) => c !== car));
+      car.update(
+        this.cars.filter((c) => c !== car),
+        this.pathFindingSystem.getPathBorders(),
+      );
     }
     for (const marking of this.markings) {
       marking.update();
