@@ -17,11 +17,11 @@ export function FpsMeter({ className = "" }: FpsMeterProps) {
   const rafIdRef = useRef<number>(0);
 
   useEffect(() => {
+    lastTimeRef.current = performance.now();
     const measureFps = () => {
       frameCountRef.current++;
       const now = performance.now();
       const elapsed = now - lastTimeRef.current;
-
       // Update FPS display every 500ms
       if (elapsed >= 500) {
         const currentFps = Math.round((frameCountRef.current * 1000) / elapsed);
@@ -29,10 +29,8 @@ export function FpsMeter({ className = "" }: FpsMeterProps) {
         frameCountRef.current = 0;
         lastTimeRef.current = now;
       }
-
       rafIdRef.current = requestAnimationFrame(measureFps);
     };
-
     rafIdRef.current = requestAnimationFrame(measureFps);
 
     return () => {

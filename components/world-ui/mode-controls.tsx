@@ -1,7 +1,7 @@
 import { EditorMode } from "@/types/editor";
 import { SourceDestinationMarkingType } from "@/lib/editors/source-destination-editor";
 import Image from "next/image";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ModeControlsProps {
   activeMode: EditorMode;
@@ -52,7 +52,7 @@ function ToolButton({
         alt={alt}
         width={24}
         height={24}
-        className={`size-5 ${rotateIcon ? "rotate-90" : ""} ${isActive ? "brightness-0 invert" : "opacity-70"}`}
+        className={`size-5 ${rotateIcon ? "rotate-90" : ""} ${isActive ? "brightness-150 saturate-150" : "opacity-70 saturate-50"}`}
       />
       {badge && isActive && (
         <span className="absolute -top-1 -right-1 text-[10px] font-medium bg-zinc-600 text-zinc-100 px-1 rounded">

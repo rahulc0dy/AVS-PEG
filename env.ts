@@ -1,5 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+import { string, z } from "zod";
 
 const posInt = (def: number) => z.coerce.number().int().positive().default(def);
 const posNum = (def: number) => z.coerce.number().positive().default(def);
@@ -39,6 +39,9 @@ export const {
     WORLD_TRAFFIC_LIGHT_YELLOW_DURATION,
   NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_GREEN_DURATION:
     WORLD_TRAFFIC_LIGHT_GREEN_DURATION,
+
+  // Neural network variables
+  NEXT_PUBLIC_BEST_BRAIN_STORE_KEY: BEST_BRAIN_STORE_KEY,
 } = createEnv({
   client: {
     // Roads
@@ -71,6 +74,11 @@ export const {
     NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_RED_DURATION: nonNegInt(0),
     NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_YELLOW_DURATION: nonNegInt(1),
     NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_GREEN_DURATION: nonNegInt(2),
+
+    // Neural network variables
+    NEXT_PUBLIC_BEST_BRAIN_STORE_KEY: string()
+      .nonempty()
+      .default("avs-peg-best-brain"),
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_ORBIT_CAM_FAR: process.env.NEXT_PUBLIC_ORBIT_CAM_FAR,
@@ -101,5 +109,8 @@ export const {
       process.env.NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_YELLOW_DURATION,
     NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_GREEN_DURATION:
       process.env.NEXT_PUBLIC_WORLD_TRAFFIC_LIGHT_GREEN_DURATION,
+
+    NEXT_PUBLIC_BEST_BRAIN_STORE_KEY:
+      process.env.NEXT_PUBLIC_BEST_BRAIN_STORE_KEY,
   },
 });
