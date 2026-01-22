@@ -75,9 +75,14 @@ export class GraphEditor extends BaseEditor {
    */
   disable() {
     super.disable();
+    if (this.isDragging) {
+      this.onDragStateChanged(false);
+    }
     this.selectedNode = null;
     this.hoveredNode = null;
     this.isDragging = false;
+    this.addNodeOnRelease = false;
+    this.needsRedraw = true;
   }
 
   /**
