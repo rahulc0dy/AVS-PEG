@@ -5,8 +5,7 @@ import { Destination } from "@/lib/markings/destination";
 import { Source } from "@/lib/markings/source";
 import { Group, Scene, Vector3 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-
-export type SourceDestinationMarkingType = "source" | "destination";
+import { SourceDestinationMarkingType } from "@/types/marking";
 
 /**
  * Editor for placing "source" and "destination" markings onto edges.

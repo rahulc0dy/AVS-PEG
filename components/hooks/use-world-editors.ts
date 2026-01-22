@@ -6,9 +6,7 @@ import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-
-// Define the type for road direction
-export type GraphRoadType = "two-way" | "one-way";
+import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
 export function useWorldEditors(
   world: World | null,
@@ -20,7 +18,10 @@ export function useWorldEditors(
 ) {
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
   // New state for road type
-  const [graphRoadType, setGraphRoadType] = useState<GraphRoadType>("two-way");
+  const [graphRoadType, setGraphRoadType] =
+    useState<GraphEdgeType>("undirected");
+  const [sourceDestMarkingType, setSourceDestMarkingType] =
+    useState<SourceDestinationMarkingType>("source");
 
   const modeRef = useRef<EditorMode>("graph");
 
@@ -56,12 +57,15 @@ export function useWorldEditors(
     }
   };
 
-  // Sync graphRoadType state with the editor instance
+  // Sync state with the editor instance
   useEffect(() => {
     if (graphEditorRef.current) {
-      graphEditorRef.current.isDirected = graphRoadType === "one-way";
+      graphEditorRef.current.isDirected = graphRoadType === "directed";
     }
-  }, [graphRoadType]);
+    if (sourceDestinationEditorRef.current) {
+      sourceDestinationEditorRef.current.setMarkingType(sourceDestMarkingType);
+    }
+  }, [graphRoadType, sourceDestMarkingType]);
 
   useEffect(() => {
     if (!world) return;
@@ -74,7 +78,7 @@ export function useWorldEditors(
       }
     });
     // Initialize with current state
-    graphEditor.isDirected = graphRoadType === "one-way";
+    graphEditor.isDirected = graphRoadType === "directed";
     graphEditorRef.current = graphEditor;
 
     const trafficLightEditor = new TrafficLightEditor(
@@ -229,6 +233,8 @@ export function useWorldEditors(
     setMode,
     graphRoadType, // Return state
     setGraphRoadType, // Return setter
+    sourceDestMarkingType,
+    setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,

@@ -11,3 +11,7 @@ export type MarkingType =
   | "source"
   | "destination"
   | "default";
+
+export type GraphEdgeType = "directed" | "undirected";
+
+export type SourceDestinationMarkingType = "source" | "destination";

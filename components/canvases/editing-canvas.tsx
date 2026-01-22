@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Camera, Scene, WebGLRenderer } from "three";
+import { useState } from "react";
+import { Camera, Scene } from "three";
 import OsmModal from "@/components/world-ui/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { useWorldEditors } from "@/components/hooks/use-world-editors";
@@ -10,12 +10,10 @@ import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
 import { useWorld } from "@/components/hooks/use-world";
-import { SourceDestinationMarkingType } from "@/lib/editors/source-destination-editor";
 
 interface EditorCanvasProps {
   scene: Scene;
   camera: Camera;
-  renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
@@ -32,28 +30,23 @@ interface EditorCanvasProps {
 export default function EditorCanvas({
   scene,
   camera,
-  renderer,
   dom,
 }: EditorCanvasProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
-  const [sourceDestMarkingType, setSourceDestMarkingType] =
-    useState<SourceDestinationMarkingType>("source");
 
   // Initialize the World instance
   const { worldRef, world } = useWorld(scene, { showGrid: true });
 
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
-  // Interface requirement but variable unused
-  void renderer;
-
   // Initialize editors (requires world to be ready)
   const {
     activeMode,
     setMode,
-    // Get the new graph road type values
     graphRoadType,
     setGraphRoadType,
+    sourceDestMarkingType,
+    setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
@@ -65,25 +58,6 @@ export default function EditorCanvas({
     dom,
     updatePointer,
     getIntersectPoint,
-  );
-
-  // Sync source-destination marking type with the editor
-  useEffect(() => {
-    const editor = sourceDestinationEditorRef.current;
-    if (editor) {
-      editor.setMarkingType(sourceDestMarkingType);
-    }
-  }, [sourceDestinationEditorRef, sourceDestMarkingType]);
-
-  const handleSourceDestTypeChange = useCallback(
-    (type: SourceDestinationMarkingType) => {
-      setSourceDestMarkingType(type);
-      const editor = sourceDestinationEditorRef.current;
-      if (editor) {
-        editor.setMarkingType(type);
-      }
-    },
-    [sourceDestinationEditorRef],
   );
 
   // Run the animation loop with editor support
@@ -106,7 +80,7 @@ export default function EditorCanvas({
         graphRoadType={graphRoadType}
         onGraphRoadTypeChange={setGraphRoadType}
         sourceDestinationMarkingType={sourceDestMarkingType}
-        onSourceDestinationTypeChange={handleSourceDestTypeChange}
+        onSourceDestinationTypeChange={setSourceDestMarkingType}
       />
       <FileToolbar
         onImportOsm={() => setIsOsmModalOpen(true)}

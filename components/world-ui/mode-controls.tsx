@@ -1,15 +1,14 @@
 import { EditorMode } from "@/types/editor";
-import { SourceDestinationMarkingType } from "@/lib/editors/source-destination-editor";
-import { GraphRoadType } from "@/components/hooks/use-world-editors"; // Import the type
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
 interface ModeControlsProps {
   activeMode: EditorMode;
   setMode: (mode: EditorMode) => void;
   // New props for graph road type
-  graphRoadType?: GraphRoadType;
-  onGraphRoadTypeChange?: (type: GraphRoadType) => void;
+  graphRoadType?: GraphEdgeType;
+  onGraphRoadTypeChange?: (type: GraphEdgeType) => void;
   sourceDestinationMarkingType?: SourceDestinationMarkingType;
   onSourceDestinationTypeChange?: (type: SourceDestinationMarkingType) => void;
 }
@@ -152,9 +151,9 @@ function SourceDestContextMenu({
 interface GraphContextMenuProps {
   x: number;
   y: number;
-  onSelect: (type: GraphRoadType) => void;
+  onSelect: (type: GraphEdgeType) => void;
   onClose: () => void;
-  currentType: GraphRoadType;
+  currentType: GraphEdgeType;
 }
 
 function GraphContextMenu({
@@ -167,9 +166,9 @@ function GraphContextMenu({
   return (
     <BaseContextMenu x={x} y={y} onClose={onClose}>
       <button
-        onClick={() => onSelect("two-way")}
+        onClick={() => onSelect("undirected")}
         className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
-          currentType === "two-way"
+          currentType === "undirected"
             ? "bg-white/10 text-white"
             : "text-zinc-300 hover:bg-zinc-700"
         }`}
@@ -178,9 +177,9 @@ function GraphContextMenu({
         Two-way Road
       </button>
       <button
-        onClick={() => onSelect("one-way")}
+        onClick={() => onSelect("directed")}
         className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
-          currentType === "one-way"
+          currentType === "directed"
             ? "bg-white/10 text-white"
             : "text-zinc-300 hover:bg-zinc-700"
         }`}
@@ -195,7 +194,7 @@ function GraphContextMenu({
 export function ModeControls({
   activeMode,
   setMode,
-  graphRoadType = "two-way",
+  graphRoadType = "undirected",
   onGraphRoadTypeChange,
   sourceDestinationMarkingType = "source",
   onSourceDestinationTypeChange,
@@ -216,7 +215,7 @@ export function ModeControls({
     setSourceDestMenu(null); // Close other menu
   };
 
-  const handleGraphTypeSelect = (type: GraphRoadType) => {
+  const handleGraphTypeSelect = (type: GraphEdgeType) => {
     onGraphRoadTypeChange?.(type);
     setMode("graph");
     setGraphMenu(null);
@@ -248,7 +247,7 @@ export function ModeControls({
             alt="Graph Editor (Right-click for options)"
             badge={
               activeMode === "graph"
-                ? graphRoadType === "one-way"
+                ? graphRoadType === "directed"
                   ? "→"
                   : "⇄"
                 : undefined
