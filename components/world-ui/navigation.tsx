@@ -26,6 +26,8 @@ export default function Navigation() {
           onClick={() => setIsOpen(true)}
           className="bg-white/80 backdrop-blur-sm dark:bg-zinc-950/80"
           aria-label="Open menu"
+          aria-expanded={isOpen}
+          aria-controls="app-nav"
         >
           {/* Hamburger Icon */}
           <svg
@@ -56,6 +58,8 @@ export default function Navigation() {
 
       {/* Sliding Sidebar */}
       <aside
+        id="app-nav"
+        aria-hidden={!isOpen}
         className={`fixed inset-y-0 left-0 z-50 w-64 transform border-r border-zinc-200 bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out dark:border-zinc-800 dark:bg-zinc-950 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -64,7 +68,13 @@ export default function Navigation() {
           <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             AVS-PEG
           </h2>
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsOpen(false)}
+            tabIndex={isOpen ? 0 : -1}
+            aria-label="Close Menu"
+          >
             {/* Close Icon */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -96,6 +106,7 @@ export default function Navigation() {
                     ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
                     : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50"
                 }`}
+                tabIndex={isOpen ? 0 : -1}
               >
                 {route.label}
               </Link>

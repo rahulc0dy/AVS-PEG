@@ -60,7 +60,7 @@ export function useWorldEditors(
   // Sync state with the editor instance
   useEffect(() => {
     if (graphEditorRef.current) {
-      graphEditorRef.current.drawDirectedEdge = graphRoadType === "one-way";
+      graphEditorRef.current.drawDirectedEdge = graphRoadType === "directed";
     }
     if (sourceDestinationEditorRef.current) {
       sourceDestinationEditorRef.current.setMarkingType(sourceDestMarkingType);
@@ -78,7 +78,7 @@ export function useWorldEditors(
       }
     });
     // Initialize with current state
-    graphEditor.isDirected = graphRoadType === "directed";
+    graphEditor.drawDirectedEdge = graphRoadType === "directed";
     graphEditorRef.current = graphEditor;
 
     const trafficLightEditor = new TrafficLightEditor(
@@ -107,6 +107,12 @@ export function useWorldEditors(
         controlsRef.current.dispose();
         controlsRef.current = null;
       }
+      graphEditorRef.current?.disable();
+      trafficLightEditorRef.current?.disable();
+      sourceDestinationEditorRef.current?.disable();
+      graphEditorRef.current?.dispose();
+      trafficLightEditorRef.current?.dispose();
+      sourceDestinationEditorRef.current?.dispose();
       graphEditorRef.current = null;
       trafficLightEditorRef.current = null;
       sourceDestinationEditorRef.current = null;
