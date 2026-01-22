@@ -5,15 +5,13 @@ import { Destination } from "@/lib/markings/destination";
 import { Source } from "@/lib/markings/source";
 import { Group, Scene, Vector3 } from "three";
 import { Edge } from "@/lib/primitives/edge";
-
-export type SourceDestinationMarkingType = "source" | "destination";
+import { SourceDestinationMarkingType } from "@/types/marking";
 
 /**
  * Editor for placing "source" and "destination" markings onto edges.
  *
  * This is a specialized {@link MarkingEditor} that can create two different
  * marking variants. The active variant is controlled by {@link setMarkingType}
- * and can also be cycled with {@link handleTabKeyPress}.
  *
  * - Left-click behavior, intent previewing, and commit behavior are inherited
  * from {@link MarkingEditor}.
@@ -87,22 +85,5 @@ export class SourceDestinationEditor extends MarkingEditor {
     if (willCommit && this.onUpdate) {
       this.onUpdate();
     }
-  }
-
-  /**
-   * Cycle the active marking type (`"source"` ↔ `"destination"`).
-   *
-   * Clears any in-progress intent preview so the user sees the new marking type
-   * immediately on the next hover.
-   */
-  override handleTabKeyPress(): void {
-    // Cycle through marking types
-    if (this.currentMarkingType === "source") {
-      this.currentMarkingType = "destination";
-    } else {
-      this.currentMarkingType = "source";
-    }
-    this.intent?.dispose();
-    this.intent = null;
   }
 }

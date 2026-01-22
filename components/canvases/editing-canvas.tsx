@@ -1,45 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Camera, Scene, WebGLRenderer } from "three";
-import OsmModal from "@/components/osm-modal";
+import { useState } from "react";
+import { Camera, Scene } from "three";
+import OsmModal from "@/components/world-ui/osm-modal";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { useWorldEditors } from "@/components/hooks/use-world-editors";
 import { useWorldAnimation } from "@/components/hooks/use-world-animation";
-import { useMiniCamera } from "@/components/hooks/use-mini-camera";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
-import { MiniMapOverlay } from "@/components/world-ui/mini-map-overlay";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
-import { useTrafficDetector } from "./hooks/use-traffic-detector";
+import { useWorld } from "@/components/hooks/use-world";
 
-interface WorldComponentProps {
+interface EditorCanvasProps {
   scene: Scene;
   camera: Camera;
-  renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
-export default function WorldComponent({
+/**
+ * Editor canvas component that provides the full editing experience.
+ *
+ * Includes graph editing, traffic light placement, source/destination marking,
+ * file save/load functionality, and OSM import modal.
+ */
+export default function EditorCanvas({
   scene,
   camera,
-  renderer,
   dom,
-}: WorldComponentProps) {
+}: EditorCanvasProps) {
   const [isOsmModalOpen, setIsOsmModalOpen] = useState(false);
+
+  // Initialize the World instance
+  const { worldRef, world } = useWorld(scene, { showGrid: true });
 
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
+  // Initialize editors (requires world to be ready)
   const {
     activeMode,
     setMode,
-    worldRef,
+    graphRoadType,
+    setGraphRoadType,
+    sourceDestMarkingType,
+    setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
     controlsRef,
-  } = useWorldEditors(scene, camera, dom, updatePointer, getIntersectPoint);
+  } = useWorldEditors(
+    world,
+    scene,
+    camera,
+    dom,
+    updatePointer,
+    getIntersectPoint,
+  );
 
+  // Run the animation loop with editor support
   useWorldAnimation(
     controlsRef,
     graphEditorRef,
@@ -48,23 +65,18 @@ export default function WorldComponent({
     worldRef,
   );
 
-  const { scanTraffic, detections } = useTrafficDetector();
-
-  useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
-
-  useEffect(() => {
-    if (detections.length > 0) {
-      console.log("Traffic Light Found!", detections);
-      // Logic to stop the car can go here
-    }
-  }, [detections]);
-
   const { saveToJson, loadFromJson } = useWorldPersistence(worldRef);
 
   return (
     <>
-      <ModeControls activeMode={activeMode} setMode={setMode} />
-      <MiniMapOverlay />
+      <ModeControls
+        activeMode={activeMode}
+        setMode={setMode}
+        graphRoadType={graphRoadType}
+        onGraphRoadTypeChange={setGraphRoadType}
+        sourceDestinationMarkingType={sourceDestMarkingType}
+        onSourceDestinationTypeChange={setSourceDestMarkingType}
+      />
       <FileToolbar
         onImportOsm={() => setIsOsmModalOpen(true)}
         onLoadJson={loadFromJson}

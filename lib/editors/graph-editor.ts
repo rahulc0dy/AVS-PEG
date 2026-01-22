@@ -15,6 +15,10 @@ import { BaseEditor } from "./base-editor";
  * - Right-click clears selection; if nothing is selected, it deletes the hovered node.
  */
 export class GraphEditor extends BaseEditor {
+  /** Colors used for different node states. */
+  private static readonly baseColor = new Color(0xffffff);
+  private static readonly hoveredColor = new Color(0xfff23b);
+  private static readonly selectedColor = new Color(0xff2b59);
   /** Underlying graph being edited. */
   graph: Graph;
   /** Currently selected node (null when none). */
@@ -23,22 +27,12 @@ export class GraphEditor extends BaseEditor {
   hoveredNode: Node | null;
   /** Whether the editor is currently dragging a selected node. */
   isDragging: boolean;
-
-  /** Callback invoked when drag state changes. */
-  private onDragStateChanged: (isDragging: boolean) => void = () => {};
-
   /** Whether a redraw is required on next `draw()` call. */
   private needsRedraw: boolean;
   /** Last observed graph change counter to avoid redundant redraws. */
   private lastGraphChanges: number;
-
   /** Internal flag used to create a node on pointer release when set. */
   private addNodeOnRelease: boolean = false;
-
-  /** Colors used for different node states. */
-  private static readonly baseColor = new Color(0xffffff);
-  private static readonly hoveredColor = new Color(0xfff23b);
-  private static readonly selectedColor = new Color(0xff2b59);
 
   /**
    * Create a new `GraphEditor`.
@@ -65,52 +59,29 @@ export class GraphEditor extends BaseEditor {
     this.lastGraphChanges = -1;
   }
 
+  /** Whether to draw directed edge */
+  private _drawDirectedEdge: boolean = false;
+
+  get drawDirectedEdge() {
+    return this._drawDirectedEdge;
+  }
+
+  set drawDirectedEdge(value: boolean) {
+    this._drawDirectedEdge = value;
+  }
+
   /**
    * Disable editor visuals and clear transient interaction state.
    */
   disable() {
     super.disable();
+    if (this.isDragging) {
+      this.onDragStateChanged(false);
+    }
     this.selectedNode = null;
     this.hoveredNode = null;
     this.isDragging = false;
-  }
-
-  /**
-   * Select `node`. If another node was already selected, attempt to create
-   * an edge between them.
-   * @param node - Node to select
-   */
-  private selectNode(node: Node) {
-    if (this.selectedNode) {
-      this.graph.tryAddEdge(new Edge(this.selectedNode, node));
-    }
-    if (this.selectedNode !== node) {
-      this.selectedNode = node;
-      this.needsRedraw = true;
-    }
-  }
-
-  /**
-   * Update hover state; causes a redraw when the hovered node changes.
-   * @param node - Node being hovered or `null` when none
-   */
-  private hoverNode(node: Node | null) {
-    if (this.hoveredNode !== node) {
-      this.hoveredNode = node;
-      this.needsRedraw = true;
-    }
-  }
-
-  /**
-   * Remove `node` from the graph and clear selection/hover state if needed.
-   * @param node - Node to remove
-   */
-  private removeNode(node: Node) {
-    this.graph.removeNode(node);
-    this.hoveredNode = null;
-    if (this.selectedNode == node) {
-      this.selectedNode = null;
-    }
+    this.addNodeOnRelease = false;
     this.needsRedraw = true;
   }
 
@@ -193,8 +164,6 @@ export class GraphEditor extends BaseEditor {
     }
   }
 
-  override handleTabKeyPress(): void {}
-
   /**
    * Draw editor visuals (nodes) into the scene. Uses `needsRedraw` and the
    * graph's change counter to avoid unnecessary work.
@@ -234,5 +203,49 @@ export class GraphEditor extends BaseEditor {
     this.lastGraphChanges = currentChanges;
     this.needsRedraw = false;
     return true;
+  }
+
+  /** Callback invoked when drag state changes. */
+  private readonly onDragStateChanged: (isDragging: boolean) => void = () => {};
+
+  /**
+   * Select `node`. If another node was already selected, attempt to create
+   * an edge between them.
+   * @param node - Node to select
+   */
+  private selectNode(node: Node) {
+    if (this.selectedNode) {
+      this.graph.tryAddEdge(
+        new Edge(this.selectedNode, node, this._drawDirectedEdge),
+      );
+    }
+    if (this.selectedNode !== node) {
+      this.selectedNode = node;
+      this.needsRedraw = true;
+    }
+  }
+
+  /**
+   * Update hover state; causes a redraw when the hovered node changes.
+   * @param node - Node being hovered or `null` when none
+   */
+  private hoverNode(node: Node | null) {
+    if (this.hoveredNode !== node) {
+      this.hoveredNode = node;
+      this.needsRedraw = true;
+    }
+  }
+
+  /**
+   * Remove `node` from the graph and clear selection/hover state if needed.
+   * @param node - Node to remove
+   */
+  private removeNode(node: Node) {
+    this.graph.removeNode(node);
+    this.hoveredNode = null;
+    if (this.selectedNode == node) {
+      this.selectedNode = null;
+    }
+    this.needsRedraw = true;
   }
 }

@@ -1,4 +1,4 @@
-import { Scene, Group, Vector3 } from "three";
+import { Group, Scene, Vector3 } from "three";
 import { Editor } from "@/types/editor";
 
 /**
@@ -79,15 +79,6 @@ export abstract class BaseEditor implements Editor {
    * @param pointer World position of the release as a `Vector3`.
    */
   abstract handleClickRelease(pointer: Vector3): void;
-
-  /**
-   * Handle the Tab key.
-   *
-   * Not all editors need keyboard interaction; for those that do, this is
-   * typically used to cycle variants (e.g. marking type) and reset any
-   * in-progress preview/intent.
-   */
-  abstract handleTabKeyPress(): void;
 
   /**
    * Update editor visuals.

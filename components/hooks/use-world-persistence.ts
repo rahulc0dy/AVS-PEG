@@ -1,4 +1,4 @@
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject } from "react";
 
 /**
@@ -12,6 +12,9 @@ import { RefObject } from "react";
  * @returns {{ saveToJson: () => void, loadFromJson: () => void }} Persistence helper functions.
  */
 export function useWorldPersistence(worldRef: RefObject<World | null>) {
+  /**
+   * Serializes the current world to JSON and triggers a file download.
+   */
   const saveToJson = () => {
     const world = worldRef.current;
     if (!world) return;
@@ -26,6 +29,9 @@ export function useWorldPersistence(worldRef: RefObject<World | null>) {
     URL.revokeObjectURL(url);
   };
 
+  /**
+   * Opens a file picker and loads a JSON file into the current world.
+   */
   const loadFromJson = () => {
     const input = document.createElement("input");
     input.type = "file";
