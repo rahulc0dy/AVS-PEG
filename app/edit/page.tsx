@@ -14,7 +14,6 @@ export default function EditPage() {
         <EditorCanvas
           scene={context.scene}
           camera={context.camera}
-          renderer={context.renderer}
           dom={context.dom}
         />
       )}
