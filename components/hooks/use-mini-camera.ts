@@ -1,6 +1,7 @@
 import {
   MINICAM_FAR,
   MINICAM_FORWARD,
+  MINICAM_FOV,
   MINICAM_HEIGHT,
   MINICAM_LOOKAHEAD,
   MINICAM_NEAR,
@@ -8,11 +9,10 @@ import {
   MINIVIEW_WIDTH,
   MINIVIEW_X,
   MINIVIEW_Y,
-  MINICAM_FOV,
 } from "@/env";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
-import { PerspectiveCamera, Scene, WebGLRenderer, Camera } from "three";
+import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 /**
  * React hook that creates and manages a small inset "mini" perspective camera

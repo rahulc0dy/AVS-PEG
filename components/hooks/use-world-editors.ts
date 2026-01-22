@@ -1,34 +1,28 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
-import { World } from "@/lib/world";
+import { World } from "@/lib/world/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
-import { Camera, GridHelper, Scene, Vector3 } from "three";
+import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
 /**
- * Hook to initialize and manage world editors and controls.
+ * Hook that wires up editors, controls, and input handling for a `World` instance.
  *
- * This sets up an `OrbitControls`, grid helper, `GraphEditor`, `TrafficLightEditor`,
- * and a `World` instance, wiring pointer events to the active editor.
+ * Initializes orbit controls, the graph/traffic/source-destination editors, and the
+ * pointer/keyboard listeners that delegate to whichever tool is active.
  *
- * @param {Scene} scene - Three.js scene to attach helpers and editor objects to.
- * @param {Camera} camera - Three.js camera used by `OrbitControls` and raycasting.
- * @param {HTMLElement} dom - DOM element used for pointer event listeners and control target.
- * @param {(evt: PointerEvent) => void} updatePointer - Callback that updates the pointer/raycaster state.
- * @param {() => Vector3} getIntersectPoint - Function that returns the current pointer intersection point on the ground plane.
- * @returns {{
- *   activeMode: EditorMode,
- *   setMode: (mode: EditorMode) => void,
- *   graphRef: import("react").MutableRefObject<Graph | null>,
- *   worldRef: import("react").MutableRefObject<World | null>,
- *   graphEditorRef: import("react").MutableRefObject<GraphEditor | null>,
- *   trafficLightEditorRef: import("react").MutableRefObject<TrafficLightEditor | null>,
- *   controlsRef: import("react").MutableRefObject<OrbitControls | null>
- * }} Object containing the current mode, setter, and refs for editors and controls.
+ * @param world - World whose graphs, markings, and roads the editors mutate.
+ * @param scene - Three.js scene that hosts editor helpers and visual output.
+ * @param camera - Camera used for orbit controls and raycasting.
+ * @param dom - DOM element that receives pointer events and anchors the controls.
+ * @param updatePointer - Updates the shared pointer/raycaster state before delegating events.
+ * @param getIntersectPoint - Computes the current ground intersection point for editor actions.
  */
 export function useWorldEditors(
+  world: World | null,
   scene: Scene,
   camera: Camera,
   dom: HTMLElement,
@@ -36,9 +30,13 @@ export function useWorldEditors(
   getIntersectPoint: () => Vector3,
 ) {
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
+  const [graphRoadType, setGraphRoadType] =
+    useState<GraphEdgeType>("undirected");
+  const [sourceDestMarkingType, setSourceDestMarkingType] =
+    useState<SourceDestinationMarkingType>("source");
+
   const modeRef = useRef<EditorMode>("graph");
 
-  const worldRef = useRef<World | null>(null);
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
   const sourceDestinationEditorRef = useRef<SourceDestinationEditor | null>(
@@ -46,15 +44,19 @@ export function useWorldEditors(
   );
   const controlsRef = useRef<OrbitControls | null>(null);
 
-  // Disable both editors (safe to call even if an editor isn't initialized)
+  /**
+   * Disables all editor instances.
+   */
   const disableEditors = () => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
   };
 
-  // Switch the active editor mode and enable the corresponding editor.
-  // Also keep a ref copy (`modeRef`) to read from event handlers without re-subscribing.
+  /**
+   * Sets the active editor mode and enables the corresponding editor.
+   * @param mode - The editor mode to activate.
+   */
   const setMode = (mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;
@@ -73,66 +75,71 @@ export function useWorldEditors(
     }
   };
 
+  // Sync state with the editor instance
   useEffect(() => {
-    // Create orbit controls attached to the provided `dom` element so
-    // camera orbiting is enabled for the user.
+    if (graphEditorRef.current) {
+      graphEditorRef.current.drawDirectedEdge = graphRoadType === "directed";
+    }
+    if (sourceDestinationEditorRef.current) {
+      sourceDestinationEditorRef.current.setMarkingType(sourceDestMarkingType);
+    }
+  }, [graphRoadType, sourceDestMarkingType]);
+
+  useEffect(() => {
+    if (!world) return;
+
     controlsRef.current = new OrbitControls(camera, dom);
 
-    // Add a ground grid helper for visual reference in the scene.
-    const grid = new GridHelper(1000, 40, 0x666666, 0x333333);
-    grid.position.set(0, 0, 0);
-    scene.add(grid);
-
-    const world = new World(scene);
-    worldRef.current = world;
-
-    // GraphEditor receives a callback that reports whether the user is
-    // actively dragging. While dragging, disable OrbitControls to avoid
-    // camera interference with editor interactions.
     const graphEditor = new GraphEditor(world.graph, scene, (isDragging) => {
       if (controlsRef.current) {
         controlsRef.current.enabled = !isDragging;
       }
     });
+    // Initialize with current state
+    graphEditor.drawDirectedEdge = graphRoadType === "directed";
     graphEditorRef.current = graphEditor;
 
-    const trafficLightEditor = new TrafficLightEditor(
+    trafficLightEditorRef.current = new TrafficLightEditor(
       scene,
       world.roadBorders,
       world.markings,
       world.trafficLightGraph,
       world.worldGroup,
     );
-    trafficLightEditorRef.current = trafficLightEditor;
 
-    const sourceDestinationEditor = new SourceDestinationEditor(
+    sourceDestinationEditorRef.current = new SourceDestinationEditor(
       scene,
       world.roadBorders,
       world.markings,
       world.worldGroup,
-      () => world.updatePath(), // Callback: updates path on source/destination change
+      () => world.updatePath(),
     );
-    sourceDestinationEditorRef.current = sourceDestinationEditor;
 
     modeRef.current = "graph";
     graphEditor.enable();
 
-    // Cleanup created resources when the component unmounts or deps change.
     return () => {
       if (controlsRef.current) {
         controlsRef.current.dispose();
         controlsRef.current = null;
       }
-      if (worldRef.current) {
-        worldRef.current.dispose();
-        worldRef.current = null;
-      }
-      scene.remove(grid);
-      grid.dispose();
+      graphEditorRef.current?.disable();
+      trafficLightEditorRef.current?.disable();
+      sourceDestinationEditorRef.current?.disable();
+      graphEditorRef.current?.dispose();
+      trafficLightEditorRef.current?.dispose();
+      sourceDestinationEditorRef.current?.dispose();
+      graphEditorRef.current = null;
+      trafficLightEditorRef.current = null;
+      sourceDestinationEditorRef.current = null;
     };
-  }, [scene, camera, dom]);
+  }, [world, scene, camera, dom]);
 
   useEffect(() => {
+    // Don't set up event listeners until world and editors are ready
+    if (!world) return;
+    if (!graphEditorRef.current) return;
+
     // Pointer move: update raycaster pointer then forward the computed
     // ground intersection to the active editor for hover/preview behavior.
     const handlePointerMove = (evt: PointerEvent) => {
@@ -210,42 +217,26 @@ export function useWorldEditors(
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        switch (modeRef.current) {
-          case "graph":
-            graphEditorRef.current?.handleTabKeyPress();
-            break;
-          case "traffic-lights":
-            trafficLightEditorRef.current?.handleTabKeyPress();
-            break;
-          case "source-destination":
-            sourceDestinationEditorRef.current?.handleTabKeyPress();
-            break;
-        }
-      }
-    };
-
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
     dom.addEventListener("contextmenu", handleContextMenu);
-    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
       dom.removeEventListener("contextmenu", handleContextMenu);
-      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dom, updatePointer, getIntersectPoint]);
+  }, [world, dom, updatePointer, getIntersectPoint]);
 
   return {
     activeMode,
     setMode,
-    worldRef,
+    graphRoadType,
+    setGraphRoadType,
+    sourceDestMarkingType,
+    setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,

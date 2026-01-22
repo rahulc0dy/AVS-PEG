@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
 
-export default function Home() {
+const SimulationPage = () => {
   return (
     <div className="h-screen w-full flex flex-col gap-10 items-center justify-center bg-black text-white">
+      <h1 className="uppercase font-black text-8xl text-transparent bg-clip-text bg-linear-to-r from-red-300 to-blue-300 transition-all">
+        Simulation not yet Implemented
+      </h1>
       <Link
         href={"/edit"}
         className="uppercase font-black text-7xl hover:text-9xl hover:text-rose-200 transition-all"
@@ -15,13 +20,7 @@ export default function Home() {
       >
         Train
       </Link>
-
-      <Link
-        href={"/simulate"}
-        className="uppercase font-black text-7xl hover:text-9xl hover:text-teal-200 transition-all"
-      >
-        Run
-      </Link>
     </div>
   );
-}
+};
+export default SimulationPage;
