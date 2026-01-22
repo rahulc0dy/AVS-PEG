@@ -50,6 +50,4 @@ export interface Editor {
   handleRightClick(point: Vector3): void;
   /** Handle release of a mouse click at the given world `point`. */
   handleClickRelease(point: Vector3): void;
-  /** Handle the Tab key press. */
-  handleTabKeyPress(): void;
 }

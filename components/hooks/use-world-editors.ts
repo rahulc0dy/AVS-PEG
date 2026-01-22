@@ -217,22 +217,7 @@ export function useWorldEditors(
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        switch (modeRef.current) {
-          case "graph":
-            graphEditorRef.current?.handleTabKeyPress();
-            break;
-          case "traffic-lights":
-            trafficLightEditorRef.current?.handleTabKeyPress();
-            break;
-          case "source-destination":
-            sourceDestinationEditorRef.current?.handleTabKeyPress();
-            break;
-        }
-      }
-    };
+    const handleKeyDown = (e: KeyboardEvent) => {};
 
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);

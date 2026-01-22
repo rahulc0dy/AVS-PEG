@@ -19,10 +19,6 @@ export class GraphEditor extends BaseEditor {
   private static readonly baseColor = new Color(0xffffff);
   private static readonly hoveredColor = new Color(0xfff23b);
   private static readonly selectedColor = new Color(0xff2b59);
-
-  /** Callback invoked when drag state changes. */
-  private readonly onDragStateChanged: (isDragging: boolean) => void = () => {};
-
   /** Underlying graph being edited. */
   graph: Graph;
   /** Currently selected node (null when none). */
@@ -37,8 +33,6 @@ export class GraphEditor extends BaseEditor {
   private lastGraphChanges: number;
   /** Internal flag used to create a node on pointer release when set. */
   private addNodeOnRelease: boolean = false;
-  /** Whether to draw directed edge */
-  private _drawDirectedEdge: boolean = false;
 
   /**
    * Create a new `GraphEditor`.
@@ -64,6 +58,9 @@ export class GraphEditor extends BaseEditor {
     this.needsRedraw = true;
     this.lastGraphChanges = -1;
   }
+
+  /** Whether to draw directed edge */
+  private _drawDirectedEdge: boolean = false;
 
   get drawDirectedEdge() {
     return this._drawDirectedEdge;
@@ -162,8 +159,6 @@ export class GraphEditor extends BaseEditor {
     }
   }
 
-  override handleTabKeyPress(): void {}
-
   /**
    * Draw editor visuals (nodes) into the scene. Uses `needsRedraw` and the
    * graph's change counter to avoid unnecessary work.
@@ -204,6 +199,9 @@ export class GraphEditor extends BaseEditor {
     this.needsRedraw = false;
     return true;
   }
+
+  /** Callback invoked when drag state changes. */
+  private readonly onDragStateChanged: (isDragging: boolean) => void = () => {};
 
   /**
    * Select `node`. If another node was already selected, attempt to create
