@@ -8,6 +8,19 @@ import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
+/**
+ * Hook that wires up editors, controls, and input handling for a `World` instance.
+ *
+ * Initializes orbit controls, the graph/traffic/source-destination editors, and the
+ * pointer/keyboard listeners that delegate to whichever tool is active.
+ *
+ * @param {World | null} world - World whose graphs, markings, and roads the editors mutate.
+ * @param {Scene} scene - Three.js scene that hosts editor helpers and visual output.
+ * @param {Camera} camera - Camera used for orbit controls and raycasting.
+ * @param {HTMLElement} dom - DOM element that receives pointer events and anchors the controls.
+ * @param {(evt: PointerEvent) => void} updatePointer - Updates the shared pointer/raycaster state before delegating events.
+ * @param {() => Vector3} getIntersectPoint - Computes the current ground intersection point for editor actions.
+ */
 export function useWorldEditors(
   world: World | null,
   scene: Scene,
@@ -17,7 +30,6 @@ export function useWorldEditors(
   getIntersectPoint: () => Vector3,
 ) {
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
-  // New state for road type
   const [graphRoadType, setGraphRoadType] =
     useState<GraphEdgeType>("undirected");
   const [sourceDestMarkingType, setSourceDestMarkingType] =
@@ -32,7 +44,6 @@ export function useWorldEditors(
   );
   const controlsRef = useRef<OrbitControls | null>(null);
 
-  // ... (disableEditors and setMode functions remain the same) ...
   const disableEditors = () => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
@@ -81,23 +92,21 @@ export function useWorldEditors(
     graphEditor.drawDirectedEdge = graphRoadType === "directed";
     graphEditorRef.current = graphEditor;
 
-    const trafficLightEditor = new TrafficLightEditor(
+    trafficLightEditorRef.current = new TrafficLightEditor(
       scene,
       world.roadBorders,
       world.markings,
       world.trafficLightGraph,
       world.worldGroup,
     );
-    trafficLightEditorRef.current = trafficLightEditor;
 
-    const sourceDestinationEditor = new SourceDestinationEditor(
+    sourceDestinationEditorRef.current = new SourceDestinationEditor(
       scene,
       world.roadBorders,
       world.markings,
       world.worldGroup,
       () => world.updatePath(),
     );
-    sourceDestinationEditorRef.current = sourceDestinationEditor;
 
     modeRef.current = "graph";
     graphEditor.enable();
@@ -119,7 +128,6 @@ export function useWorldEditors(
     };
   }, [world, scene, camera, dom]);
 
-  // ... (Event listeners logic remains the same) ...
   useEffect(() => {
     // Don't set up event listeners until world and editors are ready
     if (!world) return;
@@ -237,8 +245,8 @@ export function useWorldEditors(
   return {
     activeMode,
     setMode,
-    graphRoadType, // Return state
-    setGraphRoadType, // Return setter
+    graphRoadType,
+    setGraphRoadType,
     sourceDestMarkingType,
     setSourceDestMarkingType,
     graphEditorRef,
