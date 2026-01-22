@@ -217,20 +217,16 @@ export function useWorldEditors(
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    const handleKeyDown = (e: KeyboardEvent) => {};
-
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
     dom.addEventListener("contextmenu", handleContextMenu);
-    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
       dom.removeEventListener("contextmenu", handleContextMenu);
-      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [world, dom, updatePointer, getIntersectPoint]);
 
