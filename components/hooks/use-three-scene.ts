@@ -35,19 +35,9 @@ export interface ThreeSceneContext {
  * - Setting up resize handlers
  * - Cleanup on unmount
  *
- * @param mountRef - Ref to the container element where the renderer will be mounted
- * @param config - Optional configuration for the scene setup
- * @returns The scene context (scene, camera, renderer, dom) when ready, or null
- *
- * @example
- * ```tsx
- * const mountRef = useRef<HTMLDivElement>(null);
- * const context = useThreeScene(mountRef, { cameraPosition: { y: 2000 } });
- *
- * if (context) {
- *   // Scene is ready to use
- * }
- * ```
+ * @param mountRef - Ref to the container element where the renderer will be mounted.
+ * @param config - Optional configuration for the scene setup.
+ * @returns The scene context (scene, camera, renderer, dom) when ready, or null.
  */
 export function useThreeScene(
   mountRef: React.RefObject<HTMLDivElement | null>,

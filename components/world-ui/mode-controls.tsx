@@ -3,16 +3,21 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
+/**
+ * Props for the ModeControls component.
+ */
 interface ModeControlsProps {
   activeMode: EditorMode;
   setMode: (mode: EditorMode) => void;
-  // New props for graph road type
   graphRoadType?: GraphEdgeType;
   onGraphRoadTypeChange?: (type: GraphEdgeType) => void;
   sourceDestinationMarkingType?: SourceDestinationMarkingType;
   onSourceDestinationTypeChange?: (type: SourceDestinationMarkingType) => void;
 }
 
+/**
+ * Props for the ToolButton component.
+ */
 interface ToolButtonProps {
   mode: EditorMode;
   activeMode: EditorMode;
@@ -24,6 +29,9 @@ interface ToolButtonProps {
   badge?: string;
 }
 
+/**
+ * Button component for selecting editor tools.
+ */
 function ToolButton({
   mode,
   activeMode,
@@ -66,7 +74,11 @@ function ToolButton({
   );
 }
 
-// Reuse logic for closing on outside click
+/**
+ * Hook that handles closing a menu when clicking outside of it.
+ * @param ref - Ref to the menu element.
+ * @param handler - Callback to invoke when clicking outside.
+ */
 function useClickOutside(
   ref: React.RefObject<HTMLElement | null>,
   handler: () => void,
@@ -82,6 +94,9 @@ function useClickOutside(
   }, [ref, handler]);
 }
 
+/**
+ * Props for the BaseContextMenu component.
+ */
 interface BaseContextMenuProps {
   x: number;
   y: number;
@@ -89,6 +104,9 @@ interface BaseContextMenuProps {
   children: React.ReactNode;
 }
 
+/**
+ * Base context menu component with positioning and click-outside handling.
+ */
 function BaseContextMenu({ x, y, onClose, children }: BaseContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(menuRef, onClose);
@@ -104,6 +122,9 @@ function BaseContextMenu({ x, y, onClose, children }: BaseContextMenuProps) {
   );
 }
 
+/**
+ * Props for the SourceDestContextMenu component.
+ */
 interface SourceDestContextMenuProps {
   x: number;
   y: number;
@@ -112,6 +133,9 @@ interface SourceDestContextMenuProps {
   currentType: SourceDestinationMarkingType;
 }
 
+/**
+ * Context menu for selecting source or destination marking type.
+ */
 function SourceDestContextMenu({
   x,
   y,
@@ -147,7 +171,9 @@ function SourceDestContextMenu({
   );
 }
 
-// New Graph Context Menu
+/**
+ * Props for the GraphContextMenu component.
+ */
 interface GraphContextMenuProps {
   x: number;
   y: number;
@@ -156,6 +182,9 @@ interface GraphContextMenuProps {
   currentType: GraphEdgeType;
 }
 
+/**
+ * Context menu for selecting graph edge type (one-way or two-way roads).
+ */
 function GraphContextMenu({
   x,
   y,
@@ -191,6 +220,9 @@ function GraphContextMenu({
   );
 }
 
+/**
+ * Toolbar component displaying editor mode buttons with context menus.
+ */
 export function ModeControls({
   activeMode,
   setMode,
@@ -199,7 +231,6 @@ export function ModeControls({
   sourceDestinationMarkingType = "source",
   onSourceDestinationTypeChange,
 }: ModeControlsProps) {
-  // Separate state for different context menus
   const [sourceDestMenu, setSourceDestMenu] = useState<{
     x: number;
     y: number;
@@ -208,11 +239,10 @@ export function ModeControls({
     null,
   );
 
-  // Graph Handler
   const handleGraphContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setGraphMenu({ x: e.clientX, y: e.clientY });
-    setSourceDestMenu(null); // Close other menu
+    setSourceDestMenu(null);
   };
 
   const handleGraphTypeSelect = (type: GraphEdgeType) => {
@@ -221,11 +251,10 @@ export function ModeControls({
     setGraphMenu(null);
   };
 
-  // Source-Dest Handler
   const handleSourceDestContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setSourceDestMenu({ x: e.clientX, y: e.clientY });
-    setGraphMenu(null); // Close other menu
+    setGraphMenu(null);
   };
 
   const handleSourceDestTypeSelect = (type: SourceDestinationMarkingType) => {

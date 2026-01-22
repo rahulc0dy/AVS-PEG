@@ -20,12 +20,8 @@ interface EditorCanvasProps {
 /**
  * Editor canvas component that provides the full editing experience.
  *
- * This component includes:
- * - Graph editing (add/remove nodes and edges)
- * - Traffic light placement
- * - Source/destination marking
- * - File save/load functionality
- * - OSM import modal
+ * Includes graph editing, traffic light placement, source/destination marking,
+ * file save/load functionality, and OSM import modal.
  */
 export default function EditorCanvas({
   scene,
@@ -76,7 +72,6 @@ export default function EditorCanvas({
       <ModeControls
         activeMode={activeMode}
         setMode={setMode}
-        // Pass the new props to ModeControls
         graphRoadType={graphRoadType}
         onGraphRoadTypeChange={setGraphRoadType}
         sourceDestinationMarkingType={sourceDestMarkingType}

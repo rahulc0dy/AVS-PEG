@@ -21,13 +21,8 @@ interface TrainingCanvasProps {
 /**
  * Training canvas component for AI agent training.
  *
- * This component:
- * - Loads a saved world from localStorage or defaults
- * - Spawns multiple AI-controlled cars
- * - Tracks which car performs best (highest fitness / reached destination)
- * - Provides controls for saving/loading AI brains
- * - Applies mutations to create variations of the best brain
- * - Runs the simulation loop
+ * Loads a saved world, spawns multiple AI-controlled cars, tracks performance,
+ * and provides controls for saving/loading AI brains and applying mutations.
  */
 export default function TrainingCanvas({
   scene,
@@ -55,10 +50,6 @@ export default function TrainingCanvas({
 
   const { loadFromJson } = useWorldPersistence(worldRef);
 
-  // Load saved world on mount (but don't spawn cars yet)
-
-  // TODO: Update fitness stats and neural network state periodically
-
   const handleSaveBrain = useCallback(async () => {
     // TODO: Brain save to local storage
   }, []);
@@ -75,6 +66,9 @@ export default function TrainingCanvas({
     // TODO: Discard brain logic
   }, []);
 
+  /**
+   * Gets the position of the destination marking if present.
+   */
   const getDestinationPosition = useCallback((): Vector2 | undefined => {
     const world = worldRef.current;
     if (!world) return undefined;
@@ -112,6 +106,9 @@ export default function TrainingCanvas({
     getDestinationPosition,
   ]);
 
+  /**
+   * Loads a world from JSON and resets training state.
+   */
   const handleLoadWorld = useCallback(() => {
     loadFromJson();
     // Reset training state since loading clears all cars

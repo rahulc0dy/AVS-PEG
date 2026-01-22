@@ -14,12 +14,12 @@ import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
  * Initializes orbit controls, the graph/traffic/source-destination editors, and the
  * pointer/keyboard listeners that delegate to whichever tool is active.
  *
- * @param {World | null} world - World whose graphs, markings, and roads the editors mutate.
- * @param {Scene} scene - Three.js scene that hosts editor helpers and visual output.
- * @param {Camera} camera - Camera used for orbit controls and raycasting.
- * @param {HTMLElement} dom - DOM element that receives pointer events and anchors the controls.
- * @param {(evt: PointerEvent) => void} updatePointer - Updates the shared pointer/raycaster state before delegating events.
- * @param {() => Vector3} getIntersectPoint - Computes the current ground intersection point for editor actions.
+ * @param world - World whose graphs, markings, and roads the editors mutate.
+ * @param scene - Three.js scene that hosts editor helpers and visual output.
+ * @param camera - Camera used for orbit controls and raycasting.
+ * @param dom - DOM element that receives pointer events and anchors the controls.
+ * @param updatePointer - Updates the shared pointer/raycaster state before delegating events.
+ * @param getIntersectPoint - Computes the current ground intersection point for editor actions.
  */
 export function useWorldEditors(
   world: World | null,
@@ -44,12 +44,19 @@ export function useWorldEditors(
   );
   const controlsRef = useRef<OrbitControls | null>(null);
 
+  /**
+   * Disables all editor instances.
+   */
   const disableEditors = () => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
   };
 
+  /**
+   * Sets the active editor mode and enables the corresponding editor.
+   * @param mode - The editor mode to activate.
+   */
   const setMode = (mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;

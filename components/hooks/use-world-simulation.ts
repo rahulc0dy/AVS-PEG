@@ -15,9 +15,9 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
  * - Calls `world.draw()` to render the world.
  * - Handles structural changes to the graph via `world.generate()`.
  *
- * @param worldRef - Ref to the World instance
- * @param camera - Three.js camera used by OrbitControls
- * @param dom - DOM element for OrbitControls
+ * @param worldRef - Ref to the World instance.
+ * @param camera - Three.js camera used by OrbitControls.
+ * @param dom - DOM element for OrbitControls.
  */
 export function useWorldSimulation(
   worldRef: RefObject<World | null>,

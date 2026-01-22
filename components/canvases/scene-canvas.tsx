@@ -20,27 +20,12 @@ interface SceneCanvasProps {
 }
 
 /**
- * A reusable component that sets up a Three.js scene and provides
+ * Reusable component that sets up a Three.js scene and provides
  * the context to its children via a render prop pattern.
  *
- * This component handles:
- * - Creating and managing the Three.js scene lifecycle
- * - Mounting the WebGL renderer canvas
- * - Providing scene, camera, renderer, and dom to children
- *
- * @example
- * ```tsx
- * <SceneCanvas config={{ cameraPosition: { y: 2000 } }}>
- *   {(context) => (
- *     <EditorComponent
- *       scene={context.scene}
- *       camera={context.camera}
- *       renderer={context.renderer}
- *       dom={context.dom}
- *     />
- *   )}
- * </SceneCanvas>
- * ```
+ * Handles creating and managing the Three.js scene lifecycle,
+ * mounting the WebGL renderer canvas, and providing scene, camera,
+ * renderer, and dom to children.
  */
 export function SceneCanvas({
   config,
