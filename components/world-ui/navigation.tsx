@@ -19,7 +19,7 @@ export default function Navigation() {
   return (
     <>
       {/* Floating Hamburger Button */}
-      <div className="fixed top-2 left-4 z-40">
+      <div className="fixed top-4 left-4 z-40">
         <Button
           variant="outline"
           size="icon"

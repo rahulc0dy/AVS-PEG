@@ -60,7 +60,7 @@ export function useWorldEditors(
   // Sync state with the editor instance
   useEffect(() => {
     if (graphEditorRef.current) {
-      graphEditorRef.current.isDirected = graphRoadType === "directed";
+      graphEditorRef.current.drawDirectedEdge = graphRoadType === "one-way";
     }
     if (sourceDestinationEditorRef.current) {
       sourceDestinationEditorRef.current.setMarkingType(sourceDestMarkingType);
