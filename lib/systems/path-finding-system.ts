@@ -19,6 +19,7 @@ export class PathFindingSystem {
 
   private needsRedraw: boolean = false;
   private pathBorderMeshes: Mesh[] = [];
+  private roadBorderMaterial: MeshBasicMaterial | null = null;
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -100,11 +101,6 @@ export class PathFindingSystem {
     return;
   }
 
-  private setPath(path: Edge[]) {
-    this.path = path;
-    this.updatePathPolygon();
-  }
-
   /**
    * Return the most recently computed path (edge list).
    */
@@ -123,6 +119,73 @@ export class PathFindingSystem {
     this.path = [];
     this.pathBorders = [];
     this.needsRedraw = true;
+  }
+
+  draw(group: Group) {
+    if (this.needsRedraw) {
+      this.dispose();
+
+      if (!this.roadBorderMaterial) {
+        this.roadBorderMaterial = new MeshBasicMaterial({
+          color: new Color(0x00ff00),
+          transparent: true,
+          opacity: 0.5,
+        });
+      }
+
+      for (const edge of this.pathBorders) {
+        const roadBorderHeight = 10;
+        const roadBorderGeometry = new BoxGeometry(
+          distance(edge.n1, edge.n2),
+          roadBorderHeight,
+          1,
+        );
+        const pathBorderMesh = new Mesh(
+          roadBorderGeometry,
+          this.roadBorderMaterial,
+        );
+
+        pathBorderMesh.position.set(
+          (edge.n1.x + edge.n2.x) / 2,
+          roadBorderHeight / 2,
+          (edge.n1.y + edge.n2.y) / 2,
+        );
+        pathBorderMesh.rotation.y = -angle(
+          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
+        );
+
+        this.pathBorderMeshes.push(pathBorderMesh);
+
+        group.add(pathBorderMesh);
+      }
+
+      this.needsRedraw = false;
+    } else {
+      for (const mesh of this.pathBorderMeshes) {
+        if (!mesh.parent) {
+          group.add(mesh);
+        }
+      }
+    }
+  }
+
+  dispose() {
+    for (const mesh of this.pathBorderMeshes) {
+      mesh.geometry.dispose();
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+    }
+
+    this.roadBorderMaterial?.dispose();
+    this.roadBorderMaterial = null;
+
+    this.pathBorderMeshes = [];
+  }
+
+  private setPath(path: Edge[]) {
+    this.path = path;
+    this.updatePathPolygon();
   }
 
   private updatePathPolygon() {
@@ -230,59 +293,5 @@ export class PathFindingSystem {
     }
 
     return { dist, prevEdge, prevNode };
-  }
-
-  draw(group: Group) {
-    if (this.needsRedraw || this.pathBorderMeshes.length === 0) {
-      this.dispose();
-
-      const roadBorderMaterial = new MeshBasicMaterial({
-        color: new Color(0x00ff00),
-        transparent: true,
-        opacity: 0.5,
-      });
-
-      for (const edge of this.pathBorders) {
-        const roadBorderHeight = 10;
-        const roadBorderGeometry = new BoxGeometry(
-          distance(edge.n1, edge.n2),
-          roadBorderHeight,
-          1,
-        );
-        const pathBorderMesh = new Mesh(roadBorderGeometry, roadBorderMaterial);
-
-        pathBorderMesh.position.set(
-          (edge.n1.x + edge.n2.x) / 2,
-          roadBorderHeight / 2,
-          (edge.n1.y + edge.n2.y) / 2,
-        );
-        pathBorderMesh.rotation.y = -angle(
-          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
-        );
-
-        this.pathBorderMeshes.push(pathBorderMesh);
-
-        group.add(pathBorderMesh);
-      }
-
-      this.needsRedraw = false;
-    } else {
-      for (const mesh of this.pathBorderMeshes) {
-        if (!mesh.parent) {
-          group.add(mesh);
-        }
-      }
-    }
-  }
-
-  dispose() {
-    for (const mesh of this.pathBorderMeshes) {
-      mesh.geometry.dispose();
-      (mesh.material as MeshBasicMaterial).dispose();
-      if (mesh.parent) {
-        mesh.parent.remove(mesh);
-      }
-    }
-    this.pathBorderMeshes = [];
   }
 }
