@@ -116,7 +116,10 @@ export class World {
     this.trafficLightSystem.update(deltaSeconds);
 
     for (const car of this.cars) {
-      car.update(this.cars.filter((c) => c !== car));
+      car.update(
+        this.cars.filter((c) => c !== car),
+        this.pathFindingSystem.getPathBorders(),
+      );
     }
     for (const marking of this.markings) {
       marking.update();
@@ -214,9 +217,7 @@ export class World {
       edge.draw(this.worldGroup, { width: 8, color: new Color(0xffffff) });
     }
 
-    for (const edge of this.pathFindingSystem.getPath()) {
-      edge.draw(this.worldGroup, { width: 4, color: new Color(0x00ff00) });
-    }
+    this.pathFindingSystem.draw(this.worldGroup);
 
     this.scene.add(this.worldGroup);
   }
@@ -234,6 +235,7 @@ export class World {
     for (const road of this.roads) {
       road.dispose();
     }
+    this.pathFindingSystem.dispose();
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
       this.worldGroup.parent.remove(this.worldGroup);

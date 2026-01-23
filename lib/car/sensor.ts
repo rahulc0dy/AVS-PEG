@@ -55,11 +55,11 @@ export class Sensor {
    * against each ray; `readings` is populated with the nearest hit (or
    * null if none).
    */
-  update(traffic: Car[]) {
+  update(traffic: Car[], pathBorders: Edge[]) {
     this.castRays();
     this.readings = [];
     for (let i = 0; i < this.rays.length; i++) {
-      this.readings.push(this.getReading(this.rays[i], traffic));
+      this.readings.push(this.getReading(this.rays[i], traffic, pathBorders));
     }
   }
 
@@ -97,7 +97,7 @@ export class Sensor {
    * @param traffic - Array of other cars whose polygons will be tested
    * @returns The nearest `Intersection` along the ray, or `null` if none
    */
-  private getReading(ray: Edge, traffic: Car[]) {
+  private getReading(ray: Edge, traffic: Car[], pathBorders: Edge[]) {
     const touches: Intersection[] = [];
 
     for (let i = 0; i < traffic.length; i++) {
@@ -113,6 +113,18 @@ export class Sensor {
         if (value) {
           touches.push(value);
         }
+      }
+    }
+
+    for (const pathBorder of pathBorders) {
+      const value = getIntersection(
+        ray.n1,
+        ray.n2,
+        pathBorder.n1,
+        pathBorder.n2,
+      );
+      if (value) {
+        touches.push(value);
       }
     }
 

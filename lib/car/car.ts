@@ -12,8 +12,9 @@ import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
-import { doPolygonsIntersect } from "@/utils/math";
+import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { Edge } from "@/lib/primitives/edge";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -117,15 +118,15 @@ export class Car {
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
    */
-  update(traffic: Car[]) {
+  update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
       this.move();
       this.polygon = this.createPolygon();
-      this.damaged = this.assessDamage(traffic);
+      this.damaged = this.assessDamage(traffic, pathBorders);
     }
     if (this.sensor) {
-      this.sensor.update(traffic);
+      this.sensor.update(traffic, pathBorders);
       this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
     }
   }
@@ -136,13 +137,21 @@ export class Car {
    * Iterates over the provided `traffic` array and returns `true` if the
    * current car's collision polygon intersects any other's polygon.
    */
-  private assessDamage(traffic: Car[]): boolean {
+  private assessDamage(traffic: Car[], pathBorders: Edge[]): boolean {
     if (this.polygon === null) return false;
 
     for (let i = 0; i < traffic.length; i++) {
       if (traffic[i].polygon === null) continue;
       if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
         return true;
+      }
+    }
+
+    for (const pathBorder of pathBorders) {
+      for (const edge of this.polygon.edges) {
+        if (getIntersection(pathBorder.n1, pathBorder.n2, edge.n1, edge.n2)) {
+          return true;
+        }
       }
     }
 

@@ -1,7 +1,11 @@
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { distance, getNearestEdge } from "@/utils/math";
+import { angle, distance, getNearestEdge } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Envelope } from "@/lib/primitives/envelope";
+import { ROAD_WIDTH } from "@/env";
+import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.
@@ -9,7 +13,13 @@ import { Edge } from "@/lib/primitives/edge";
  */
 export class PathFindingSystem {
   private graph: Graph;
+
   private path: Edge[] = [];
+  private pathBorders: Edge[] = [];
+
+  private needsRedraw: boolean = false;
+  private pathBorderMeshes: Mesh[] = [];
+  private roadBorderMaterial: MeshBasicMaterial | null = null;
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -32,13 +42,13 @@ export class PathFindingSystem {
 
     if (!startEdge || !endEdge) {
       console.log("No valid start or end edge found");
-      this.path = [];
+      this.setPath([]);
       return;
     }
 
     // If both points lie on the same edge, that's trivially the path.
     if (startEdge.equals(endEdge)) {
-      this.path = [startEdge];
+      this.setPath([startEdge]);
       return;
     }
 
@@ -65,12 +75,12 @@ export class PathFindingSystem {
 
     if ((dist.get(endNode) ?? Infinity) === Infinity) {
       console.log("No path found between the specified points");
-      this.path = [];
+      this.setPath([]);
       return;
     }
 
     // Reconstruct path (edges) from endNode back to startNode
-    this.path = [];
+    this.setPath([]);
     let cursor: Node | null = endNode;
     while (cursor && !cursor.equals(startNode)) {
       const e: Edge | null = prevEdge.get(cursor as Node) ?? null;
@@ -82,9 +92,11 @@ export class PathFindingSystem {
 
     if (!cursor || !cursor.equals(startNode)) {
       console.log("Failed to reconstruct path");
-      this.path = [];
+      this.setPath([]);
       return;
     }
+
+    this.updatePathPolygon();
 
     return;
   }
@@ -96,11 +108,97 @@ export class PathFindingSystem {
     return this.path;
   }
 
+  public getPathBorders(): Edge[] {
+    return this.pathBorders;
+  }
+
   /**
    * Clears the current path.
    */
   public reset() {
     this.path = [];
+    this.pathBorders = [];
+    this.needsRedraw = true;
+  }
+
+  draw(group: Group) {
+    if (this.needsRedraw) {
+      this.dispose();
+
+      if (!this.roadBorderMaterial) {
+        this.roadBorderMaterial = new MeshBasicMaterial({
+          color: new Color(0x00ff00),
+          transparent: true,
+          opacity: 0.5,
+        });
+      }
+
+      for (const edge of this.pathBorders) {
+        const roadBorderHeight = 10;
+        const roadBorderGeometry = new BoxGeometry(
+          distance(edge.n1, edge.n2),
+          roadBorderHeight,
+          1,
+        );
+        const pathBorderMesh = new Mesh(
+          roadBorderGeometry,
+          this.roadBorderMaterial,
+        );
+
+        pathBorderMesh.position.set(
+          (edge.n1.x + edge.n2.x) / 2,
+          roadBorderHeight / 2,
+          (edge.n1.y + edge.n2.y) / 2,
+        );
+        pathBorderMesh.rotation.y = -angle(
+          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
+        );
+
+        this.pathBorderMeshes.push(pathBorderMesh);
+
+        group.add(pathBorderMesh);
+      }
+
+      this.needsRedraw = false;
+    } else {
+      for (const mesh of this.pathBorderMeshes) {
+        if (!mesh.parent) {
+          group.add(mesh);
+        }
+      }
+    }
+  }
+
+  dispose() {
+    for (const mesh of this.pathBorderMeshes) {
+      mesh.geometry.dispose();
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+    }
+
+    this.roadBorderMaterial?.dispose();
+    this.roadBorderMaterial = null;
+
+    this.pathBorderMeshes = [];
+  }
+
+  private setPath(path: Edge[]) {
+    this.path = path;
+    this.updatePathPolygon();
+  }
+
+  private updatePathPolygon() {
+    const pathEnvelopes: Envelope[] = [];
+    for (const edge of this.path) {
+      pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));
+    }
+
+    this.pathBorders = Polygon.union(
+      pathEnvelopes.map((envelope) => envelope.poly),
+    );
+
+    this.needsRedraw = true;
   }
 
   /**
