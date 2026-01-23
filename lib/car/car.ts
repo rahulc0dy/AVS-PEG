@@ -1,12 +1,12 @@
 import {
+  BoxGeometry,
+  Color,
+  Group,
   Material,
   Mesh,
-  Vector2,
-  Group,
-  Object3D,
-  Color,
-  BoxGeometry,
   MeshBasicMaterial,
+  Object3D,
+  Vector2,
 } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
@@ -15,6 +15,20 @@ import { Node } from "../primitives/node";
 import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
+
+/** Options for creating a car with AI training support */
+export interface CarOptions {
+  /** Pre-trained brain to load (if not provided, creates a random brain) */
+  brainJson?: object; // TODO: Change this to appropriate type
+  /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
+  mutationAmount?: number;
+  /** Destination position for fitness calculation */
+  destinationPosition?: Vector2;
+  /** Path edges from source to destination for progress tracking */
+  pathEdges?: object[]; // TODO: Change this to appropriate type
+  /** Total length of the path */
+  totalPathLength?: number;
+}
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -56,6 +70,8 @@ export class Car {
   controls: Controls;
   /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
+  /** If enabled, car to car damages are ignored */
+  ignoreCarDamage: boolean = false;
 
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
@@ -69,6 +85,9 @@ export class Car {
 
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
+
+  /** Options passed during construction for AI training */
+  private carOptions?: CarOptions;
 
   /**
    * Create a new simulated car.
@@ -90,6 +109,7 @@ export class Car {
     group: Group,
     angle = 0,
     maxSpeed = 0.5,
+    options: CarOptions = {},
   ) {
     this.position = position;
     this.breadth = breadth;
@@ -108,6 +128,7 @@ export class Car {
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
+    this.carOptions = options;
   }
 
   /**
@@ -132,6 +153,123 @@ export class Car {
   }
 
   /**
+   * Render the car's sensors, 3D model and optional collider into `target`.
+   * The GLTF model is loaded lazily; `loadingModel` prevents duplicate
+   * concurrent loads.
+   *
+   * @param target Parent group where meshes are added
+   * @param url GLTF model URL
+   * @param loader Optional `GLTFLoader` to reuse
+   */
+  draw(target: Group, url: string, loader?: GLTFLoader) {
+    if (this.sensor) {
+      this.sensor.draw(target);
+    }
+    if (!this.model) {
+      if (this.loadingModel) return;
+      this.loadingModel = true;
+      if (!loader) loader = new GLTFLoader();
+      loader.load(
+        url,
+        (gltf) => {
+          this.model = gltf.scene;
+          this.loadingModel = false;
+          this.model.scale.set(3, 3, 3);
+          this.model.position.set(this.position.x, 0, this.position.y);
+          this.model.rotation.set(0, this.angle, 0);
+          target.add(this.model);
+        },
+        undefined,
+        () => {
+          this.loadingModel = false;
+        },
+      );
+
+      return;
+    }
+
+    this.model.position.set(this.position.x, 0, this.position.y);
+    this.model.rotation.set(0, this.angle, 0);
+    if (!target.children.includes(this.model)) {
+      target.add(this.model);
+    }
+
+    if (!this.carColliderMesh) {
+      const carGeometry = new BoxGeometry(
+        this.breadth,
+        this.height,
+        this.length,
+      );
+      const carMaterial = new MeshBasicMaterial({
+        color: new Color(0x00ff00),
+        transparent: true,
+        opacity: 0.1,
+      });
+      const carMesh = new Mesh(carGeometry, carMaterial);
+      this.carColliderMesh = carMesh;
+    }
+    this.carColliderMesh.position.set(
+      this.position.x,
+      this.height / 2,
+      this.position.y,
+    );
+    this.carColliderMesh.rotation.set(0, this.angle, 0);
+
+    if (!target.children.includes(this.carColliderMesh)) {
+      target.add(this.carColliderMesh);
+    }
+  }
+
+  /**
+   * Dispose Three.js resources used by this car and remove visuals from the
+   * scene. This frees geometries and materials owned by the car's model and
+   * collider mesh.
+   */
+  dispose() {
+    if (this.sensor) {
+      this.sensor.dispose();
+    }
+    if (this.model) {
+      // Remove from parent group
+      if (this.model.parent) {
+        this.model.parent.remove(this.model);
+      }
+
+      // Dispose meshes
+      this.model.traverse((child: Object3D) => {
+        const anyChild = child as unknown as {
+          geometry?: { dispose?: () => void };
+          material?: unknown;
+        };
+        if (!anyChild.geometry || !anyChild.material) return;
+
+        const mesh = child as unknown as Mesh;
+        mesh.geometry.dispose();
+        const material = mesh.material as Material | Material[];
+        if (Array.isArray(material)) {
+          material.forEach((mat) => mat.dispose());
+        } else {
+          material.dispose();
+        }
+      });
+      this.model = null;
+    }
+    this.loadingModel = false;
+
+    if (this.carColliderMesh) {
+      // Remove from parent
+      if (this.carColliderMesh.parent) {
+        this.carColliderMesh.parent.remove(this.carColliderMesh);
+      }
+      this.carColliderMesh.geometry.dispose();
+      this.carColliderMesh.material.dispose();
+      // Clear the mesh
+      this.carColliderMesh.clear();
+      this.carColliderMesh = null;
+    }
+  }
+
+  /**
    * Check for collisions between this car and other vehicles.
    *
    * Iterates over the provided `traffic` array and returns `true` if the
@@ -140,10 +278,12 @@ export class Car {
   private assessDamage(traffic: Car[], pathBorders: Edge[]): boolean {
     if (this.polygon === null) return false;
 
-    for (let i = 0; i < traffic.length; i++) {
-      if (traffic[i].polygon === null) continue;
-      if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-        return true;
+    if (!this.ignoreCarDamage) {
+      for (let i = 0; i < traffic.length; i++) {
+        if (traffic[i].polygon === null) continue;
+        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
+          return true;
+        }
       }
     }
 
@@ -239,107 +379,5 @@ export class Car {
 
     this.position.x -= Math.sin(this.angle) * this.speed;
     this.position.y -= Math.cos(this.angle) * this.speed;
-  }
-
-  /**
-   * Render the car's sensors, 3D model and optional collider into `target`.
-   * The GLTF model is loaded lazily; `loadingModel` prevents duplicate
-   * concurrent loads.
-   *
-   * @param target Parent group where meshes are added
-   * @param url GLTF model URL
-   * @param loader Optional `GLTFLoader` to reuse
-   */
-  draw(target: Group, url: string, loader?: GLTFLoader) {
-    if (this.sensor) {
-      this.sensor.draw(target);
-    }
-    if (!this.model) {
-      if (this.loadingModel) return;
-      this.loadingModel = true;
-      if (!loader) loader = new GLTFLoader();
-      loader.load(
-        url,
-        (gltf) => {
-          this.model = gltf.scene;
-          this.loadingModel = false;
-          this.model.scale.set(3, 3, 3);
-          this.model.position.set(this.position.x, 0, this.position.y);
-          this.model.rotation.set(0, this.angle, 0);
-          target.add(this.model);
-        },
-        undefined,
-        () => {
-          this.loadingModel = false;
-        },
-      );
-
-      return;
-    }
-
-    this.model.position.set(this.position.x, 0, this.position.y);
-    this.model.rotation.set(0, this.angle, 0);
-    if (!target.children.includes(this.model)) {
-      target.add(this.model);
-    }
-
-    if (!this.carColliderMesh) {
-      const carGeometry = new BoxGeometry(
-        this.breadth,
-        this.height,
-        this.length,
-      );
-      const carMaterial = new MeshBasicMaterial({
-        color: new Color(0x00ff00),
-        transparent: true,
-        opacity: 0.1,
-      });
-      const carMesh = new Mesh(carGeometry, carMaterial);
-      this.carColliderMesh = carMesh;
-    }
-    this.carColliderMesh.position.set(
-      this.position.x,
-      this.height / 2,
-      this.position.y,
-    );
-    this.carColliderMesh.rotation.set(0, this.angle, 0);
-
-    if (!target.children.includes(this.carColliderMesh)) {
-      target.add(this.carColliderMesh);
-    }
-  }
-
-  /**
-   * Dispose Three.js resources used by this car and remove visuals from the
-   * scene. This frees geometries and materials owned by the car's model and
-   * collider mesh.
-   */
-  dispose() {
-    if (this.sensor) {
-      this.sensor.dispose();
-    }
-    if (!this.model) return;
-    if (this.model.parent) {
-      this.model.parent.remove(this.model);
-    }
-    this.model.traverse((child: Object3D) => {
-      if (child instanceof Mesh) {
-        child.geometry.dispose();
-        const material = child.material as Material | Material[];
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat.dispose());
-        } else {
-          material.dispose();
-        }
-      }
-    });
-    this.model = null;
-    this.loadingModel = false;
-
-    if (this.carColliderMesh) {
-      this.carColliderMesh.geometry.dispose();
-      this.carColliderMesh.material.dispose();
-      this.carColliderMesh = null;
-    }
   }
 }

@@ -11,6 +11,7 @@ import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
+import { ControlType } from "@/lib/car/controls";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -80,7 +81,49 @@ export default function TrainingCanvas({
   }, [worldRef]);
 
   const handleSpawnCars = useCallback(() => {
-    // TODO: Car spawning
+    const world = worldRef.current;
+    if (!world) return;
+
+    const source = world.markings.find((m) => m.type === "source");
+    const sourcePos = source
+      ? new Vector2(source.position.x, source.position.y)
+      : undefined;
+
+    const pathEdges = world.pathFindingSystem.getPath();
+    const destinationPosition = getDestinationPosition();
+
+    // Convert path edges to DTO format with lengths for progress tracking
+    // const pathEdgeDtos: PathEdgeDto[] = pathEdges.map((edge) => ({
+    //   n1: { x: edge.n1.x, y: edge.n1.y },
+    //   n2: { x: edge.n2.x, y: edge.n2.y },
+    //   length: edge.length(),
+    // }));
+    // const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
+    //
+    // console.log(
+    //   `[Training] Spawning cars - Path edges: ${pathEdgeDtos.length}, Total length: ${totalPathLength.toFixed(2)}, Destination: ${destinationPosition ? `(${destinationPosition.x.toFixed(0)}, ${destinationPosition.y.toFixed(0)})` : "NONE"}`,
+    // );
+
+    const spawnOptions = {
+      maxSpeed: 0.5,
+      destinationPosition,
+    };
+
+    if (stackSpawnAtSource) {
+      world.spawnerSystem.spawnCarsAtSource(
+        carCount,
+        ControlType.AI,
+        sourcePos,
+        spawnOptions,
+        pathEdges,
+      );
+    } else {
+      world.spawnerSystem.spawnCars(carCount, ControlType.AI, spawnOptions);
+    }
+
+    setCurrentCarCount(world.cars.length);
+    setIsTraining(true);
+    setCarsReachedDestination(0);
   }, [
     worldRef,
     carCount,
@@ -93,7 +136,11 @@ export default function TrainingCanvas({
     const world = worldRef.current;
     if (!world) return;
 
-    // TODO: Clear cars
+    world.spawnerSystem.clearCars();
+    setBestCarId(null);
+    setCurrentCarCount(0);
+    setIsTraining(false);
+    setCarsReachedDestination(0);
   }, [worldRef]);
 
   const handleResetCars = useCallback(() => {

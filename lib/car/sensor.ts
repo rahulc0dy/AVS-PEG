@@ -29,6 +29,8 @@ export class Sensor {
   rays: Edge[];
   /** Cached intersection readings for each ray (null if no hit). */
   readings: (Intersection | null | undefined)[];
+  /** Toggle car detection */
+  ignoreTraffic: boolean = false;
 
   /** Three.js Group used to render debug lines for the rays. */
   private sensorGroup: Group;
@@ -63,79 +65,6 @@ export class Sensor {
     }
   }
 
-  /**
-   * Build the ray segments in world coordinates.
-   *
-   * Rays are evenly distributed across `raySpreadAngle` and rotated by the
-   * car's heading. Each ray is represented as an `Edge` (start/end `Node`).
-   * This method updates the `rays` array.
-   */
-  private castRays() {
-    this.rays = [];
-    for (let i = 0; i < this.rayCount; i++) {
-      const rayAngle =
-        lerp(
-          this.raySpreadAngle / 2,
-          -this.raySpreadAngle / 2,
-          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1),
-        ) - this.car.angle;
-
-      const start = new Node(this.car.position.x, this.car.position.y);
-      const end = new Node(
-        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
-        this.car.position.y - Math.cos(rayAngle) * this.rayLength,
-      );
-      this.rays.push(new Edge(start, end));
-    }
-  }
-
-  /**
-   * Find the closest intersection point between `ray` and any polygon in
-   * `traffic`.
-   *
-   * @param ray - Ray segment to test
-   * @param traffic - Array of other cars whose polygons will be tested
-   * @returns The nearest `Intersection` along the ray, or `null` if none
-   */
-  private getReading(ray: Edge, traffic: Car[], pathBorders: Edge[]) {
-    const touches: Intersection[] = [];
-
-    for (let i = 0; i < traffic.length; i++) {
-      const poly = traffic[i].polygon;
-      if (poly === null) continue;
-      for (let j = 0; j < poly.nodes.length; j++) {
-        const value = getIntersection(
-          ray.n1,
-          ray.n2,
-          poly.nodes[j],
-          poly.nodes[(j + 1) % poly.nodes.length],
-        );
-        if (value) {
-          touches.push(value);
-        }
-      }
-    }
-
-    for (const pathBorder of pathBorders) {
-      const value = getIntersection(
-        ray.n1,
-        ray.n2,
-        pathBorder.n1,
-        pathBorder.n2,
-      );
-      if (value) {
-        touches.push(value);
-      }
-    }
-
-    if (touches.length === 0) {
-      return null;
-    }
-
-    const offsets = touches.map((e) => e.offset);
-    const minOffset = Math.min(...offsets);
-    return touches.find((e) => e.offset == minOffset);
-  }
   /**
    * Draw debug lines for the sensor rays into `group`.
    *
@@ -221,5 +150,81 @@ export class Sensor {
     if (this.sensorGroup.parent) {
       this.sensorGroup.parent.remove(this.sensorGroup);
     }
+  }
+
+  /**
+   * Build the ray segments in world coordinates.
+   *
+   * Rays are evenly distributed across `raySpreadAngle` and rotated by the
+   * car's heading. Each ray is represented as an `Edge` (start/end `Node`).
+   * This method updates the `rays` array.
+   */
+  private castRays() {
+    this.rays = [];
+    for (let i = 0; i < this.rayCount; i++) {
+      const rayAngle =
+        lerp(
+          this.raySpreadAngle / 2,
+          -this.raySpreadAngle / 2,
+          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1),
+        ) - this.car.angle;
+
+      const start = new Node(this.car.position.x, this.car.position.y);
+      const end = new Node(
+        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
+        this.car.position.y - Math.cos(rayAngle) * this.rayLength,
+      );
+      this.rays.push(new Edge(start, end));
+    }
+  }
+
+  /**
+   * Find the closest intersection point between `ray` and any polygon in
+   * `traffic`.
+   *
+   * @param ray - Ray segment to test
+   * @param traffic - Array of other cars whose polygons will be tested
+   * @returns The nearest `Intersection` along the ray, or `null` if none
+   */
+  private getReading(ray: Edge, traffic: Car[], pathBorders: Edge[]) {
+    const touches: Intersection[] = [];
+
+    if (!this.ignoreTraffic) {
+      for (let i = 0; i < traffic.length; i++) {
+        const poly = traffic[i].polygon;
+        if (poly === null) continue;
+        for (let j = 0; j < poly.nodes.length; j++) {
+          const value = getIntersection(
+            ray.n1,
+            ray.n2,
+            poly.nodes[j],
+            poly.nodes[(j + 1) % poly.nodes.length],
+          );
+          if (value) {
+            touches.push(value);
+          }
+        }
+      }
+    }
+
+    for (const pathBorder of pathBorders) {
+      const value = getIntersection(
+        ray.n1,
+        ray.n2,
+        pathBorder.n1,
+        pathBorder.n2,
+      );
+      if (value) {
+        touches.push(value);
+      }
+    }
+
+    if (touches.length === 0) {
+      return null;
+    }
+
+    const offsets = touches.map((e) => e.offset);
+    const minOffset = Math.min(...offsets);
+    return touches.find((e) => e.offset == minOffset);
   }
 }
