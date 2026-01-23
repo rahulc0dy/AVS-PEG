@@ -235,6 +235,7 @@ export class World {
     for (const road of this.roads) {
       road.dispose();
     }
+    this.pathFindingSystem.dispose();
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
       this.worldGroup.parent.remove(this.worldGroup);
