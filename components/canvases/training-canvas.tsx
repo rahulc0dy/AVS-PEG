@@ -12,7 +12,6 @@ import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
 import { ControlType } from "@/lib/car/controls";
-import { Node } from "@/lib/primitives/node";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -58,7 +57,7 @@ export default function TrainingCanvas({
 
   const handleExportBrain = useCallback(async () => {
     // TODO: Brain export logic
-  }, [worldRef, generation]);
+  }, []);
 
   const handleImportBrain = useCallback(async () => {
     // TODO: Brain import logic
@@ -68,57 +67,26 @@ export default function TrainingCanvas({
     // TODO: Discard brain logic
   }, []);
 
-  /**
-   * Gets the position of the destination marking if present.
-   */
-  const getDestinationPosition = useCallback((): Node | undefined => {
-    const world = worldRef.current;
-    if (!world) return undefined;
-
-    const destination = world.markings.find((m) => m.type === "destination");
-    return destination ? destination.position : undefined;
-  }, [worldRef]);
-
   const handleSpawnCars = useCallback(() => {
     const world = worldRef.current;
     if (!world) return;
 
-    const source = world.markings.find((m) => m.type === "source");
-    const sourcePos = source ? source.position : undefined;
-
-    const pathEdges = world.pathFindingSystem.getPath();
-    const destinationPosition = getDestinationPosition();
-
-    // Convert path edges to DTO format with lengths for progress tracking
-    const pathEdgeDtos = pathEdges.map((edge) => ({
-      n1: { x: edge.n1.x, y: edge.n1.y },
-      n2: { x: edge.n2.x, y: edge.n2.y },
-      length: edge.length(),
-    }));
-    const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
-
-    const spawnOptions = {
-      maxSpeed: 0.5,
-      destinationPosition,
-      pathEdges: pathEdgeDtos,
-      totalPathLength,
-    };
-
-    if (stackSpawnAtSource && !sourcePos) {
-      toast("Source marking not found in the world.", "error");
-      return;
-    }
-
     if (stackSpawnAtSource) {
+      const source = world.markings.find((m) => m.type === "source");
+      const sourcePos = source ? source.position : undefined;
+
+      if (!sourcePos) {
+        toast("Source marking not found in the world.", "error");
+        return;
+      }
+
       world.spawnerSystem.spawnCarsAtSource(
         carCount,
         ControlType.AI,
         sourcePos,
-        spawnOptions,
-        pathEdges,
       );
     } else {
-      world.spawnerSystem.spawnCars(carCount, ControlType.AI, spawnOptions);
+      world.spawnerSystem.spawnCars(carCount, ControlType.AI);
     }
 
     const spawnedCount = world.cars.length;
@@ -132,14 +100,7 @@ export default function TrainingCanvas({
     setCurrentCarCount(spawnedCount);
     setIsTraining(true);
     setCarsReachedDestination(0);
-  }, [
-    worldRef,
-    carCount,
-    stackSpawnAtSource,
-    mutationAmount,
-    getDestinationPosition,
-    toast,
-  ]);
+  }, [worldRef, carCount, stackSpawnAtSource, toast]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;

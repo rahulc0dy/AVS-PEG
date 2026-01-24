@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -14,20 +6,6 @@ import { Node } from "../primitives/node";
 import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
-
-/** Options for creating a car with AI training support */
-export interface CarOptions {
-  /** Pre-trained brain to load (if not provided, creates a random brain) */
-  brainJson?: object; // TODO: Change this to appropriate type
-  /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
-  mutationAmount?: number;
-  /** Destination position for fitness calculation */
-  destinationPosition?: Node;
-  /** Path edges from source to destination for progress tracking */
-  pathEdges?: object[]; // TODO: Change this to appropriate type
-  /** Total length of the path */
-  totalPathLength?: number;
-}
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -85,9 +63,6 @@ export class Car {
   /** Parent Three.js group where this car attaches its meshes. */
   private group: Group;
 
-  /** Options passed during construction for AI training */
-  private carOptions?: CarOptions;
-
   /**
    * Create a new simulated car.
    * @param position Initial world position (x, y; where y maps to Three.js Z).
@@ -109,7 +84,6 @@ export class Car {
     group: Group,
     angle = 0,
     maxSpeed = 0.5,
-    options: CarOptions = {},
   ) {
     this.position = position;
     this.breadth = breadth;
@@ -128,7 +102,6 @@ export class Car {
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
-    this.carOptions = options;
   }
 
   /**
@@ -150,6 +123,13 @@ export class Car {
     if (this.sensor) {
       this.sensor.update(traffic, pathBorders);
       this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
+    }
+  }
+
+  ignoreDamageFromCars() {
+    this.ignoreCarDamage = true;
+    if (this.sensor) {
+      this.sensor.ignoreTraffic = true;
     }
   }
 

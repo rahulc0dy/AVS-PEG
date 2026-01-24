@@ -1,34 +1,10 @@
 import { Group } from "three";
-import { Car, CarOptions } from "@/lib/car/car";
+import { Car } from "@/lib/car/car";
 import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { distance, getNearestEdge } from "@/utils/math";
-
-/**
- * Configuration options for spawning cars.
- */
-export interface SpawnOptions {
-  /** Custom breadth for cars (default: 10) */
-  breadth?: number;
-  /** Custom length for cars (default: 17.5) */
-  length?: number;
-  /** Custom height for cars (default: 7) */
-  height?: number;
-  /** Custom max speed for cars (default: 0.5) */
-  maxSpeed?: number;
-  /** Pre-trained brain to load for AI cars */
-  brainJson?: object; // TODO: Change to appropriate type
-  /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
-  mutationAmount?: number;
-  /** Destination position for fitness calculation */
-  destinationPosition?: Node;
-  /** Path edges from source to destination */
-  pathEdges?: object[]; // TODO: Change to appropriate type
-  /** Total length of the path */
-  totalPathLength?: number;
-}
+import { angle, distance, getNearestEdge, translate } from "@/utils/math";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -37,6 +13,10 @@ export interface SpawnOptions {
  * to manage training scenarios and different spawning strategies.
  */
 export class SpawnerSystem {
+  private readonly breadth = 10;
+  private readonly length = 17.5;
+  private readonly height = 7;
+
   private cars: Car[];
   private worldGroup: Group;
   private roads: Road[];
@@ -73,46 +53,15 @@ export class SpawnerSystem {
    *
    * @param count - Number of cars to spawn
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
-   * @param options - Optional configuration for car spawning
    */
-  spawnCars(
-    count: number,
-    controlType: ControlType,
-    options?: SpawnOptions,
-  ): void {
-    const {
-      breadth = 10,
-      length = 17.5,
-      height = 7,
-      maxSpeed = 0.5,
-      brainJson,
-      mutationAmount,
-      destinationPosition,
-      pathEdges,
-      totalPathLength,
-    } = options ?? {};
-
-    // Build car options for AI training
-    const carOptions: CarOptions | undefined =
-      controlType === ControlType.AI
-        ? {
-            brainJson,
-            mutationAmount,
-            destinationPosition,
-            pathEdges,
-            totalPathLength,
-          }
-        : undefined;
-
+  spawnCars(count: number, controlType: ControlType): void {
     // Minimum distance between car centers to avoid overlap
-    const minDistance = Math.max(breadth, length) * 1.5;
+    const minDistance = 10;
 
     // Helper to check if a position is too close to existing cars
-    const isTooClose = (x: number, y: number): boolean => {
+    const isTooClose = (position: Node): boolean => {
       for (const car of this.cars) {
-        const dx = car.position.x - x;
-        const dy = car.position.y - y;
-        const dist = Math.hypot(dx, dy);
+        const dist = distance(position, car.position);
         if (dist < minDistance) {
           return true;
         }
@@ -122,25 +71,24 @@ export class SpawnerSystem {
 
     // If no roads exist, spawn spread out from origin
     if (this.roads.length === 0) {
+      const cols = Math.ceil(Math.sqrt(count));
       for (let i = 0; i < count; i++) {
         // Spread cars in a grid pattern to avoid overlap
-        const cols = Math.ceil(Math.sqrt(count));
         const row = Math.floor(i / cols);
         const col = i % cols;
+
         const spacing = minDistance * 1.5;
         const x = (col - cols / 2) * spacing;
         const y = row * spacing;
 
         const car = new Car(
           new Node(x, y),
-          breadth,
-          length,
-          height,
+          this.breadth,
+          this.length,
+          this.height,
           controlType,
           this.worldGroup,
-          0, // angle
-          maxSpeed,
-          carOptions,
+          0,
         );
         this.cars.push(car);
       }
@@ -157,29 +105,22 @@ export class SpawnerSystem {
         const road = this.roads[Math.floor(Math.random() * this.roads.length)];
         const skeleton = road.skeleton;
 
-        // Get random position along the road
-        const t = Math.random();
-        const x = skeleton.n1.x + t * (skeleton.n2.x - skeleton.n1.x);
-        const y = skeleton.n1.y + t * (skeleton.n2.y - skeleton.n1.y);
+        const newRandomPosition = translate(
+          skeleton.n1,
+          angle(skeleton.directionVector()),
+          Math.random(),
+        );
 
         // Check if position is valid (not too close to other cars)
-        if (!isTooClose(x, y)) {
-          // Calculate road angle for car orientation
-          const angle = Math.atan2(
-            skeleton.n2.y - skeleton.n1.y,
-            skeleton.n2.x - skeleton.n1.x,
-          );
-
+        if (!isTooClose(newRandomPosition)) {
           const car = new Car(
-            new Node(x, y),
-            breadth,
-            length,
-            height,
+            newRandomPosition,
+            this.breadth,
+            this.length,
+            this.height,
             controlType,
             this.worldGroup,
-            angle,
-            maxSpeed,
-            carOptions,
+            angle(skeleton.directionVector()),
           );
           this.cars.push(car);
           placed = true;
@@ -204,15 +145,12 @@ export class SpawnerSystem {
     count: number,
     controlType: ControlType,
     sourcePosition: Node | null | undefined,
-    options?: SpawnOptions,
     pathEdges?: Edge[],
   ): void {
     if (!sourcePosition) {
-      this.spawnCars(count, controlType, options);
+      this.spawnCars(count, controlType);
       return;
     }
-
-    const initialCount = count;
 
     const srcNode = sourcePosition;
 
@@ -247,9 +185,7 @@ export class SpawnerSystem {
             bestRoad = road;
           }
         }
-        const dx = bestRoad.skeleton.n2.x - bestRoad.skeleton.n1.x;
-        const dy = bestRoad.skeleton.n2.y - bestRoad.skeleton.n1.y;
-        dirAngle = Math.atan2(-dx, -dy);
+        dirAngle = angle(bestRoad.skeleton.directionVector());
       }
     }
 
@@ -263,14 +199,13 @@ export class SpawnerSystem {
       spawnPos = nearEdge.projectNode(srcNode).point;
     }
 
-    this.spawnCarsAtPosition(count, controlType, spawnPos, dirAngle, options);
+    this.spawnCarsAtPosition(count, controlType, spawnPos, dirAngle);
 
     // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
     // (so overlapped spawns can still move). World/road collisions are unaffected.
     for (let i = this.cars.length - 1; i >= 0 && count > 0; i--) {
       const car = this.cars[i];
-      car.ignoreCarDamage = true;
-      if (car.sensor) car.sensor.ignoreTraffic = true;
+      car.ignoreDamageFromCars();
       count--;
     }
   }
@@ -285,43 +220,20 @@ export class SpawnerSystem {
     controlType: ControlType,
     position: Node,
     angle: number = 0,
-    options?: SpawnOptions,
   ): void {
-    const {
-      breadth = 10,
-      length = 17.5,
-      height = 7,
-      maxSpeed = 0.5,
-      brainJson,
-      mutationAmount,
-      destinationPosition,
-      pathEdges,
-      totalPathLength,
-    } = options ?? {};
-
-    // Build car options for AI training
-    const carOptions: CarOptions | undefined =
-      controlType === ControlType.AI
-        ? {
-            brainJson,
-            mutationAmount,
-            destinationPosition,
-            pathEdges,
-            totalPathLength,
-          }
-        : undefined;
-
     for (let i = 0; i < count; i++) {
       const car = new Car(
+        // IMPORTANT: `Car.move()` mutates `this.position` every frame.
+        // If we pass the same `Node` reference to multiple cars, they will all
+        // mutate the same object, effectively multiplying movement speed by the
+        // number of overlapped cars.
         new Node(position.x, position.y),
-        breadth,
-        length,
-        height,
+        this.breadth,
+        this.length,
+        this.height,
         controlType,
         this.worldGroup,
         angle,
-        maxSpeed,
-        carOptions,
       );
       this.cars.push(car);
     }
