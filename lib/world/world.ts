@@ -1,4 +1,4 @@
-import { Color, Group, Scene, Vector2 } from "three";
+import { Color, Group, Scene } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Road } from "@/lib/world/road";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -24,7 +24,7 @@ export interface WorldConfig {
    * Use `generateTraffic()` to spawn cars after initialization.
    */
   initialCars?: {
-    position: Vector2;
+    position: Node;
     controlType: ControlType;
   }[];
 }

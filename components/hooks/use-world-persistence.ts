@@ -1,5 +1,6 @@
 import { World } from "@/lib/world/world";
 import { RefObject } from "react";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Hook providing simple JSON persistence helpers for the world.
@@ -9,9 +10,11 @@ import { RefObject } from "react";
  * loads it into the current `World` instance (updating the `graphRef`).
  *
  * @param {import("react").RefObject<World | null>} worldRef - Ref to the current World instance.
- * @returns {{ saveToJson: () => void, loadFromJson: () => void }} Persistence helper functions.
+ * @returns {{ saveToJson: () => void, loadFromJson: (onLoad?: () => void) => void }} Persistence helper functions.
  */
 export function useWorldPersistence(worldRef: RefObject<World | null>) {
+  const { toast } = useToast();
+
   /**
    * Serializes the current world to JSON and triggers a file download.
    */
@@ -27,12 +30,13 @@ export function useWorldPersistence(worldRef: RefObject<World | null>) {
     a.download = "world.json";
     a.click();
     URL.revokeObjectURL(url);
+    toast("World saved to file.", "success");
   };
 
   /**
    * Opens a file picker and loads a JSON file into the current world.
    */
-  const loadFromJson = () => {
+  const loadFromJson = (onLoad?: () => void) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "application/json, .json";
@@ -52,8 +56,12 @@ export function useWorldPersistence(worldRef: RefObject<World | null>) {
 
           world.fromJson(parsed);
           world.draw();
+          toast("World loaded successfully.", "success");
+
+          if (onLoad) onLoad();
         } catch (err) {
           console.error("Failed to load world JSON:", err);
+          toast("Failed to load world file.", "error");
         }
       };
       reader.readAsText(file);

@@ -1,10 +1,10 @@
-import { Group, Vector2 } from "three";
+import { Group } from "three";
 import { Car, CarOptions } from "@/lib/car/car";
 import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { getNearestEdge } from "@/utils/math";
+import { distance, getNearestEdge } from "@/utils/math";
 
 /**
  * Configuration options for spawning cars.
@@ -23,7 +23,7 @@ export interface SpawnOptions {
   /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
   mutationAmount?: number;
   /** Destination position for fitness calculation */
-  destinationPosition?: Vector2;
+  destinationPosition?: Node;
   /** Path edges from source to destination */
   pathEdges?: object[]; // TODO: Change to appropriate type
   /** Total length of the path */
@@ -112,7 +112,7 @@ export class SpawnerSystem {
       for (const car of this.cars) {
         const dx = car.position.x - x;
         const dy = car.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dist = Math.hypot(dx, dy);
         if (dist < minDistance) {
           return true;
         }
@@ -132,7 +132,7 @@ export class SpawnerSystem {
         const y = row * spacing;
 
         const car = new Car(
-          new Vector2(x, y),
+          new Node(x, y),
           breadth,
           length,
           height,
@@ -171,7 +171,7 @@ export class SpawnerSystem {
           );
 
           const car = new Car(
-            new Vector2(x, y),
+            new Node(x, y),
             breadth,
             length,
             height,
@@ -203,7 +203,7 @@ export class SpawnerSystem {
   spawnCarsAtSource(
     count: number,
     controlType: ControlType,
-    sourcePosition: Vector2 | null | undefined,
+    sourcePosition: Node | null | undefined,
     options?: SpawnOptions,
     pathEdges?: Edge[],
   ): void {
@@ -214,7 +214,7 @@ export class SpawnerSystem {
 
     const initialCount = count;
 
-    const srcNode = new Node(sourcePosition.x, sourcePosition.y);
+    const srcNode = sourcePosition;
 
     // Choose a direction in the CAR angle convention.
     // Car move uses:
@@ -225,8 +225,8 @@ export class SpawnerSystem {
     let dirAngle = 0;
     if (pathEdges && pathEdges.length > 0) {
       const e0 = pathEdges[0];
-      const d1 = (e0.n1.x - srcNode.x) ** 2 + (e0.n1.y - srcNode.y) ** 2;
-      const d2 = (e0.n2.x - srcNode.x) ** 2 + (e0.n2.y - srcNode.y) ** 2;
+      const d1 = distance(srcNode, e0.n1);
+      const d2 = distance(srcNode, e0.n2);
       const from = d1 <= d2 ? e0.n1 : e0.n2;
       const to = d1 <= d2 ? e0.n2 : e0.n1;
 
@@ -239,8 +239,8 @@ export class SpawnerSystem {
         let bestDist = Number.POSITIVE_INFINITY;
         for (const road of this.roads) {
           const { n1, n2 } = road.skeleton;
-          const d1 = (n1.x - srcNode.x) ** 2 + (n1.y - srcNode.y) ** 2;
-          const d2 = (n2.x - srcNode.x) ** 2 + (n2.y - srcNode.y) ** 2;
+          const d1 = distance(srcNode, n1);
+          const d2 = distance(srcNode, n2);
           const d = Math.min(d1, d2);
           if (d < bestDist) {
             bestDist = d;
@@ -258,9 +258,9 @@ export class SpawnerSystem {
       srcNode,
       this.roads.map((r) => r.skeleton),
     );
-    let spawnPos = new Vector2(srcNode.x, srcNode.y);
+    let spawnPos = srcNode;
     if (nearEdge) {
-      spawnPos = this.projectPointOntoEdge(srcNode, nearEdge);
+      spawnPos = nearEdge.projectNode(srcNode).point;
     }
 
     this.spawnCarsAtPosition(count, controlType, spawnPos, dirAngle, options);
@@ -283,7 +283,7 @@ export class SpawnerSystem {
   spawnCarsAtPosition(
     count: number,
     controlType: ControlType,
-    position: Vector2,
+    position: Node,
     angle: number = 0,
     options?: SpawnOptions,
   ): void {
@@ -313,7 +313,7 @@ export class SpawnerSystem {
 
     for (let i = 0; i < count; i++) {
       const car = new Car(
-        new Vector2(position.x, position.y),
+        new Node(position.x, position.y),
         breadth,
         length,
         height,
@@ -338,67 +338,9 @@ export class SpawnerSystem {
   }
 
   /**
-   * Reset cars by clearing existing and spawning new ones.
-   *
-   * @param count - Number of cars to spawn
-   * @param controlType - Control type for all spawned cars
-   * @param options - Optional configuration for car spawning
-   */
-  resetCars(
-    count: number,
-    controlType: ControlType,
-    options?: SpawnOptions,
-  ): void {
-    this.clearCars();
-    this.spawnCars(count, controlType, options);
-  }
-
-  /**
-   * Reset cars by clearing existing and spawning new ones at the source.
-   */
-  resetCarsAtSource(
-    count: number,
-    controlType: ControlType,
-    sourcePosition: Vector2 | null | undefined,
-    options?: SpawnOptions,
-    pathEdges?: Edge[],
-  ): void {
-    this.clearCars();
-    this.spawnCarsAtSource(
-      count,
-      controlType,
-      sourcePosition,
-      options,
-      pathEdges,
-    );
-  }
-
-  /**
    * Get the current number of cars.
    */
   getCarCount(): number {
     return this.cars.length;
-  }
-
-  private projectPointOntoEdge(p: Node, e: Edge): Vector2 {
-    const ax = e.n1.x;
-    const ay = e.n1.y;
-    const bx = e.n2.x;
-    const by = e.n2.y;
-
-    const abx = bx - ax;
-    const aby = by - ay;
-    const apx = p.x - ax;
-    const apy = p.y - ay;
-
-    const abLenSq = abx * abx + aby * aby;
-    if (abLenSq <= 1e-9) {
-      return new Vector2(ax, ay);
-    }
-
-    let t = (apx * abx + apy * aby) / abLenSq;
-    t = Math.max(0, Math.min(1, t));
-
-    return new Vector2(ax + abx * t, ay + aby * t);
   }
 }

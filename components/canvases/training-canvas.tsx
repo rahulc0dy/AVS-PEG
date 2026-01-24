@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Camera, Scene, Vector2 } from "three";
+import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
@@ -12,6 +12,7 @@ import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
 import { ControlType } from "@/lib/car/controls";
+import { Node } from "@/lib/primitives/node";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -70,14 +71,12 @@ export default function TrainingCanvas({
   /**
    * Gets the position of the destination marking if present.
    */
-  const getDestinationPosition = useCallback((): Vector2 | undefined => {
+  const getDestinationPosition = useCallback((): Node | undefined => {
     const world = worldRef.current;
     if (!world) return undefined;
 
     const destination = world.markings.find((m) => m.type === "destination");
-    return destination
-      ? new Vector2(destination.position.x, destination.position.y)
-      : undefined;
+    return destination ? destination.position : undefined;
   }, [worldRef]);
 
   const handleSpawnCars = useCallback(() => {
@@ -85,29 +84,30 @@ export default function TrainingCanvas({
     if (!world) return;
 
     const source = world.markings.find((m) => m.type === "source");
-    const sourcePos = source
-      ? new Vector2(source.position.x, source.position.y)
-      : undefined;
+    const sourcePos = source ? source.position : undefined;
 
     const pathEdges = world.pathFindingSystem.getPath();
     const destinationPosition = getDestinationPosition();
 
     // Convert path edges to DTO format with lengths for progress tracking
-    // const pathEdgeDtos: PathEdgeDto[] = pathEdges.map((edge) => ({
-    //   n1: { x: edge.n1.x, y: edge.n1.y },
-    //   n2: { x: edge.n2.x, y: edge.n2.y },
-    //   length: edge.length(),
-    // }));
-    // const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
-    //
-    // console.log(
-    //   `[Training] Spawning cars - Path edges: ${pathEdgeDtos.length}, Total length: ${totalPathLength.toFixed(2)}, Destination: ${destinationPosition ? `(${destinationPosition.x.toFixed(0)}, ${destinationPosition.y.toFixed(0)})` : "NONE"}`,
-    // );
+    const pathEdgeDtos = pathEdges.map((edge) => ({
+      n1: { x: edge.n1.x, y: edge.n1.y },
+      n2: { x: edge.n2.x, y: edge.n2.y },
+      length: edge.length(),
+    }));
+    const totalPathLength = pathEdgeDtos.reduce((sum, e) => sum + e.length, 0);
 
     const spawnOptions = {
       maxSpeed: 0.5,
       destinationPosition,
+      pathEdges: pathEdgeDtos,
+      totalPathLength,
     };
+
+    if (stackSpawnAtSource && !sourcePos) {
+      toast("Source marking not found in the world.", "error");
+      return;
+    }
 
     if (stackSpawnAtSource) {
       world.spawnerSystem.spawnCarsAtSource(
@@ -121,7 +121,15 @@ export default function TrainingCanvas({
       world.spawnerSystem.spawnCars(carCount, ControlType.AI, spawnOptions);
     }
 
-    setCurrentCarCount(world.cars.length);
+    const spawnedCount = world.cars.length;
+    if (spawnedCount > 0) {
+      toast(`Successfully spawned ${spawnedCount} cars.`, "success");
+    } else {
+      toast("Could not spawn any cars. Ensure there are roads.", "error");
+      return;
+    }
+
+    setCurrentCarCount(spawnedCount);
     setIsTraining(true);
     setCarsReachedDestination(0);
   }, [
@@ -130,6 +138,7 @@ export default function TrainingCanvas({
     stackSpawnAtSource,
     mutationAmount,
     getDestinationPosition,
+    toast,
   ]);
 
   const handleClearCars = useCallback(() => {
@@ -141,31 +150,34 @@ export default function TrainingCanvas({
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
-  }, [worldRef]);
+    toast("All cars cleared.", "info");
+  }, [worldRef, toast]);
 
   const handleResetCars = useCallback(() => {
-    // TODO: Reset cars
-  }, [
-    worldRef,
-    carCount,
-    stackSpawnAtSource,
-    mutationAmount,
-    getDestinationPosition,
-  ]);
+    handleClearCars();
+    handleSpawnCars();
+    setGeneration((g) => g + 1);
+    toast(`Generation ${generation + 1} started.`, "info");
+  }, [handleClearCars, handleSpawnCars, generation, toast]);
 
   /**
    * Loads a world from JSON and resets training state.
    */
   const handleLoadWorld = useCallback(() => {
-    loadFromJson();
-    // Reset training state since loading clears all cars
-    const world = worldRef.current;
-    // TODO: Clear bestcar
-    // if (world) world.bestCarId = null;
-    setBestCarId(null);
-    setCurrentCarCount(0);
-    setIsTraining(false);
-    setCarsReachedDestination(0);
+    loadFromJson(() => {
+      // Reset training state since loading clears all cars
+      const world = worldRef.current;
+      if (world) {
+        world.spawnerSystem.clearCars();
+        world.generate();
+      }
+      setBestCarId(null);
+      setBestFitness(0);
+      setGeneration(1);
+      setCurrentCarCount(0);
+      setIsTraining(false);
+      setCarsReachedDestination(0);
+    });
   }, [loadFromJson, worldRef]);
 
   return (

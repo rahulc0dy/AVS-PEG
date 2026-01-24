@@ -6,7 +6,6 @@ import {
   Mesh,
   MeshBasicMaterial,
   Object3D,
-  Vector2,
 } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
@@ -23,7 +22,7 @@ export interface CarOptions {
   /** Mutation amount to apply to the brain (0 = no change, 1 = fully random) */
   mutationAmount?: number;
   /** Destination position for fitness calculation */
-  destinationPosition?: Vector2;
+  destinationPosition?: Node;
   /** Path edges from source to destination for progress tracking */
   pathEdges?: object[]; // TODO: Change this to appropriate type
   /** Total length of the path */
@@ -40,12 +39,12 @@ export interface CarOptions {
  * - Provide a collision polygon used for intersection tests
  * - Lazily load and render a 3D model and an optional collider mesh
  *
- * Coordinate convention: `position` is a `Vector2` (x, y) where `y` maps
+ * Coordinate convention: `position` is a `Node` (x, y) where `y` maps
  * to Three.js Z when rendering.
  */
 export class Car {
   /** Position in world units. `y` maps to Three.js Z when rendering. */
-  position: Vector2;
+  position: Node;
   /** Vehicle width along the X axis. */
   breadth: number;
   /** Vehicle length along the Z axis. */
@@ -99,9 +98,10 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
+   * @param options
    */
   constructor(
-    position: Vector2,
+    position: Node,
     breadth: number,
     length: number,
     height: number,
@@ -138,6 +138,7 @@ export class Car {
    * collision polygon, performs collision checks against `traffic`, and
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
+   * @param pathBorders
    */
   update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
