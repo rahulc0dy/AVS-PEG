@@ -185,7 +185,9 @@ export class SpawnerSystem {
             bestRoad = road;
           }
         }
-        dirAngle = angle(bestRoad.skeleton.directionVector());
+        const dx = bestRoad.skeleton.n2.x - bestRoad.skeleton.n1.x;
+        const dy = bestRoad.skeleton.n2.y - bestRoad.skeleton.n1.y;
+        dirAngle = Math.atan2(-dx, -dy);
       }
     }
 
