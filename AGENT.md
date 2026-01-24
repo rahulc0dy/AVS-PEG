@@ -1,4 +1,4 @@
-# AVS-PEG Copilot Instructions
+# AVS-PEG Agent Instructions
 
 Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Next.js 16, React 19, Three.js, and TypeScript.
 
