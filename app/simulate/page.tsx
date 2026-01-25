@@ -1,26 +1,26 @@
 "use client";
 
-import Link from "next/link";
+import SceneCanvas from "@/components/canvases/scene-canvas";
+import SimulationCanvas from "@/components/canvases/simulation-canvas";
 
-const SimulationPage = () => {
+/**
+ * Simulation page - Manual driving on a loaded world JSON.
+ *
+ * Features:
+ * - Load a saved world file
+ * - Spawn a human-controlled car (WASD / Arrow keys)
+ * - Run simulation without editor tooling
+ */
+export default function SimulationPage() {
   return (
-    <div className="h-screen w-full flex flex-col gap-10 items-center justify-center bg-black text-white">
-      <h1 className="uppercase font-black text-8xl text-transparent bg-clip-text bg-linear-to-r from-red-300 to-blue-300 transition-all">
-        Simulation not yet Implemented
-      </h1>
-      <Link
-        href={"/edit"}
-        className="uppercase font-black text-7xl hover:text-9xl hover:text-rose-200 transition-all"
-      >
-        Edit
-      </Link>
-      <Link
-        href={"/train"}
-        className="uppercase font-black text-7xl hover:text-9xl hover:text-amber-200 transition-all"
-      >
-        Train
-      </Link>
-    </div>
+    <SceneCanvas config={{ cameraPosition: { x: 0, y: 2000, z: 0 } }}>
+      {(context) => (
+        <SimulationCanvas
+          scene={context.scene}
+          camera={context.camera}
+          dom={context.dom}
+        />
+      )}
+    </SceneCanvas>
   );
-};
-export default SimulationPage;
+}

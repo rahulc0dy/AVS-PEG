@@ -1,4 +1,12 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -18,7 +26,8 @@ import { Edge } from "@/lib/primitives/edge";
  * - Lazily load and render a 3D model and an optional collider mesh
  *
  * Coordinate convention: `position` is a `Node` (x, y) where `y` maps
- * to Three.js Z when rendering.
+ * to Three.js Z when rendering. Heading `angle` is measured from +X with
+ * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
   /** Position in world units. `y` maps to Three.js Z when rendering. */
@@ -157,7 +166,8 @@ export class Car {
           this.loadingModel = false;
           this.model.scale.set(3, 3, 3);
           this.model.position.set(this.position.x, 0, this.position.y);
-          this.model.rotation.set(0, this.angle, 0);
+          // Three.js default forward is +Z; rotate so angle=0 faces +X.
+          this.model.rotation.set(0, Math.PI / 2 - this.angle, 0);
           target.add(this.model);
         },
         undefined,
@@ -170,7 +180,7 @@ export class Car {
     }
 
     this.model.position.set(this.position.x, 0, this.position.y);
-    this.model.rotation.set(0, this.angle, 0);
+    this.model.rotation.set(0, Math.PI / 2 - this.angle, 0);
     if (!target.children.includes(this.model)) {
       target.add(this.model);
     }
@@ -194,7 +204,7 @@ export class Car {
       this.height / 2,
       this.position.y,
     );
-    this.carColliderMesh.rotation.set(0, this.angle, 0);
+    this.carColliderMesh.rotation.set(0, Math.PI / 2 - this.angle, 0);
 
     if (!target.children.includes(this.carColliderMesh)) {
       target.add(this.carColliderMesh);
@@ -291,26 +301,26 @@ export class Car {
     const alpha = Math.atan2(this.breadth, this.length);
     points.push(
       new Node(
-        this.position.x - Math.sin(this.angle - alpha) * rad,
-        this.position.y - Math.cos(this.angle - alpha) * rad,
+        this.position.x + Math.cos(this.angle - alpha) * rad,
+        this.position.y + Math.sin(this.angle - alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(this.angle + alpha) * rad,
-        this.position.y - Math.cos(this.angle + alpha) * rad,
+        this.position.x + Math.cos(this.angle + alpha) * rad,
+        this.position.y + Math.sin(this.angle + alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+        this.position.x + Math.cos(Math.PI + this.angle - alpha) * rad,
+        this.position.y + Math.sin(Math.PI + this.angle - alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+        this.position.x + Math.cos(Math.PI + this.angle + alpha) * rad,
+        this.position.y + Math.sin(Math.PI + this.angle + alpha) * rad,
       ),
     );
     return new Polygon(points);
@@ -350,15 +360,16 @@ export class Car {
 
     if (this.speed != 0) {
       const flip = this.speed > 0 ? 1 : -1;
+      // In math, anti clockwise is +ve angle, so we reverse the angle to handle it properly
       if (this.controls.left) {
-        this.angle += 0.03 * flip;
+        this.angle -= 0.03 * flip;
       }
       if (this.controls.right) {
-        this.angle -= 0.03 * flip;
+        this.angle += 0.03 * flip;
       }
     }
 
-    this.position.x -= Math.sin(this.angle) * this.speed;
-    this.position.y -= Math.cos(this.angle) * this.speed;
+    this.position.x += Math.cos(this.angle) * this.speed;
+    this.position.y += Math.sin(this.angle) * this.speed;
   }
 }

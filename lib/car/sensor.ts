@@ -156,23 +156,24 @@ export class Sensor {
    * Build the ray segments in world coordinates.
    *
    * Rays are evenly distributed across `raySpreadAngle` and rotated by the
-   * car's heading. Each ray is represented as an `Edge` (start/end `Node`).
-   * This method updates the `rays` array.
+   * car's heading (angle measured from +X, ACW). Each ray is represented as an
+   * `Edge` (start/end `Node`). This method updates the `rays` array.
    */
   private castRays() {
     this.rays = [];
     for (let i = 0; i < this.rayCount; i++) {
       const rayAngle =
+        this.car.angle +
         lerp(
-          this.raySpreadAngle / 2,
           -this.raySpreadAngle / 2,
-          this.rayCount == 1 ? 0.5 : i / (this.rayCount - 1),
-        ) - this.car.angle;
+          this.raySpreadAngle / 2,
+          this.rayCount === 1 ? 0.5 : i / (this.rayCount - 1),
+        );
 
       const start = new Node(this.car.position.x, this.car.position.y);
       const end = new Node(
-        this.car.position.x + Math.sin(rayAngle) * this.rayLength,
-        this.car.position.y - Math.cos(rayAngle) * this.rayLength,
+        this.car.position.x + Math.cos(rayAngle) * this.rayLength,
+        this.car.position.y + Math.sin(rayAngle) * this.rayLength,
       );
       this.rays.push(new Edge(start, end));
     }
