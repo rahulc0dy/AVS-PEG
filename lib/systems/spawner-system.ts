@@ -55,79 +55,65 @@ export class SpawnerSystem {
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
    */
   spawnCars(count: number, controlType: ControlType): void {
-    // Minimum distance between car centers to avoid overlap
     const minDistance = 10;
 
-    // Helper to check if a position is too close to existing cars
-    const isTooClose = (position: Node): boolean => {
-      for (const car of this.cars) {
-        const dist = distance(position, car.position);
-        if (dist < minDistance) {
-          return true;
-        }
-      }
-      return false;
-    };
+    const isTooClose = (position: Node): boolean =>
+      this.cars.some((car) => distance(position, car.position) < minDistance);
 
-    // If no roads exist, spawn spread out from origin
+    // If no roads exist, drop into a simple grid near origin
     if (this.roads.length === 0) {
       const cols = Math.ceil(Math.sqrt(count));
+      const spacing = minDistance * 1.5;
       for (let i = 0; i < count; i++) {
-        // Spread cars in a grid pattern to avoid overlap
         const row = Math.floor(i / cols);
         const col = i % cols;
-
-        const spacing = minDistance * 1.5;
         const x = (col - cols / 2) * spacing;
         const y = row * spacing;
-
-        const car = new Car(
-          new Node(x, y),
-          this.breadth,
-          this.length,
-          this.height,
-          controlType,
-          this.worldGroup,
-          0,
-        );
-        this.cars.push(car);
-      }
-      return;
-    }
-
-    // Spawn cars at random positions along roads, avoiding overlaps
-    const maxAttempts = 50; // Max attempts per car to find a valid position
-    for (let i = 0; i < count; i++) {
-      let placed = false;
-
-      for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
-        // Pick a random road
-        const road = this.roads[Math.floor(Math.random() * this.roads.length)];
-        const skeleton = road.skeleton;
-
-        const newRandomPosition = translate(
-          skeleton.n1,
-          angle(skeleton.directionVector()),
-          Math.random(),
-        );
-
-        // Check if position is valid (not too close to other cars)
-        if (!isTooClose(newRandomPosition)) {
-          const car = new Car(
-            newRandomPosition,
+        this.cars.push(
+          new Car(
+            new Node(x, y),
             this.breadth,
             this.length,
             this.height,
             controlType,
             this.worldGroup,
-            angle(skeleton.directionVector()),
-          );
-          this.cars.push(car);
-          placed = true;
-        }
+            0,
+          ),
+        );
+      }
+      return;
+    }
+
+    const maxAttempts = 50;
+    for (let i = 0; i < count; i++) {
+      let placed = false;
+
+      for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
+        const road = this.roads[Math.floor(Math.random() * this.roads.length)];
+        const skeleton = road.skeleton;
+        const dir = skeleton.directionVector();
+        const heading = angle(dir);
+
+        // pick a random point along the road length (0..1 scaled by length)
+        const offset = Math.random() * skeleton.length();
+        const candidate = translate(skeleton.n1, heading, offset);
+
+        if (isTooClose(candidate)) continue;
+
+        this.cars.push(
+          new Car(
+            candidate,
+            this.breadth,
+            this.length,
+            this.height,
+            controlType,
+            this.worldGroup,
+            heading,
+          ),
+        );
+        placed = true;
       }
 
-      // If couldn't place after max attempts, skip this car
       if (!placed) {
         console.warn(
           `Could not find valid position for car ${i + 1}/${count} after ${maxAttempts} attempts`,
@@ -154,12 +140,6 @@ export class SpawnerSystem {
 
     const srcNode = sourcePosition;
 
-    // Choose a direction in the CAR angle convention.
-    // Car move uses:
-    //   x -= sin(angle) * speed
-    //   y -= cos(angle) * speed
-    // so a world direction vector (dx, dy) corresponds to:
-    //   angle = atan2(-dx, -dy)
     let dirAngle = 0;
     if (pathEdges && pathEdges.length > 0) {
       const e0 = pathEdges[0];
@@ -167,28 +147,19 @@ export class SpawnerSystem {
       const d2 = distance(srcNode, e0.n2);
       const from = d1 <= d2 ? e0.n1 : e0.n2;
       const to = d1 <= d2 ? e0.n2 : e0.n1;
-
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      dirAngle = Math.atan2(-dx, -dy);
-    } else {
-      if (this.roads.length > 0) {
-        let bestRoad = this.roads[0];
-        let bestDist = Number.POSITIVE_INFINITY;
-        for (const road of this.roads) {
-          const { n1, n2 } = road.skeleton;
-          const d1 = distance(srcNode, n1);
-          const d2 = distance(srcNode, n2);
-          const d = Math.min(d1, d2);
-          if (d < bestDist) {
-            bestDist = d;
-            bestRoad = road;
-          }
+      dirAngle = angle(new Edge(from, to).directionVector());
+    } else if (this.roads.length > 0) {
+      let bestRoad = this.roads[0];
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (const road of this.roads) {
+        const { n1, n2 } = road.skeleton;
+        const d = Math.min(distance(srcNode, n1), distance(srcNode, n2));
+        if (d < bestDist) {
+          bestDist = d;
+          bestRoad = road;
         }
-        const dx = bestRoad.skeleton.n2.x - bestRoad.skeleton.n1.x;
-        const dy = bestRoad.skeleton.n2.y - bestRoad.skeleton.n1.y;
-        dirAngle = Math.atan2(-dx, -dy);
       }
+      dirAngle = angle(bestRoad.skeleton.directionVector());
     }
 
     // Spawn position: project source onto the closest graph edge (better than using the raw marker).

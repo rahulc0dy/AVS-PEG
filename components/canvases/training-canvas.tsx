@@ -84,6 +84,7 @@ export default function TrainingCanvas({
         carCount,
         ControlType.AI,
         sourcePos,
+        world.pathFindingSystem.getPath(),
       );
     } else {
       world.spawnerSystem.spawnCars(carCount, ControlType.AI);
