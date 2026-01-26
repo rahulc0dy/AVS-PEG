@@ -71,6 +71,11 @@ export default function TrainingCanvas({
     const world = worldRef.current;
     if (!world) return;
 
+    if (world.roads.length == 0) {
+      toast("No roads in the world to spawn cars on.", "error");
+      return;
+    }
+
     if (stackSpawnAtSource) {
       const source = world.markings.find((m) => m.type === "source");
       const sourcePos = source ? source.position : undefined;
