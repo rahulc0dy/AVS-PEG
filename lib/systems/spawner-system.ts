@@ -55,7 +55,7 @@ export class SpawnerSystem {
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
    */
   spawnCars(count: number, controlType: ControlType): void {
-    if (this.roads.length === 0) return;
+    if (count <= 0 || this.roads.length === 0) return;
 
     // Cap count to roads length
     const carsToSpawn = Math.min(count, this.roads.length);
@@ -93,7 +93,10 @@ export class SpawnerSystem {
     sourceNode: Node,
     pathEdges: Edge[],
   ): void {
-    if (pathEdges.length === 0) return;
+    if (pathEdges.length === 0) {
+      console.warn("No path found for source marking, skipping spawn.");
+      return;
+    }
     const firstPathEdge = pathEdges[0];
 
     this.spawnCarsAtPosition(

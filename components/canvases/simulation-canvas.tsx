@@ -109,7 +109,7 @@ export default function SimulationCanvas({
   const playerSpeed = useMemo(() => {
     const car = world?.cars[0];
     return car ? Math.abs(car.speed) : 0;
-  }, [world]);
+  }, [world?.cars[0]?.speed]);
 
   return (
     <>

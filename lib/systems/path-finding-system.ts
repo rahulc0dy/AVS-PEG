@@ -122,7 +122,7 @@ export class PathFindingSystem {
     if (!this.path.some(edge => edge.equals(startEdge))) {
       // Orient startEdge from startNode toward the first node in the path
       const firstPathNode = this.path.length > 0
-        ? this.path[0].n1  // n1 of first edge is the node after startNode
+        ? this.path[0].n2  // n2 is the destination of the first edge, i.e., the node after startNode
         : (startEdge.n1.equals(startNode) ? startEdge.n2 : startEdge.n1);
 
       const orientedStartEdge = new Edge(

@@ -89,14 +89,14 @@ export default function TrainingCanvas({
       if (path.length === 0) {
         toast("No valid path found from source to destination.", "error");
         return;
+      } else {
+        world.spawnerSystem.spawnCarsAtSource(
+          carCount,
+          ControlType.AI,
+          sourcePos,
+          path,
+        );
       }
-
-      world.spawnerSystem.spawnCarsAtSource(
-        carCount,
-        ControlType.AI,
-        sourcePos,
-        path,
-      );
     } else {
       world.spawnerSystem.spawnCars(carCount, ControlType.AI);
     }
