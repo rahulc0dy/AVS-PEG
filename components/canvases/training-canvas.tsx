@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Camera, Scene, Vector2 } from "three";
+import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
@@ -11,6 +11,7 @@ import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
+import { ControlType } from "@/lib/car/controls";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -56,7 +57,7 @@ export default function TrainingCanvas({
 
   const handleExportBrain = useCallback(async () => {
     // TODO: Brain export logic
-  }, [worldRef, generation]);
+  }, []);
 
   const handleImportBrain = useCallback(async () => {
     // TODO: Brain import logic
@@ -66,60 +67,85 @@ export default function TrainingCanvas({
     // TODO: Discard brain logic
   }, []);
 
-  /**
-   * Gets the position of the destination marking if present.
-   */
-  const getDestinationPosition = useCallback((): Vector2 | undefined => {
-    const world = worldRef.current;
-    if (!world) return undefined;
-
-    const destination = world.markings.find((m) => m.type === "destination");
-    return destination
-      ? new Vector2(destination.position.x, destination.position.y)
-      : undefined;
-  }, [worldRef]);
-
   const handleSpawnCars = useCallback(() => {
-    // TODO: Car spawning
-  }, [
-    worldRef,
-    carCount,
-    stackSpawnAtSource,
-    mutationAmount,
-    getDestinationPosition,
-  ]);
+    const world = worldRef.current;
+    if (!world) return;
+
+    if (world.roads.length == 0) {
+      toast("No roads in the world to spawn cars on.", "error");
+      return;
+    }
+
+    if (stackSpawnAtSource) {
+      const source = world.markings.find((m) => m.type === "source");
+      const sourcePos = source ? source.position : undefined;
+
+      if (!sourcePos) {
+        toast("Source marking not found in the world.", "error");
+        return;
+      }
+
+      const path = world.pathFindingSystem.getPath();
+      if (path.length === 0) {
+        toast("No valid path found from source to destination.", "error");
+        return;
+      } else {
+        world.spawnerSystem.spawnCarsAtSource(
+          carCount,
+          ControlType.AI,
+          sourcePos,
+          path,
+        );
+      }
+    } else {
+      world.spawnerSystem.spawnCars(carCount, ControlType.AI);
+    }
+
+    const spawnedCount = world.cars.length;
+    if (spawnedCount > 0) {
+      toast(`Successfully spawned ${spawnedCount} cars.`, "success");
+    } else {
+      toast("Could not spawn any cars. Ensure there are roads.", "error");
+      return;
+    }
+
+    setCurrentCarCount(spawnedCount);
+    setIsTraining(true);
+    setCarsReachedDestination(0);
+  }, [worldRef, carCount, stackSpawnAtSource, toast]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;
     if (!world) return;
 
-    // TODO: Clear cars
-  }, [worldRef]);
+    world.spawnerSystem.clearCars();
+    setBestCarId(null);
+    setCurrentCarCount(0);
+    setIsTraining(false);
+    setCarsReachedDestination(0);
+    toast("All cars cleared.", "info");
+  }, [worldRef, toast]);
 
   const handleResetCars = useCallback(() => {
-    // TODO: Reset cars
-  }, [
-    worldRef,
-    carCount,
-    stackSpawnAtSource,
-    mutationAmount,
-    getDestinationPosition,
-  ]);
+    handleClearCars();
+    handleSpawnCars();
+    setGeneration((g) => g + 1);
+    toast(`Generation ${generation + 1} started.`, "info");
+  }, [handleClearCars, handleSpawnCars, generation, toast]);
 
   /**
    * Loads a world from JSON and resets training state.
    */
   const handleLoadWorld = useCallback(() => {
-    loadFromJson();
-    // Reset training state since loading clears all cars
-    const world = worldRef.current;
-    // TODO: Clear bestcar
-    // if (world) world.bestCarId = null;
-    setBestCarId(null);
-    setCurrentCarCount(0);
-    setIsTraining(false);
-    setCarsReachedDestination(0);
-  }, [loadFromJson, worldRef]);
+    loadFromJson(() => {
+      setBestCarId(null);
+      setBestFitness(0);
+      setGeneration(1);
+      setCurrentCarCount(0);
+      setIsTraining(false);
+      setCarsReachedDestination(0);
+    });
+  }, [loadFromJson]);
 
   return (
     <>

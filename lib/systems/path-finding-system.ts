@@ -48,7 +48,23 @@ export class PathFindingSystem {
 
     // If both points lie on the same edge, that's trivially the path.
     if (startEdge.equals(endEdge)) {
-      this.setPath([startEdge]);
+      // Orient the edge from source toward destination
+      const distSrcToN1 = distance(srcPos, startEdge.n1);
+      const distSrcToN2 = distance(srcPos, startEdge.n2);
+      const distDestToN1 = distance(destPos, startEdge.n1);
+      const distDestToN2 = distance(destPos, startEdge.n2);
+
+      // Determine which endpoint is closer to source and which to destination
+      const sourceEnd = distSrcToN1 <= distSrcToN2 ? startEdge.n1 : startEdge.n2;
+      const destEnd = distDestToN1 <= distDestToN2 ? startEdge.n1 : startEdge.n2;
+
+      // If source and dest are at opposite ends, orient n1->n2 from source to dest
+      // If they're at the same end (edge case), just use the original orientation
+      const orientedEdge = sourceEnd.equals(destEnd)
+        ? startEdge
+        : new Edge(sourceEnd, destEnd, startEdge.isDirected);
+
+      this.setPath([orientedEdge]);
       return;
     }
 
@@ -80,13 +96,18 @@ export class PathFindingSystem {
     }
 
     // Reconstruct path (edges) from endNode back to startNode
+    // We need to orient each edge in the direction of travel: from prevNode -> cursor
     this.setPath([]);
     let cursor: Node | null = endNode;
     while (cursor && !cursor.equals(startNode)) {
       const e: Edge | null = prevEdge.get(cursor as Node) ?? null;
       const p: Node | null = prevNode.get(cursor as Node) ?? null;
       if (!e || !p) break; // incomplete
-      this.path.unshift(e);
+
+      // Create an oriented edge from p (previous node) to cursor (current node)
+      // This ensures the edge points in the direction of travel
+      const orientedEdge = new Edge(p, cursor, e.isDirected);
+      this.path.unshift(orientedEdge);
       cursor = p;
     }
 
@@ -94,6 +115,22 @@ export class PathFindingSystem {
       console.log("Failed to reconstruct path");
       this.setPath([]);
       return;
+    }
+
+    // Check if we need to prepend startEdge (when source and startNode are not at the same location)
+    // startEdge connects source position to the graph, and may not be part of the Dijkstra path
+    if (!this.path.some(edge => edge.equals(startEdge))) {
+      // Orient startEdge from startNode toward the first node in the path
+      const firstPathNode = this.path.length > 0
+        ? this.path[0].n2  // n2 is the destination of the first edge, i.e., the node after startNode
+        : (startEdge.n1.equals(startNode) ? startEdge.n2 : startEdge.n1);
+
+      const orientedStartEdge = new Edge(
+        startNode,
+        firstPathNode,
+        startEdge.isDirected
+      );
+      this.path.unshift(orientedStartEdge);
     }
 
     this.updatePathPolygon();

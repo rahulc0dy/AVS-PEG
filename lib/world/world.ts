@@ -1,4 +1,4 @@
-import { Color, Group, Scene, Vector2 } from "three";
+import { Color, Group, Scene } from "three";
 import { Edge } from "@/lib/primitives/edge";
 import { Road } from "@/lib/world/road";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -13,6 +13,7 @@ import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
+import { SpawnerSystem } from "@/lib/systems/spawner-system";
 
 /**
  * Configuration options for initializing a World instance.
@@ -23,7 +24,7 @@ export interface WorldConfig {
    * Use `generateTraffic()` to spawn cars after initialization.
    */
   initialCars?: {
-    position: Vector2;
+    position: Node;
     controlType: ControlType;
   }[];
 }
@@ -57,7 +58,8 @@ export class World {
 
   pathFindingSystem!: PathFindingSystem;
 
-  /** TODO: Spawner system for managing car spawning. */
+  /** Spawner system for managing car spawning. */
+  spawnerSystem!: SpawnerSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -104,6 +106,12 @@ export class World {
     );
 
     this.pathFindingSystem = new PathFindingSystem(this.graph);
+
+    this.spawnerSystem = new SpawnerSystem(
+      this.cars,
+      this.worldGroup,
+      this.roads,
+    );
 
     this.generate();
   }
@@ -174,7 +182,8 @@ export class World {
     // 3. Compute the union of all road polygons to derive continuous borders
     this.roadBorders = Polygon.union(this.roads.map((r) => r.poly));
 
-    // TODO: Update spawner system with new roads reference
+    // Update spawner system with new roads reference
+    this.spawnerSystem.setRoads(this.roads);
 
     // Update path finding after regenerating roads
     this.updatePath();
@@ -331,7 +340,9 @@ export class World {
       }
     }
 
-    // TODO: Update spawner system with new references after loading
+    // Update spawner system with new references after loading
+    this.spawnerSystem.setCars(this.cars);
+    this.spawnerSystem.setRoads(this.roads);
 
     // Update path finding after loading markings
     this.updatePath();

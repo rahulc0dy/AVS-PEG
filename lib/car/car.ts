@@ -1,12 +1,11 @@
 import {
+  BoxGeometry,
+  Color,
+  Group,
   Material,
   Mesh,
-  Vector2,
-  Group,
-  Object3D,
-  Color,
-  BoxGeometry,
   MeshBasicMaterial,
+  Object3D,
 } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
@@ -26,12 +25,13 @@ import { Edge } from "@/lib/primitives/edge";
  * - Provide a collision polygon used for intersection tests
  * - Lazily load and render a 3D model and an optional collider mesh
  *
- * Coordinate convention: `position` is a `Vector2` (x, y) where `y` maps
- * to Three.js Z when rendering.
+ * Coordinate convention: `position` is a `Node` (x, y) where `y` maps
+ * to Three.js Z when rendering. Heading `angle` is measured from +X with
+ * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
   /** Position in world units. `y` maps to Three.js Z when rendering. */
-  position: Vector2;
+  position: Node;
   /** Vehicle width along the X axis. */
   breadth: number;
   /** Vehicle length along the Z axis. */
@@ -56,6 +56,8 @@ export class Car {
   controls: Controls;
   /** Cached collision polygon used for intersection checks. Rebuilt each update. */
   polygon: Polygon | null = null;
+  /** If enabled, car to car damages are ignored */
+  ignoreCarDamage: boolean = false;
 
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
@@ -80,9 +82,10 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
+   * @param options
    */
   constructor(
-    position: Vector2,
+    position: Node,
     breadth: number,
     length: number,
     height: number,
@@ -117,6 +120,7 @@ export class Car {
    * collision polygon, performs collision checks against `traffic`, and
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
+   * @param pathBorders
    */
   update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
@@ -131,6 +135,131 @@ export class Car {
     }
   }
 
+  ignoreDamageFromCars() {
+    this.ignoreCarDamage = true;
+    if (this.sensor) {
+      this.sensor.ignoreTraffic = true;
+    }
+  }
+
+  /**
+   * Render the car's sensors, 3D model and optional collider into `target`.
+   * The GLTF model is loaded lazily; `loadingModel` prevents duplicate
+   * concurrent loads.
+   *
+   * @param target Parent group where meshes are added
+   * @param url GLTF model URL
+   * @param loader Optional `GLTFLoader` to reuse
+   */
+  draw(target: Group, url: string, loader?: GLTFLoader) {
+    if (this.sensor) {
+      this.sensor.draw(target);
+    }
+    if (!this.model) {
+      if (this.loadingModel) return;
+      this.loadingModel = true;
+      if (!loader) loader = new GLTFLoader();
+      loader.load(
+        url,
+        (gltf) => {
+          this.model = gltf.scene;
+          this.loadingModel = false;
+          this.model.scale.set(3, 3, 3);
+          this.model.position.set(this.position.x, 0, this.position.y);
+          // Three.js default forward is +Z; rotate so angle=0 faces +X.
+          this.model.rotation.set(0, Math.PI / 2 - this.angle, 0);
+          target.add(this.model);
+        },
+        undefined,
+        () => {
+          this.loadingModel = false;
+        },
+      );
+
+      return;
+    }
+
+    this.model.position.set(this.position.x, 0, this.position.y);
+    this.model.rotation.set(0, Math.PI / 2 - this.angle, 0);
+    if (!target.children.includes(this.model)) {
+      target.add(this.model);
+    }
+
+    if (!this.carColliderMesh) {
+      const carGeometry = new BoxGeometry(
+        this.breadth,
+        this.height,
+        this.length,
+      );
+      const carMaterial = new MeshBasicMaterial({
+        color: new Color(0x00ff00),
+        transparent: true,
+        opacity: 0.1,
+      });
+      const carMesh = new Mesh(carGeometry, carMaterial);
+      this.carColliderMesh = carMesh;
+    }
+    this.carColliderMesh.position.set(
+      this.position.x,
+      this.height / 2,
+      this.position.y,
+    );
+    this.carColliderMesh.rotation.set(0, Math.PI / 2 - this.angle, 0);
+
+    if (!target.children.includes(this.carColliderMesh)) {
+      target.add(this.carColliderMesh);
+    }
+  }
+
+  /**
+   * Dispose Three.js resources used by this car and remove visuals from the
+   * scene. This frees geometries and materials owned by the car's model and
+   * collider mesh.
+   */
+  dispose() {
+    if (this.sensor) {
+      this.sensor.dispose();
+    }
+    if (this.model) {
+      // Remove from parent group
+      if (this.model.parent) {
+        this.model.parent.remove(this.model);
+      }
+
+      // Dispose meshes
+      this.model.traverse((child: Object3D) => {
+        const anyChild = child as unknown as {
+          geometry?: { dispose?: () => void };
+          material?: unknown;
+        };
+        if (!anyChild.geometry || !anyChild.material) return;
+
+        const mesh = child as unknown as Mesh;
+        mesh.geometry.dispose();
+        const material = mesh.material as Material | Material[];
+        if (Array.isArray(material)) {
+          material.forEach((mat) => mat.dispose());
+        } else {
+          material.dispose();
+        }
+      });
+      this.model = null;
+    }
+    this.loadingModel = false;
+
+    if (this.carColliderMesh) {
+      // Remove from parent
+      if (this.carColliderMesh.parent) {
+        this.carColliderMesh.parent.remove(this.carColliderMesh);
+      }
+      this.carColliderMesh.geometry.dispose();
+      this.carColliderMesh.material.dispose();
+      // Clear the mesh
+      this.carColliderMesh.clear();
+      this.carColliderMesh = null;
+    }
+  }
+
   /**
    * Check for collisions between this car and other vehicles.
    *
@@ -140,10 +269,12 @@ export class Car {
   private assessDamage(traffic: Car[], pathBorders: Edge[]): boolean {
     if (this.polygon === null) return false;
 
-    for (let i = 0; i < traffic.length; i++) {
-      if (traffic[i].polygon === null) continue;
-      if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-        return true;
+    if (!this.ignoreCarDamage) {
+      for (let i = 0; i < traffic.length; i++) {
+        if (traffic[i].polygon === null) continue;
+        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
+          return true;
+        }
       }
     }
 
@@ -170,26 +301,26 @@ export class Car {
     const alpha = Math.atan2(this.breadth, this.length);
     points.push(
       new Node(
-        this.position.x - Math.sin(this.angle - alpha) * rad,
-        this.position.y - Math.cos(this.angle - alpha) * rad,
+        this.position.x + Math.cos(this.angle - alpha) * rad,
+        this.position.y + Math.sin(this.angle - alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(this.angle + alpha) * rad,
-        this.position.y - Math.cos(this.angle + alpha) * rad,
+        this.position.x + Math.cos(this.angle + alpha) * rad,
+        this.position.y + Math.sin(this.angle + alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+        this.position.x + Math.cos(Math.PI + this.angle - alpha) * rad,
+        this.position.y + Math.sin(Math.PI + this.angle - alpha) * rad,
       ),
     );
     points.push(
       new Node(
-        this.position.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-        this.position.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+        this.position.x + Math.cos(Math.PI + this.angle + alpha) * rad,
+        this.position.y + Math.sin(Math.PI + this.angle + alpha) * rad,
       ),
     );
     return new Polygon(points);
@@ -229,117 +360,16 @@ export class Car {
 
     if (this.speed != 0) {
       const flip = this.speed > 0 ? 1 : -1;
+      // In math, anti-clockwise is +ve angle, so we reverse the angle to handle it properly
       if (this.controls.left) {
-        this.angle += 0.03 * flip;
-      }
-      if (this.controls.right) {
         this.angle -= 0.03 * flip;
       }
-    }
-
-    this.position.x -= Math.sin(this.angle) * this.speed;
-    this.position.y -= Math.cos(this.angle) * this.speed;
-  }
-
-  /**
-   * Render the car's sensors, 3D model and optional collider into `target`.
-   * The GLTF model is loaded lazily; `loadingModel` prevents duplicate
-   * concurrent loads.
-   *
-   * @param target Parent group where meshes are added
-   * @param url GLTF model URL
-   * @param loader Optional `GLTFLoader` to reuse
-   */
-  draw(target: Group, url: string, loader?: GLTFLoader) {
-    if (this.sensor) {
-      this.sensor.draw(target);
-    }
-    if (!this.model) {
-      if (this.loadingModel) return;
-      this.loadingModel = true;
-      if (!loader) loader = new GLTFLoader();
-      loader.load(
-        url,
-        (gltf) => {
-          this.model = gltf.scene;
-          this.loadingModel = false;
-          this.model.scale.set(3, 3, 3);
-          this.model.position.set(this.position.x, 0, this.position.y);
-          this.model.rotation.set(0, this.angle, 0);
-          target.add(this.model);
-        },
-        undefined,
-        () => {
-          this.loadingModel = false;
-        },
-      );
-
-      return;
-    }
-
-    this.model.position.set(this.position.x, 0, this.position.y);
-    this.model.rotation.set(0, this.angle, 0);
-    if (!target.children.includes(this.model)) {
-      target.add(this.model);
-    }
-
-    if (!this.carColliderMesh) {
-      const carGeometry = new BoxGeometry(
-        this.breadth,
-        this.height,
-        this.length,
-      );
-      const carMaterial = new MeshBasicMaterial({
-        color: new Color(0x00ff00),
-        transparent: true,
-        opacity: 0.1,
-      });
-      const carMesh = new Mesh(carGeometry, carMaterial);
-      this.carColliderMesh = carMesh;
-    }
-    this.carColliderMesh.position.set(
-      this.position.x,
-      this.height / 2,
-      this.position.y,
-    );
-    this.carColliderMesh.rotation.set(0, this.angle, 0);
-
-    if (!target.children.includes(this.carColliderMesh)) {
-      target.add(this.carColliderMesh);
-    }
-  }
-
-  /**
-   * Dispose Three.js resources used by this car and remove visuals from the
-   * scene. This frees geometries and materials owned by the car's model and
-   * collider mesh.
-   */
-  dispose() {
-    if (this.sensor) {
-      this.sensor.dispose();
-    }
-    if (!this.model) return;
-    if (this.model.parent) {
-      this.model.parent.remove(this.model);
-    }
-    this.model.traverse((child: Object3D) => {
-      if (child instanceof Mesh) {
-        child.geometry.dispose();
-        const material = child.material as Material | Material[];
-        if (Array.isArray(material)) {
-          material.forEach((mat) => mat.dispose());
-        } else {
-          material.dispose();
-        }
+      if (this.controls.right) {
+        this.angle += 0.03 * flip;
       }
-    });
-    this.model = null;
-    this.loadingModel = false;
-
-    if (this.carColliderMesh) {
-      this.carColliderMesh.geometry.dispose();
-      this.carColliderMesh.material.dispose();
-      this.carColliderMesh = null;
     }
+
+    this.position.x += Math.cos(this.angle) * this.speed;
+    this.position.y += Math.sin(this.angle) * this.speed;
   }
 }

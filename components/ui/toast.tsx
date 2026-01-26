@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             onClick={() => removeToast(t.id)}
             className={`
-              flex min-w-75 cursor-pointer items-center justify-between rounded-md border px-4 py-3 shadow-lg transition-all animate-in slide-in-from-right-full
+              flex min-w-75 max-w-sm cursor-pointer items-center justify-between gap-3 rounded-md border px-4 py-3 shadow-lg transition-all animate-in slide-in-from-right-full
               ${
                 t.type === "error"
                   ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-50"
