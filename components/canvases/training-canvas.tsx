@@ -138,12 +138,6 @@ export default function TrainingCanvas({
    */
   const handleLoadWorld = useCallback(() => {
     loadFromJson(() => {
-      // Reset training state since loading clears all cars
-      const world = worldRef.current;
-      if (world) {
-        world.spawnerSystem.clearCars();
-        world.generate();
-      }
       setBestCarId(null);
       setBestFitness(0);
       setGeneration(1);
@@ -151,7 +145,7 @@ export default function TrainingCanvas({
       setIsTraining(false);
       setCarsReachedDestination(0);
     });
-  }, [loadFromJson, worldRef]);
+  }, [loadFromJson]);
 
   return (
     <>

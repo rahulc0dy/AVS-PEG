@@ -94,22 +94,16 @@ export default function SimulationCanvas({
   /** Load a world JSON and reset player state. */
   const handleLoadWorld = useCallback(() => {
     loadFromJson(() => {
-      const currentWorld = worldRef.current;
-      if (!currentWorld) return;
-
-      currentWorld.spawnerSystem.clearCars();
-      currentWorld.generate();
-      currentWorld.draw();
       setHasPlayerCar(false);
       toast("World loaded. Spawn a player to drive.", "success");
     });
-  }, [loadFromJson, worldRef, toast]);
+  }, [loadFromJson, toast]);
 
   /** Display the current player speed (abs) from the first car. */
   const playerSpeed = useMemo(() => {
     const car = world?.cars[0];
     return car ? Math.abs(car.speed) : 0;
-  }, [world?.cars[0]?.speed]);
+  }, [world?.cars]);
 
   return (
     <>
