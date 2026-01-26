@@ -86,8 +86,6 @@ export class SpawnerSystem {
 
   /**
    * Spawn multiple cars stacked/overlapping at the world's Source marking.
-   *
-   * If no source marking exists, falls back to the default random-road spawning.
    */
   spawnCarsAtSource(
     count: number,
@@ -95,7 +93,9 @@ export class SpawnerSystem {
     sourceNode: Node,
     pathEdges: Edge[],
   ): void {
+    if (pathEdges.length === 0) return;
     const firstPathEdge = pathEdges[0];
+
     this.spawnCarsAtPosition(
       count,
       controlType,
