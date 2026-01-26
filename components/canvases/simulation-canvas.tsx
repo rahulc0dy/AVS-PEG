@@ -107,7 +107,7 @@ export default function SimulationCanvas({
 
   return (
     <>
-      <Card className="absolute top-6 left-6 z-10 w-80 border-zinc-700 bg-zinc-900/90 text-zinc-50 backdrop-blur">
+      <Card className="absolute top-16 left-4 z-10 w-80 border-zinc-700 bg-zinc-900/90 text-zinc-50 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold text-zinc-50">
             Simulation Mode
