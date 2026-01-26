@@ -1,10 +1,10 @@
-import {Group} from "three";
-import {Car} from "@/lib/car/car";
-import {Road} from "@/lib/world/road";
-import {ControlType} from "@/lib/car/controls";
-import {Edge} from "@/lib/primitives/edge";
-import {Node} from "@/lib/primitives/node";
-import {angle, distance, translate} from "@/utils/math";
+import { Group } from "three";
+import { Car } from "@/lib/car/car";
+import { Road } from "@/lib/world/road";
+import { ControlType } from "@/lib/car/controls";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { angle, average } from "@/utils/math";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -49,70 +49,38 @@ export class SpawnerSystem {
   }
 
   /**
-   * Spawn multiple cars at random positions on roads.
+   * Spawn multiple cars at random roads.
    *
    * @param count - Number of cars to spawn
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
    */
   spawnCars(count: number, controlType: ControlType): void {
-    const minDistance = 30;
+    if (this.roads.length === 0) return;
 
-    // Build list of valid spawn candidates across all roads
-    const candidates: Array<{ position: Node; heading: number }> = [];
-    const sampleSpacing = minDistance * 0.5; // Sample densely, filter later
+    // Cap count to roads length
+    const carsToSpawn = Math.min(count, this.roads.length);
 
-    for (let i = 0; i < this.roads.length; i++) {
-      const skeleton = this.roads[i].skeleton;
-      const len = skeleton.length();
-      const dir = skeleton.directionVector();
-      const heading = angle(dir);
-      const numSamples = Math.max(1, Math.floor(len / sampleSpacing));
+    // Select random roads without repetition
+    const shuffledRoads = [...this.roads].sort(() => Math.random() - 0.5);
+    const selectedRoads = shuffledRoads.slice(0, carsToSpawn);
 
-      for (let j = 0; j < numSamples; j++) {
-        const t = numSamples === 1 ? 0.5 : j / (numSamples - 1);
-        const offset = t * len;
-        const position = translate(skeleton.n1, heading, offset);
-        candidates.push({ position, heading });
-      }
-    }
+    for (const road of selectedRoads) {
+      const skeleton = road.skeleton;
 
-    // Shuffle candidates for randomness
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
+      // Calculate midpoint from skeleton edge endpoints
+      const midpoint = average(skeleton.n1, skeleton.n2);
+      const roadAngle = angle(skeleton.directionVector());
 
-    // Greedily pick candidates that maintain minimum distance
-    const placed: Node[] = [];
-
-    const isTooClose = (pos: Node): boolean =>
-      this.cars.some((car) => distance(pos, car.position) < minDistance) ||
-      placed.some((p) => distance(pos, p) < minDistance);
-
-    let spawned = 0;
-    for (const { position, heading } of candidates) {
-      if (spawned >= count) break;
-      if (isTooClose(position)) continue;
-
-      this.cars.push(
-        new Car(
-          new Node(position.x, position.y),
-          this.breadth,
-          this.length,
-          this.height,
-          controlType,
-          this.worldGroup,
-          heading,
-        ),
+      const car = new Car(
+        midpoint,
+        this.breadth,
+        this.length,
+        this.height,
+        controlType,
+        this.worldGroup,
+        roadAngle,
       );
-      placed.push(position);
-      spawned++;
-    }
-
-    if (spawned < count) {
-      console.warn(
-        `Only spawned ${spawned}/${count} cars - insufficient road space`,
-      );
+      this.cars.push(car);
     }
   }
 
