@@ -9,6 +9,7 @@ import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { ControlType } from "@/lib/car/controls";
+import { Node } from "@/lib/primitives/node";
 
 interface SimulationCanvasProps {
   scene: Scene;
@@ -51,17 +52,22 @@ export default function SimulationCanvas({
     currentWorld.spawnerSystem.clearCars();
 
     const source = currentWorld.markings.find((m) => m.type === "source");
-    const pathEdges = currentWorld.pathFindingSystem.getPath();
+    const path = currentWorld.pathFindingSystem.getPath();
 
-    if (source) {
+    if (source && path.length > 0) {
       currentWorld.spawnerSystem.spawnCarsAtSource(
         1,
         ControlType.HUMAN,
         source.position,
-        pathEdges,
+        path,
       );
     } else {
-      currentWorld.spawnerSystem.spawnCars(1, ControlType.HUMAN);
+      currentWorld.spawnerSystem.spawnCarsAtPosition(
+        1,
+        ControlType.HUMAN,
+        new Node(0, 0),
+        -Math.PI / 2,
+      );
     }
 
     currentWorld.draw();

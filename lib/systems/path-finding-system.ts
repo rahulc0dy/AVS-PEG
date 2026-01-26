@@ -90,6 +90,11 @@ export class PathFindingSystem {
       cursor = p;
     }
 
+    if (!this.path.includes(startEdge)) {
+      // Prepend startEdge if it's not already included
+      this.path.unshift(startEdge);
+    }
+
     if (!cursor || !cursor.equals(startNode)) {
       console.log("Failed to reconstruct path");
       this.setPath([]);
