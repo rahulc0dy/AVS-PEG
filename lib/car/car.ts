@@ -360,7 +360,7 @@ export class Car {
 
     if (this.speed != 0) {
       const flip = this.speed > 0 ? 1 : -1;
-      // In math, anti clockwise is +ve angle, so we reverse the angle to handle it properly
+      // In math, anti-clockwise is +ve angle, so we reverse the angle to handle it properly
       if (this.controls.left) {
         this.angle -= 0.03 * flip;
       }

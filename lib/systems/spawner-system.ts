@@ -1,10 +1,10 @@
-import { Group } from "three";
-import { Car } from "@/lib/car/car";
-import { Road } from "@/lib/world/road";
-import { ControlType } from "@/lib/car/controls";
-import { Edge } from "@/lib/primitives/edge";
-import { Node } from "@/lib/primitives/node";
-import { angle, distance, getNearestEdge, translate } from "@/utils/math";
+import {Group} from "three";
+import {Car} from "@/lib/car/car";
+import {Road} from "@/lib/world/road";
+import {ControlType} from "@/lib/car/controls";
+import {Edge} from "@/lib/primitives/edge";
+import {Node} from "@/lib/primitives/node";
+import {angle, distance, getNearestEdge, translate} from "@/utils/math";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -55,70 +55,64 @@ export class SpawnerSystem {
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
    */
   spawnCars(count: number, controlType: ControlType): void {
-    const minDistance = 10;
+    const minDistance = 30;
 
-    const isTooClose = (position: Node): boolean =>
-      this.cars.some((car) => distance(position, car.position) < minDistance);
+    // Build list of valid spawn candidates across all roads
+    const candidates: Array<{ position: Node; heading: number }> = [];
+    const sampleSpacing = minDistance * 0.5; // Sample densely, filter later
 
-    // If no roads exist, drop into a simple grid near origin
-    if (this.roads.length === 0) {
-      const cols = Math.ceil(Math.sqrt(count));
-      const spacing = minDistance * 1.5;
-      for (let i = 0; i < count; i++) {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const x = (col - cols / 2) * spacing;
-        const y = row * spacing;
-        this.cars.push(
-          new Car(
-            new Node(x, y),
-            this.breadth,
-            this.length,
-            this.height,
-            controlType,
-            this.worldGroup,
-            0,
-          ),
-        );
+    for (let i = 0; i < this.roads.length; i++) {
+      const skeleton = this.roads[i].skeleton;
+      const len = skeleton.length();
+      const dir = skeleton.directionVector();
+      const heading = angle(dir);
+      const numSamples = Math.max(1, Math.floor(len / sampleSpacing));
+
+      for (let j = 0; j < numSamples; j++) {
+        const t = numSamples === 1 ? 0.5 : j / (numSamples - 1);
+        const offset = t * len;
+        const position = translate(skeleton.n1, heading, offset);
+        candidates.push({ position, heading });
       }
-      return;
     }
 
-    const maxAttempts = 50;
-    for (let i = 0; i < count; i++) {
-      let placed = false;
+    // Shuffle candidates for randomness
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
 
-      for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
-        const road = this.roads[Math.floor(Math.random() * this.roads.length)];
-        const skeleton = road.skeleton;
-        const dir = skeleton.directionVector();
-        const heading = angle(dir);
+    // Greedily pick candidates that maintain minimum distance
+    const placed: Node[] = [];
 
-        // pick a random point along the road length (0..1 scaled by length)
-        const offset = Math.random() * skeleton.length();
-        const candidate = translate(skeleton.n1, heading, offset);
+    const isTooClose = (pos: Node): boolean =>
+      this.cars.some((car) => distance(pos, car.position) < minDistance) ||
+      placed.some((p) => distance(pos, p) < minDistance);
 
-        if (isTooClose(candidate)) continue;
+    let spawned = 0;
+    for (const { position, heading } of candidates) {
+      if (spawned >= count) break;
+      if (isTooClose(position)) continue;
 
-        this.cars.push(
-          new Car(
-            candidate,
-            this.breadth,
-            this.length,
-            this.height,
-            controlType,
-            this.worldGroup,
-            heading,
-          ),
-        );
-        placed = true;
-      }
+      this.cars.push(
+        new Car(
+          new Node(position.x, position.y),
+          this.breadth,
+          this.length,
+          this.height,
+          controlType,
+          this.worldGroup,
+          heading,
+        ),
+      );
+      placed.push(position);
+      spawned++;
+    }
 
-      if (!placed) {
-        console.warn(
-          `Could not find valid position for car ${i + 1}/${count} after ${maxAttempts} attempts`,
-        );
-      }
+    if (spawned < count) {
+      console.warn(
+        `Only spawned ${spawned}/${count} cars - insufficient road space`,
+      );
     }
   }
 
