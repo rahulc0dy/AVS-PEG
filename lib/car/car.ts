@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -59,6 +51,8 @@ export class Car {
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
 
+  private worker: Worker | null = null;
+
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
   /** Root group returned by the GLTF loader (null until loaded). */
@@ -82,7 +76,6 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
-   * @param options
    */
   constructor(
     position: Node,
@@ -140,6 +133,7 @@ export class Car {
     if (this.sensor) {
       this.sensor.ignoreTraffic = true;
     }
+    this.initWorker();
   }
 
   /**
@@ -196,8 +190,8 @@ export class Car {
         transparent: true,
         opacity: 0.1,
       });
-      const carMesh = new Mesh(carGeometry, carMaterial);
-      this.carColliderMesh = carMesh;
+
+      this.carColliderMesh = new Mesh(carGeometry, carMaterial);
     }
     this.carColliderMesh.position.set(
       this.position.x,
@@ -371,5 +365,12 @@ export class Car {
 
     this.position.x += Math.cos(this.angle) * this.speed;
     this.position.y += Math.sin(this.angle) * this.speed;
+  }
+
+  private initWorker() {
+    if (!window.Worker) return;
+
+    this.worker = new Worker(new URL("./car.worker.ts", import.meta.url));
+    this.worker.postMessage("hello");
   }
 }
