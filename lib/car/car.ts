@@ -104,6 +104,8 @@ export class Car {
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
+
+    this.initWorker();
   }
 
   /**
@@ -133,7 +135,6 @@ export class Car {
     if (this.sensor) {
       this.sensor.ignoreTraffic = true;
     }
-    this.initWorker();
   }
 
   /**
