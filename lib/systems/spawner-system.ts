@@ -17,8 +17,9 @@ export class SpawnerSystem {
   private readonly length = 17.5;
   private readonly height = 7;
 
+  private readonly worldGroup: Group;
+
   private cars: Car[];
-  private worldGroup: Group;
   private roads: Road[];
 
   /**
@@ -72,6 +73,7 @@ export class SpawnerSystem {
       const roadAngle = angle(skeleton.directionVector());
 
       const car = new Car(
+        this.cars.length,
         midpoint,
         this.breadth,
         this.length,
@@ -120,6 +122,7 @@ export class SpawnerSystem {
   ): void {
     for (let i = 0; i < count; i++) {
       const car = new Car(
+        this.cars.length,
         // IMPORTANT: `Car.move()` mutates `this.position` every frame.
         // If we pass the same `Node` reference to multiple cars, they will all
         // mutate the same object, effectively multiplying movement speed by the

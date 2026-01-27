@@ -22,6 +22,8 @@ import { Edge } from "@/lib/primitives/edge";
  * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
+  /** Unique identifier for this car. */
+  id: number;
   /** Position in world units. `y` maps to Three.js Z when rendering. */
   position: Node;
   /** Vehicle width along the X axis. */
@@ -64,7 +66,7 @@ export class Car {
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
 
   /** Parent Three.js group where this car attaches its meshes. */
-  private group: Group;
+  private readonly group: Group;
 
   /**
    * Create a new simulated car.
@@ -78,6 +80,7 @@ export class Car {
    * @param maxSpeed Maximum forward speed.
    */
   constructor(
+    id: number,
     position: Node,
     breadth: number,
     length: number,
@@ -87,6 +90,7 @@ export class Car {
     angle = 0,
     maxSpeed = 0.5,
   ) {
+    this.id = id;
     this.position = position;
     this.breadth = breadth;
     this.length = length;

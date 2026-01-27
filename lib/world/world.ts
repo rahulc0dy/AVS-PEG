@@ -83,6 +83,7 @@ export class World {
       for (const carConfig of config.initialCars) {
         this.cars.push(
           new Car(
+            this.cars.length,
             carConfig.position,
             10, // breadth
             17.5, // length
