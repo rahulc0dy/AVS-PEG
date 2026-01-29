@@ -1,6 +1,14 @@
 import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
+import {
+  CarControlSnapshot,
+  CarKinematicsState,
+  CarKinematicsStepResult,
+  CarWorkerIncomingMessage,
+  CarWorkerOutgoingMessage,
+  CarWorkerStepResult,
+} from "@/lib/car/car-worker-types";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
 import { doPolygonsIntersect, getIntersection } from "@/utils/math";
@@ -13,7 +21,8 @@ import { Edge } from "@/lib/primitives/edge";
  *
  * Responsibilities:
  * - Maintain logical state (position, heading, speed)
- * - Advance simulation each frame (`update` / `move`)
+ * - Advance simulation each frame (`update`), optionally delegating
+ *   kinematics to a per-car worker
  * - Provide a collision polygon used for intersection tests
  * - Lazily load and render a 3D model and an optional collider mesh
  *
@@ -53,7 +62,14 @@ export class Car {
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
 
+  /** Dedicated worker assigned to this car (null if unsupported). */
   private worker: Worker | null = null;
+  /** True once the worker acknowledges initialization. */
+  private workerReady = false;
+  /** Indicates an in-flight step request to the worker. */
+  private workerBusy = false;
+  /** Latest step computed on the worker, awaiting application on the main thread. */
+  private pendingWorkerStep: CarWorkerStepResult | null = null;
 
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
@@ -116,22 +132,29 @@ export class Car {
    * Advance the simulation by one frame.
    *
    * This updates visuals, moves the car when not damaged, recomputes the
-   * collision polygon, performs collision checks against `traffic`, and
-   * updates sensors if present.
+   * collision polygon (via worker result or local fallback), performs
+   * collision checks against `traffic`, and updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
    * @param pathBorders
    */
   update(traffic: Car[], pathBorders: Edge[]) {
-    this.draw(this.group, this.modelUrl);
-    if (!this.damaged) {
-      this.move();
-      this.polygon = this.createPolygon();
+    const appliedWorkerState = this.applyPendingWorkerStep();
+
+    if (!this.damaged && !appliedWorkerState) {
+      this.applyKinematicsResult(this.stepLocally());
+    }
+
+    if (!this.damaged && this.polygon) {
       this.damaged = this.assessDamage(traffic, pathBorders);
     }
+
     if (this.sensor) {
       this.sensor.update(traffic, pathBorders);
       this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
     }
+
+    this.draw(this.group, this.modelUrl);
+    this.requestWorkerStep();
   }
 
   ignoreDamageFromCars() {
@@ -139,6 +162,172 @@ export class Car {
     if (this.sensor) {
       this.sensor.ignoreTraffic = true;
     }
+  }
+
+  /**
+   * Snapshot the current kinematic state in a form suitable for worker
+   * transfer. Rendering-only fields are intentionally excluded.
+   */
+  private getKinematicsState(): CarKinematicsState {
+    return {
+      id: this.id,
+      position: { x: this.position.x, y: this.position.y },
+      angle: this.angle,
+      speed: this.speed,
+      acceleration: this.acceleration,
+      maxSpeed: this.maxSpeed,
+      friction: this.friction,
+      breadth: this.breadth,
+      length: this.length,
+    };
+  }
+
+  /**
+   * Convert control flags into a plain object that can be posted to a worker.
+   */
+  private getControlSnapshot(): CarControlSnapshot {
+    return {
+      forward: this.controls.forward,
+      reverse: this.controls.reverse,
+      left: this.controls.left,
+      right: this.controls.right,
+    };
+  }
+
+  /**
+   * Main-thread fallback for advancing kinematics when a worker is not ready.
+   */
+  private stepLocally(): CarKinematicsStepResult {
+    const state = this.getKinematicsState();
+    const controls = this.getControlSnapshot();
+
+    let speed = state.speed;
+    let angle = state.angle;
+
+    if (controls.forward) speed += state.acceleration;
+    if (controls.reverse) speed -= state.acceleration;
+
+    if (speed > state.maxSpeed) speed = state.maxSpeed;
+    if (speed < -state.maxSpeed / 2) speed = -state.maxSpeed / 2;
+
+    if (speed > 0) speed -= state.friction;
+    if (speed < 0) speed += state.friction;
+    if (Math.abs(speed) < state.friction) speed = 0;
+
+    if (speed !== 0) {
+      const flip = speed > 0 ? 1 : -1;
+      if (controls.left) angle -= 0.03 * flip;
+      if (controls.right) angle += 0.03 * flip;
+    }
+
+    const position = {
+      x: state.position.x + Math.cos(angle) * speed,
+      y: state.position.y + Math.sin(angle) * speed,
+    };
+
+    return {
+      state: {
+        ...state,
+        position,
+        angle,
+        speed,
+      },
+      polygonPoints: this.createFootprintPoints(
+        position,
+        angle,
+        state.breadth,
+        state.length,
+      ),
+    };
+  }
+
+  /**
+   * Apply a worker (or local) kinematic step onto this car, updating position,
+   * orientation, speed and the collision polygon.
+   */
+  private applyKinematicsResult(result: CarKinematicsStepResult) {
+    this.position.x = result.state.position.x;
+    this.position.y = result.state.position.y;
+    this.angle = result.state.angle;
+    this.speed = result.state.speed;
+
+    this.polygon = new Polygon(
+      result.polygonPoints.map((p) => new Node(p.x, p.y)),
+    );
+  }
+
+  /**
+   * Build the rectangular footprint polygon for a car given its centre
+   * position, heading, width and length.
+   */
+  private createFootprintPoints(
+    position: { x: number; y: number },
+    angle: number,
+    breadth: number,
+    length: number,
+  ) {
+    const points: { x: number; y: number }[] = [];
+    const radius = Math.hypot(breadth, length) / 2;
+    const alpha = Math.atan2(breadth, length);
+
+    points.push({
+      x: position.x + Math.cos(angle - alpha) * radius,
+      y: position.y + Math.sin(angle - alpha) * radius,
+    });
+    points.push({
+      x: position.x + Math.cos(angle + alpha) * radius,
+      y: position.y + Math.sin(angle + alpha) * radius,
+    });
+    points.push({
+      x: position.x + Math.cos(Math.PI + angle - alpha) * radius,
+      y: position.y + Math.sin(Math.PI + angle - alpha) * radius,
+    });
+    points.push({
+      x: position.x + Math.cos(Math.PI + angle + alpha) * radius,
+      y: position.y + Math.sin(Math.PI + angle + alpha) * radius,
+    });
+
+    return points;
+  }
+
+  /**
+   * Consume the latest worker step if one is queued. Returns true when a
+   * worker-produced result was applied this frame.
+   */
+  private applyPendingWorkerStep(): boolean {
+    if (this.damaged || !this.pendingWorkerStep) {
+      return false;
+    }
+
+    this.applyKinematicsResult(this.pendingWorkerStep);
+    this.pendingWorkerStep = null;
+    return true;
+  }
+
+  /**
+   * Post an asynchronous step request to the worker. If workers are not
+   * available, the car continues to run entirely on the main thread.
+   */
+  private requestWorkerStep() {
+    if (
+      !this.worker ||
+      !this.workerReady ||
+      this.workerBusy ||
+      this.damaged
+    ) {
+      return;
+    }
+
+    const message: CarWorkerIncomingMessage = {
+      type: "step",
+      payload: {
+        state: this.getKinematicsState(),
+        controls: this.getControlSnapshot(),
+      },
+    };
+
+    this.workerBusy = true;
+    this.worker.postMessage(message);
   }
 
   /**
@@ -216,6 +405,14 @@ export class Car {
    * collider mesh.
    */
   dispose() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+      this.workerReady = false;
+      this.workerBusy = false;
+      this.pendingWorkerStep = null;
+    }
+
     if (this.sensor) {
       this.sensor.dispose();
     }
@@ -289,93 +486,45 @@ export class Car {
   }
 
   /**
-   * Construct a collision polygon representing this car's footprint.
-   *
-   * The polygon is computed from the car's centre position, dimensions and
-   * heading and returned as a `Polygon` suitable for intersection tests.
+   * Create and wire a dedicated Web Worker for this car. When workers are not
+   * available (SSR or older browsers), the car continues to simulate on the
+   * main thread.
    */
-  private createPolygon(): Polygon {
-    const points = [];
-    const rad = Math.hypot(this.breadth, this.length) / 2;
-    const alpha = Math.atan2(this.breadth, this.length);
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle - alpha) * rad,
-        this.position.y + Math.sin(this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle + alpha) * rad,
-        this.position.y + Math.sin(this.angle + alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle - alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle + alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle + alpha) * rad,
-      ),
-    );
-    return new Polygon(points);
-  }
-
-  /**
-   * Apply a single timestep of vehicle dynamics.
-   *
-   * Applies acceleration/reverse inputs, clamps speed, applies friction,
-   * handles turning (inverts when reversing) and updates position.
-   */
-  private move() {
-    if (this.controls.forward) {
-      this.speed += this.acceleration;
-    }
-    if (this.controls.reverse) {
-      this.speed -= this.acceleration;
-    }
-
-    if (this.speed > this.maxSpeed) {
-      this.speed = this.maxSpeed;
-    }
-    if (this.speed < -this.maxSpeed / 2) {
-      this.speed = -this.maxSpeed / 2;
-    }
-
-    if (this.speed > 0) {
-      this.speed -= this.friction;
-    }
-    if (this.speed < 0) {
-      this.speed += this.friction;
-    }
-
-    if (Math.abs(this.speed) < this.friction) {
-      this.speed = 0;
-    }
-
-    if (this.speed != 0) {
-      const flip = this.speed > 0 ? 1 : -1;
-      // In math, anti-clockwise is +ve angle, so we reverse the angle to handle it properly
-      if (this.controls.left) {
-        this.angle -= 0.03 * flip;
-      }
-      if (this.controls.right) {
-        this.angle += 0.03 * flip;
-      }
-    }
-
-    this.position.x += Math.cos(this.angle) * this.speed;
-    this.position.y += Math.sin(this.angle) * this.speed;
-  }
-
   private initWorker() {
-    if (!window.Worker) return;
+    if (typeof window === "undefined" || !window.Worker) return;
 
-    this.worker = new Worker(new URL("./car.worker.ts", import.meta.url));
-    this.worker.postMessage("hello");
+    this.worker = new Worker(new URL("./car.worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    this.worker.onmessage = (
+      event: MessageEvent<CarWorkerOutgoingMessage>,
+    ) => {
+      const message = event.data;
+      if (message.type === "ready" && message.payload.id === this.id) {
+        this.workerReady = true;
+        this.workerBusy = false;
+        return;
+      }
+
+      if (message.type === "step" && message.payload.id === this.id) {
+        this.workerBusy = false;
+        this.pendingWorkerStep = message.payload;
+      }
+    };
+
+    this.worker.onerror = () => {
+      this.workerReady = false;
+      this.workerBusy = false;
+    };
+
+    const initMessage: CarWorkerIncomingMessage = {
+      type: "init",
+      payload: {
+        id: this.id,
+        state: this.getKinematicsState(),
+      },
+    };
+    this.worker.postMessage(initMessage);
   }
 }
