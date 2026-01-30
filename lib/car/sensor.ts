@@ -185,6 +185,7 @@ export class Sensor {
    *
    * @param ray - Ray segment to test
    * @param traffic - Array of other cars whose polygons will be tested
+   * @param pathBorders
    * @returns The nearest `Intersection` along the ray, or `null` if none
    */
   private getReading(ray: Edge, traffic: Car[], pathBorders: Edge[]) {

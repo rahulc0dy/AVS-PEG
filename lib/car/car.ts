@@ -6,6 +6,14 @@ import { Node } from "../primitives/node";
 import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
+import {
+  CarInitPayload,
+  CarWorkerOutboundMessage,
+  ControlInputs,
+  UpdateControlsPayload,
+  WorkerInboundMessageType,
+  WorkerOutboundMessageType
+} from "@/lib/car/types";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -70,6 +78,7 @@ export class Car {
 
   /**
    * Create a new simulated car.
+   * @param id
    * @param position Initial world position (x, y; where y maps to Three.js Z).
    * @param breadth Vehicle width along X.
    * @param length Vehicle length along Z.
@@ -124,7 +133,18 @@ export class Car {
   update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
-      this.move();
+      this.worker?.postMessage({
+        type: WorkerInboundMessageType.UPDATE_CONTROLS,
+        payload: {
+          id: this.id,
+          controls: {
+            forward: this.controls.forward,
+            reverse: this.controls.reverse,
+            right: this.controls.right,
+            left: this.controls.left,
+          } as ControlInputs,
+        } as UpdateControlsPayload,
+      });
       this.polygon = this.createPolygon();
       this.damaged = this.assessDamage(traffic, pathBorders);
     }
@@ -325,57 +345,54 @@ export class Car {
     return new Polygon(points);
   }
 
-  /**
-   * Apply a single timestep of vehicle dynamics.
-   *
-   * Applies acceleration/reverse inputs, clamps speed, applies friction,
-   * handles turning (inverts when reversing) and updates position.
-   */
-  private move() {
-    if (this.controls.forward) {
-      this.speed += this.acceleration;
-    }
-    if (this.controls.reverse) {
-      this.speed -= this.acceleration;
-    }
-
-    if (this.speed > this.maxSpeed) {
-      this.speed = this.maxSpeed;
-    }
-    if (this.speed < -this.maxSpeed / 2) {
-      this.speed = -this.maxSpeed / 2;
-    }
-
-    if (this.speed > 0) {
-      this.speed -= this.friction;
-    }
-    if (this.speed < 0) {
-      this.speed += this.friction;
-    }
-
-    if (Math.abs(this.speed) < this.friction) {
-      this.speed = 0;
-    }
-
-    if (this.speed != 0) {
-      const flip = this.speed > 0 ? 1 : -1;
-      // In math, anti-clockwise is +ve angle, so we reverse the angle to handle it properly
-      if (this.controls.left) {
-        this.angle -= 0.03 * flip;
-      }
-      if (this.controls.right) {
-        this.angle += 0.03 * flip;
-      }
-    }
-
-    this.position.x += Math.cos(this.angle) * this.speed;
-    this.position.y += Math.sin(this.angle) * this.speed;
-  }
-
   private initWorker() {
     if (!window.Worker) return;
 
     this.worker = new Worker(new URL("./car.worker.ts", import.meta.url));
-    this.worker.postMessage("hello");
+
+    this.worker.onmessage = (event: MessageEvent<CarWorkerOutboundMessage>) => {
+      const message = event.data;
+      switch (message.type) {
+        case WorkerOutboundMessageType.STATE_UPDATE:
+          const statePayload = message.payload;
+          this.position = new Node(
+            statePayload.position.x,
+            statePayload.position.y,
+          );
+          this.angle = statePayload.angle;
+          this.damaged = statePayload.damaged;
+          break;
+      }
+    };
+
+    this.worker.postMessage({
+      type: WorkerInboundMessageType.INIT,
+      payload: {
+        id: this.id,
+        position: { x: this.position.x, y: this.position.y },
+        breadth: this.breadth,
+        length: this.length,
+        height: this.height,
+        speed: this.speed,
+        acceleration: this.acceleration,
+        maxSpeed: this.maxSpeed,
+        friction: this.friction,
+        angle: this.angle,
+        damaged: this.damaged,
+        sensor: {
+          rayCount: this.sensor?.rayCount,
+          rayLength: this.sensor?.rayLength,
+          raySpreadAngle: this.sensor?.raySpreadAngle,
+          ignoreTraffic: this.sensor?.ignoreTraffic,
+        },
+        controls: {
+          forward: this.controls.forward,
+          left: this.controls.left,
+          right: this.controls.right,
+          reverse: this.controls.reverse,
+        },
+        ignoreCarDamage: this.ignoreCarDamage,
+      } as CarInitPayload,
+    });
   }
 }
