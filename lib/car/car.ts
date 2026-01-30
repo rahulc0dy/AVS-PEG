@@ -1,19 +1,27 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
-import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
-  ControlInputs,
+  UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
-} from "@/lib/car/types";
+  WorkerOutboundMessageType,
+} from "@/types/car/message";
+import { ControlInputs, Position2D, TrafficData } from "@/types/car/shared";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -124,15 +132,15 @@ export class Car {
   /**
    * Advance the simulation by one frame.
    *
-   * This updates visuals, moves the car when not damaged, recomputes the
-   * collision polygon, performs collision checks against `traffic`, and
+   * This updates visuals, sends collision data to worker, and
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
-   * @param pathBorders
+   * @param pathBorders Path borders for collision detection.
    */
   update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
+      // Send control inputs to worker
       this.worker?.postMessage({
         type: WorkerInboundMessageType.UPDATE_CONTROLS,
         payload: {
@@ -145,13 +153,33 @@ export class Car {
           } as ControlInputs,
         } as UpdateControlsPayload,
       });
-      this.polygon = this.createPolygon();
-      this.damaged = this.assessDamage(traffic, pathBorders);
+
+      // Send collision data to worker
+      this.worker?.postMessage({
+        type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
+        payload: {
+          id: this.id,
+          traffic: this.serializeTraffic(traffic),
+          pathBorders: pathBorders.map((edge) => ({
+            n1: { x: edge.n1.x, y: edge.n1.y },
+            n2: { x: edge.n2.x, y: edge.n2.y },
+          })),
+        } as UpdateCollisionDataPayload,
+      });
     }
     if (this.sensor) {
       this.sensor.update(traffic, pathBorders);
       this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
     }
+  }
+
+  /** Serialize traffic cars to simple polygon data for worker */
+  private serializeTraffic(traffic: Car[]): TrafficData[] {
+    return traffic.map((car) => ({
+      polygon: car.polygon
+        ? car.polygon.nodes.map((n) => ({ x: n.x, y: n.y }))
+        : null,
+    }));
   }
 
   ignoreDamageFromCars() {
@@ -233,9 +261,15 @@ export class Car {
   /**
    * Dispose Three.js resources used by this car and remove visuals from the
    * scene. This frees geometries and materials owned by the car's model and
-   * collider mesh.
+   * collider mesh. Also terminates the worker thread.
    */
   dispose() {
+    // Terminate worker thread
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+
     if (this.sensor) {
       this.sensor.dispose();
     }
@@ -279,70 +313,9 @@ export class Car {
     }
   }
 
-  /**
-   * Check for collisions between this car and other vehicles.
-   *
-   * Iterates over the provided `traffic` array and returns `true` if the
-   * current car's collision polygon intersects any other's polygon.
-   */
-  private assessDamage(traffic: Car[], pathBorders: Edge[]): boolean {
-    if (this.polygon === null) return false;
-
-    if (!this.ignoreCarDamage) {
-      for (let i = 0; i < traffic.length; i++) {
-        if (traffic[i].polygon === null) continue;
-        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-          return true;
-        }
-      }
-    }
-
-    for (const pathBorder of pathBorders) {
-      for (const edge of this.polygon.edges) {
-        if (getIntersection(pathBorder.n1, pathBorder.n2, edge.n1, edge.n2)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Construct a collision polygon representing this car's footprint.
-   *
-   * The polygon is computed from the car's centre position, dimensions and
-   * heading and returned as a `Polygon` suitable for intersection tests.
-   */
-  private createPolygon(): Polygon {
-    const points = [];
-    const rad = Math.hypot(this.breadth, this.length) / 2;
-    const alpha = Math.atan2(this.breadth, this.length);
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle - alpha) * rad,
-        this.position.y + Math.sin(this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle + alpha) * rad,
-        this.position.y + Math.sin(this.angle + alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle - alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle + alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle + alpha) * rad,
-      ),
-    );
-    return new Polygon(points);
+  /** Convert Position2D array from worker to Polygon */
+  private polygonFromPositions(positions: Position2D[]): Polygon {
+    return new Polygon(positions.map((p) => new Node(p.x, p.y)));
   }
 
   private initWorker() {
@@ -361,6 +334,10 @@ export class Car {
           );
           this.angle = statePayload.angle;
           this.damaged = statePayload.damaged;
+          // Reconstruct polygon from worker data
+          if (statePayload.polygon) {
+            this.polygon = this.polygonFromPositions(statePayload.polygon);
+          }
           break;
       }
     };

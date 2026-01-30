@@ -12,7 +12,12 @@ Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Nex
   - `systems/` - `TrafficLightSystem`, `PathFindingSystem`, `SpawnerSystem` - update each frame
   - `editors/` - Extend `BaseEditor` abstract class for graph/marking manipulation
   - `markings/` - `Marking` base class for traffic lights, sources, destinations
-  - `car/` - `Car` with physics, sensors, and `Controls` (AI/Human/None)
+  - `car/` - `Car` with physics offloaded to Web Worker, sensors, and `Controls` (AI/Human/None)
+
+- **`types/car/`** - Type definitions for car worker thread communication
+  - `message.ts` - Message payloads and type constants for worker communication
+  - `shared.ts` - Serializable types shared between main thread and worker
+  - `state.ts` - Worker-side car state interface
 
 - **`components/hooks/`** - React hooks that bridge simulation and UI
   - `useWorld` - Creates/disposes `World` instance
@@ -49,7 +54,30 @@ Each editor owns an `editorGroup: Group` attached to the scene. Toggle visibilit
 
 ### Resource Disposal
 
-All classes with Three.js resources implement `dispose()` to clean up geometries/materials. Call `dispose()` before dereferencing. Example: `Node.dispose()`, `Car.dispose()`, `World.dispose()`.
+All classes with Three.js resources implement `dispose()` to clean up geometries/materials. Call `dispose()` before dereferencing. Example: `Node.dispose()`, `Car.dispose()`, `World.dispose()`. `Car.dispose()` also terminates the associated worker thread.
+
+### Worker Thread Communication (Car Physics)
+
+Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main thread responsive:
+
+**Architecture:**
+
+- `Car` (main thread) handles rendering, sensors, and control inputs
+- `car.worker` (worker thread) runs physics simulation: acceleration, friction, steering, collision detection
+
+**Message Flow:**
+
+1. `Car.initWorker()` spawns worker and sends `INIT` message with initial car state
+2. Each frame, `Car.update()` sends `UPDATE_CONTROLS` and `UPDATE_COLLISION_DATA` to worker
+3. Worker runs physics at `requestAnimationFrame` rate, posts `STATE_UPDATE` back with position, angle, damage, and polygon
+4. Main thread updates `Car` properties from worker state
+
+**Serialization Pattern:**
+Complex classes (`Node`, `Polygon`, `Edge`) are serialized to plain objects (`Position2D`, `EdgeData`, `PolygonData`) for worker transfer. Types live in `types/car/`:
+
+- `shared.ts` - Portable data types: `Position2D`, `ControlInputs`, `EdgeData`, `TrafficData`
+- `message.ts` - Message payloads and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
+- `state.ts` - `WorkerCarState` interface for worker-side state
 
 ### Serialization
 
