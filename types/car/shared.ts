@@ -1,9 +1,3 @@
-/** 2D position coordinates */
-export interface Position2D {
-  x: number;
-  y: number;
-}
-
 /** Base interface containing car identifier */
 export interface CarBasePayload {
   id: number;
@@ -23,18 +17,4 @@ export interface ControlInputs {
   left: boolean;
   right: boolean;
   reverse: boolean;
-}
-
-/** Serializable edge for worker communication */
-export interface EdgeData {
-  n1: Position2D;
-  n2: Position2D;
-}
-
-/** Serializable polygon (array of points) for worker communication */
-export type PolygonData = Position2D[];
-
-/** Traffic car data for collision detection */
-export interface TrafficData {
-  polygon: PolygonData | null;
 }

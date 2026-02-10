@@ -1,15 +1,10 @@
-import {
-  ControlInputs,
-  EdgeData,
-  Position2D,
-  SensorConfig,
-  TrafficData,
-} from "@/types/car/shared";
+import { ControlInputs, SensorConfig } from "@/types/car/shared";
+import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
 
 /** Complete car state maintained within the worker thread */
 export type WorkerCarState = {
   id: number;
-  position: Position2D;
+  position: NodeJson;
   breadth: number;
   length: number;
   height: number;
@@ -23,9 +18,9 @@ export type WorkerCarState = {
   controls: ControlInputs;
   ignoreCarDamage: boolean;
   /** Cached polygon for collision detection */
-  polygon: Position2D[] | null;
+  polygon: PolygonJson | null;
   /** Traffic data for collision detection */
-  traffic: TrafficData[];
+  traffic: PolygonJson[];
   /** Path borders for collision detection */
-  pathBorders: EdgeData[];
+  pathBorders: EdgeJson[];
 };

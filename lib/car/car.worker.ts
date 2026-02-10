@@ -5,7 +5,9 @@ import {
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import { EdgeData, PolygonData, Position2D } from "@/types/car/shared";
+import { doPolygonsIntersect, getIntersection } from "@/utils/math";
+import { Node } from "@/lib/primitives/node";
+import { Polygon } from "@/lib/primitives/polygon";
 
 let carState: WorkerCarState;
 
@@ -138,29 +140,29 @@ const updatePosition = () => {
 };
 
 /** Construct a collision polygon from car's position, dimensions and heading. */
-const createPolygon = (): PolygonData => {
+const createPolygon = (): Polygon => {
   const { position, breadth, length, angle } = carState;
   const rad = Math.hypot(breadth, length) / 2;
   const alpha = Math.atan2(breadth, length);
 
-  return [
-    {
-      x: position.x + Math.cos(angle - alpha) * rad,
-      y: position.y + Math.sin(angle - alpha) * rad,
-    },
-    {
-      x: position.x + Math.cos(angle + alpha) * rad,
-      y: position.y + Math.sin(angle + alpha) * rad,
-    },
-    {
-      x: position.x + Math.cos(Math.PI + angle - alpha) * rad,
-      y: position.y + Math.sin(Math.PI + angle - alpha) * rad,
-    },
-    {
-      x: position.x + Math.cos(Math.PI + angle + alpha) * rad,
-      y: position.y + Math.sin(Math.PI + angle + alpha) * rad,
-    },
-  ];
+  return new Polygon([
+    new Node(
+      position.x + Math.cos(angle - alpha) * rad,
+      position.y + Math.sin(angle - alpha) * rad,
+    ),
+    new Node(
+      position.x + Math.cos(angle + alpha) * rad,
+      position.y + Math.sin(angle + alpha) * rad,
+    ),
+    new Node(
+      position.x + Math.cos(Math.PI + angle - alpha) * rad,
+      position.y + Math.sin(Math.PI + angle - alpha) * rad,
+    ),
+    new Node(
+      position.x + Math.cos(Math.PI + angle + alpha) * rad,
+      position.y + Math.sin(Math.PI + angle + alpha) * rad,
+    ),
+  ]);
 };
 
 /** Check for collisions with traffic and path borders */
@@ -169,83 +171,40 @@ const assessDamage = (): boolean => {
 
   // Check traffic collisions
   if (!carState.ignoreCarDamage) {
+    const carPolygon = new Polygon([]);
+    carPolygon.fromJson(carState.polygon);
+
     for (const traffic of carState.traffic) {
-      if (!traffic.polygon) continue;
-      if (doPolygonsIntersect(carState.polygon, traffic.polygon)) {
+      if (!traffic) continue;
+
+      const trafficPolygon = new Polygon([]);
+      trafficPolygon.fromJson(trafficPolygon);
+
+      if (doPolygonsIntersect(carPolygon, trafficPolygon)) {
         return true;
       }
     }
   }
 
   // Check border collisions
-  for (const border of carState.pathBorders) {
-    if (doesPolygonIntersectEdge(carState.polygon, border)) {
-      return true;
-    }
-  }
+  for (const pathBorder of carState.pathBorders) {
+    const pathBorderN1 = new Node(0, 0);
+    pathBorderN1.fromJson(pathBorder.n1);
 
-  return false;
-};
+    const pathBorderN2 = new Node(0, 0);
+    pathBorderN2.fromJson(pathBorder.n2);
 
-/** Test whether two polygons intersect (edge-edge intersection test) */
-const doPolygonsIntersect = (
-  polyA: PolygonData,
-  polyB: PolygonData,
-): boolean => {
-  for (let i = 0; i < polyA.length; i++) {
-    const a1 = polyA[i];
-    const a2 = polyA[(i + 1) % polyA.length];
-    for (let j = 0; j < polyB.length; j++) {
-      const b1 = polyB[j];
-      const b2 = polyB[(j + 1) % polyB.length];
-      if (getIntersection(a1, a2, b1, b2)) {
+    for (const edge of carState.polygon.edges) {
+      const edgeN1 = new Node(0, 0);
+      edgeN1.fromJson(edge.n1);
+
+      const edgeN2 = new Node(0, 0);
+      edgeN2.fromJson(edge.n2);
+      if (getIntersection(pathBorderN1, pathBorderN2, edgeN1, edgeN2)) {
         return true;
       }
     }
   }
+
   return false;
-};
-
-/** Test whether polygon intersects with an edge */
-const doesPolygonIntersectEdge = (
-  polygon: PolygonData,
-  edge: EdgeData,
-): boolean => {
-  for (let i = 0; i < polygon.length; i++) {
-    const p1 = polygon[i];
-    const p2 = polygon[(i + 1) % polygon.length];
-    if (getIntersection(p1, p2, edge.n1, edge.n2)) {
-      return true;
-    }
-  }
-  return false;
-};
-
-/** Linear interpolation */
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
-/**
- * Compute intersection point between segments AB and CD.
- * Returns intersection coordinates or null if segments don't intersect.
- */
-const getIntersection = (
-  A: Position2D,
-  B: Position2D,
-  C: Position2D,
-  D: Position2D,
-): { x: number; y: number } | null => {
-  const tNumerator = (D.x - C.x) * (A.y - C.y) - (D.y - C.y) * (A.x - C.x);
-  const uNumerator = (C.y - A.y) * (A.x - B.x) - (C.x - A.x) * (A.y - B.y);
-  const denominator = (D.y - C.y) * (B.x - A.x) - (D.x - C.x) * (B.y - A.y);
-
-  const EPSILON = 0.001;
-  if (Math.abs(denominator) <= EPSILON) return null;
-
-  const t = tNumerator / denominator;
-  const u = uNumerator / denominator;
-
-  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-    return { x: lerp(A.x, B.x, t), y: lerp(A.y, B.y, t) };
-  }
-  return null;
 };

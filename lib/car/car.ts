@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -19,9 +11,9 @@ import {
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType,
+  WorkerOutboundMessageType
 } from "@/types/car/message";
-import { ControlInputs, Position2D, TrafficData } from "@/types/car/shared";
+import { ControlInputs } from "@/types/car/shared";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -159,11 +151,8 @@ export class Car {
         type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
         payload: {
           id: this.id,
-          traffic: this.serializeTraffic(traffic),
-          pathBorders: pathBorders.map((edge) => ({
-            n1: { x: edge.n1.x, y: edge.n1.y },
-            n2: { x: edge.n2.x, y: edge.n2.y },
-          })),
+          traffic: traffic.map((car) => car.polygon?.toJson()),
+          pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
         } as UpdateCollisionDataPayload,
       });
     }
@@ -171,15 +160,6 @@ export class Car {
       this.sensor.update(traffic, pathBorders);
       this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
     }
-  }
-
-  /** Serialize traffic cars to simple polygon data for worker */
-  private serializeTraffic(traffic: Car[]): TrafficData[] {
-    return traffic.map((car) => ({
-      polygon: car.polygon
-        ? car.polygon.nodes.map((n) => ({ x: n.x, y: n.y }))
-        : null,
-    }));
   }
 
   ignoreDamageFromCars() {
@@ -313,11 +293,6 @@ export class Car {
     }
   }
 
-  /** Convert Position2D array from worker to Polygon */
-  private polygonFromPositions(positions: Position2D[]): Polygon {
-    return new Polygon(positions.map((p) => new Node(p.x, p.y)));
-  }
-
   private initWorker() {
     if (!window.Worker) return;
 
@@ -336,7 +311,7 @@ export class Car {
           this.damaged = statePayload.damaged;
           // Reconstruct polygon from worker data
           if (statePayload.polygon) {
-            this.polygon = this.polygonFromPositions(statePayload.polygon);
+            this.polygon?.fromJson(statePayload.polygon);
           }
           break;
       }

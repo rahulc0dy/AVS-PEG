@@ -1,15 +1,9 @@
-import {
-  CarBasePayload,
-  ControlInputs,
-  EdgeData,
-  Position2D,
-  SensorConfig,
-  TrafficData,
-} from "@/types/car/shared";
+import { CarBasePayload, ControlInputs, SensorConfig } from "@/types/car/shared";
+import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
-  position: Position2D;
+  position: NodeJson;
   breadth: number;
   length: number;
   height: number;
@@ -31,16 +25,16 @@ export interface UpdateControlsPayload extends CarBasePayload {
 
 /** Payload for updating traffic and borders for collision detection */
 export interface UpdateCollisionDataPayload extends CarBasePayload {
-  traffic: TrafficData[];
-  pathBorders: EdgeData[];
+  traffic: PolygonJson[];
+  pathBorders: EdgeJson[];
 }
 
 /** Payload for car state updates sent from worker */
 export interface CarStatePayload extends CarBasePayload {
-  position: Position2D;
+  position: NodeJson;
   angle: number;
   damaged: boolean;
-  polygon: Position2D[] | null;
+  polygon: PolygonJson | null;
 }
 
 /** Message types sent from main thread to worker */
