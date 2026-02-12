@@ -50,6 +50,20 @@ export class TrafficLight extends Marking {
   }
 
   /**
+   * Populate fields from JSON and restore state (recreate lights).
+   * @param json TrafficLight JSON loaded from disk or network.
+   */
+  static fromJson(json: TrafficLightJson, group: Group): TrafficLight {
+    const trafficLight = new TrafficLight(
+      Node.fromJson(json.position),
+      Node.fromJson(json.direction),
+      group,
+    );
+    trafficLight.setState(json.lightState);
+    return trafficLight;
+  }
+
+  /**
    * Set the visible light state (red/yellow/green). This recreates the
    * internal `PointLight` with appropriate color and positions it.
    */
@@ -75,43 +89,6 @@ export class TrafficLight extends Marking {
     );
     this.activeLightHelper = new PointLightHelper(this.activeLight);
     this.setLightPosition();
-  }
-
-  /**
-   * Compute and set the world position of the active light based on the
-   * marking's position and direction. Uses the configured relative offsets
-   * from `TRAFFIC_LIGHT_CONFIG`.
-   */
-  private setLightPosition() {
-    if (this.activeLight) {
-      // Rotate the configured relative XZ offset by the marking's direction
-      // so the light follows the marking orientation.
-      const relativePosition =
-        TRAFFIC_LIGHT_CONFIG[this.lightState].relativePosition;
-      const ang = angle(this.direction);
-
-      // use Node + utils.add to compute world position
-      const relativeNodeTranslatedOnX = translate(
-        this.position,
-        ang - Math.PI / 2, // perpendicular to the forward direction
-        relativePosition.x,
-      );
-
-      const relativeNodeTranslatedOnXZ = translate(
-        relativeNodeTranslatedOnX,
-        ang,
-        relativePosition.y,
-      );
-
-      this.activeLight.position.set(
-        relativeNodeTranslatedOnXZ.x,
-        TRAFFIC_LIGHT_HEIGHT,
-        relativeNodeTranslatedOnXZ.y,
-      );
-      if (this.activeLightHelper) {
-        this.activeLightHelper.position.copy(this.activeLight.position);
-      }
-    }
   }
 
   /** Convenience update called by the world loop. */
@@ -176,11 +153,39 @@ export class TrafficLight extends Marking {
   }
 
   /**
-   * Populate fields from JSON and restore state (recreate lights).
-   * @param json TrafficLight JSON loaded from disk or network.
+   * Compute and set the world position of the active light based on the
+   * marking's position and direction. Uses the configured relative offsets
+   * from `TRAFFIC_LIGHT_CONFIG`.
    */
-  fromJson(json: TrafficLightJson) {
-    super.fromJson(json);
-    this.setState(json.lightState);
+  private setLightPosition() {
+    if (this.activeLight) {
+      // Rotate the configured relative XZ offset by the marking's direction
+      // so the light follows the marking orientation.
+      const relativePosition =
+        TRAFFIC_LIGHT_CONFIG[this.lightState].relativePosition;
+      const ang = angle(this.direction);
+
+      // use Node + utils.add to compute world position
+      const relativeNodeTranslatedOnX = translate(
+        this.position,
+        ang - Math.PI / 2, // perpendicular to the forward direction
+        relativePosition.x,
+      );
+
+      const relativeNodeTranslatedOnXZ = translate(
+        relativeNodeTranslatedOnX,
+        ang,
+        relativePosition.y,
+      );
+
+      this.activeLight.position.set(
+        relativeNodeTranslatedOnXZ.x,
+        TRAFFIC_LIGHT_HEIGHT,
+        relativeNodeTranslatedOnXZ.y,
+      );
+      if (this.activeLightHelper) {
+        this.activeLightHelper.position.copy(this.activeLight.position);
+      }
+    }
   }
 }

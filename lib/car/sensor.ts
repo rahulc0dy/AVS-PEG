@@ -1,14 +1,7 @@
 import { Car } from "@/lib/car/car";
 import { Intersection } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
-import { Node } from "@/lib/primitives/node";
-import {
-  BufferGeometry,
-  Float32BufferAttribute,
-  Group,
-  Line,
-  LineBasicMaterial,
-} from "three";
+import { BufferGeometry, Float32BufferAttribute, Group, Line, LineBasicMaterial } from "three";
 import { EdgeJson } from "@/types/save";
 
 /**
@@ -62,9 +55,7 @@ export class Sensor {
    */
   update(rays: EdgeJson[], readings: (Intersection | null)[]) {
     this.rays = rays.map((rayJson) => {
-      const edge = new Edge(new Node(0, 0), new Node(0, 0));
-      edge.fromJson(rayJson);
-      return edge;
+      return Edge.fromJson(rayJson);
     });
     this.readings = readings;
   }

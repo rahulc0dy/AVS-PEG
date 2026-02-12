@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -19,7 +11,7 @@ import {
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType,
+  WorkerOutboundMessageType
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 
@@ -319,7 +311,7 @@ export class Car {
           this.damaged = statePayload.damaged;
           // Reconstruct polygon from worker data
           if (statePayload.polygon) {
-            this.polygon?.fromJson(statePayload.polygon);
+            this.polygon = Polygon.fromJson(statePayload.polygon);
           }
           break;
         case WorkerOutboundMessageType.SENSOR_UPDATE:

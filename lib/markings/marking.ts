@@ -54,6 +54,19 @@ export class Marking {
     this.disposed = false;
   }
 
+  /**
+   * Populate this marking from a serialized representation.
+   * @param json Marking JSON loaded from disk or network.
+   */
+  static fromJson(json: MarkingJson, group: Group): Marking {
+    return new Marking(
+      Node.fromJson(json.position),
+      Node.fromJson(json.direction),
+      group,
+      json.type,
+    );
+  }
+
   /** Convenience update called by the world loop; draws the marking. */
   update() {
     this.draw(this.group, this.modelUrl);
@@ -116,6 +129,15 @@ export class Marking {
     this.model = null;
   }
 
+  /** Serialize this marking to JSON for saving. */
+  toJson() {
+    return {
+      position: this.position.toJson(),
+      direction: this.direction.toJson(),
+      type: this.type,
+    };
+  }
+
   private disposeModel(model: Group) {
     model.traverse((child: Object3D) => {
       if (child instanceof Mesh) {
@@ -128,24 +150,5 @@ export class Marking {
         }
       }
     });
-  }
-
-  /** Serialize this marking to JSON for saving. */
-  toJson() {
-    return {
-      position: this.position.toJson(),
-      direction: this.direction.toJson(),
-      type: this.type,
-    };
-  }
-
-  /**
-   * Populate this marking from a serialized representation.
-   * @param json Marking JSON loaded from disk or network.
-   */
-  fromJson(json: MarkingJson) {
-    this.position.fromJson(json.position);
-    this.direction.fromJson(json.direction);
-    this.type = json.type;
   }
 }

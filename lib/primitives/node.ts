@@ -31,6 +31,15 @@ export class Node {
   }
 
   /**
+   * Restore node coordinates from JSON. Disposes any cached mesh so the
+   * rendering state will be recreated on the next draw.
+   * @param json Serialized node data
+   */
+  static fromJson(json: NodeJson): Node {
+    return new Node(json.x, json.y);
+  }
+
+  /**
    * Check equality with another node by comparing coordinates.
    * @param node - Node to compare against
    * @returns `true` if both `x` and `y` match exactly
@@ -88,17 +97,5 @@ export class Node {
       x: this.x,
       y: this.y,
     };
-  }
-
-  /**
-   * Restore node coordinates from JSON. Disposes any cached mesh so the
-   * rendering state will be recreated on the next draw.
-   * @param json Serialized node data
-   */
-  fromJson(json: NodeJson) {
-    this.dispose();
-
-    this.x = json.x;
-    this.y = json.y;
   }
 }

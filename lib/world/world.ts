@@ -280,62 +280,31 @@ export class World {
     this.trafficLightGraph.fromJson(json.trafficLightGraph);
 
     this.roadBorders = json.roadBorders.map((rbj) => {
-      const edge = new Edge(new Node(0, 0), new Node(0, 0));
-      edge.fromJson(rbj);
-      return edge;
+      return Edge.fromJson(rbj);
     });
 
     this.roads = json.roads.map((rj) => {
-      const road = new Road(
-        new Edge(new Node(0, 0), new Node(0, 0)),
-        2,
-        "unclassified",
-      );
-      road.fromJson(rj);
-      return road;
+      return Road.fromJson(rj);
     });
 
     for (const mj of json.markings ?? []) {
       switch (mj.type) {
         case "traffic-light": {
-          const tl = new TrafficLight(
-            new Node(0, 0),
-            new Node(0, 0),
-            this.worldGroup,
+          this.markings.push(
+            TrafficLight.fromJson(mj as TrafficLightJson, this.worldGroup),
           );
-          tl.fromJson(mj as TrafficLightJson);
-          this.markings.push(tl);
           break;
         }
         case "source": {
-          const src = new Source(
-            new Node(0, 0),
-            new Node(0, 0),
-            this.worldGroup,
-          );
-          src.fromJson(mj);
-          this.markings.push(src);
+          this.markings.push(Source.fromJson(mj, this.worldGroup));
           break;
         }
         case "destination": {
-          const dest = new Destination(
-            new Node(0, 0),
-            new Node(0, 0),
-            this.worldGroup,
-          );
-          dest.fromJson(mj);
-          this.markings.push(dest);
+          this.markings.push(Destination.fromJson(mj, this.worldGroup));
           break;
         }
         default: {
-          const m = new Marking(
-            new Node(0, 0),
-            new Node(0, 0),
-            this.worldGroup,
-            mj.type,
-          );
-          m.fromJson(mj);
-          this.markings.push(m);
+          this.markings.push(Marking.fromJson(mj, this.worldGroup));
           break;
         }
       }

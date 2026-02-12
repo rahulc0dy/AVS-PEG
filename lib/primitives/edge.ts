@@ -1,14 +1,6 @@
 import { Node } from "@/lib/primitives/node";
 import { EdgeJson } from "@/types/save";
-import {
-  distance,
-  subtract,
-  normalize,
-  add,
-  scale,
-  magnitude,
-  dot,
-} from "@/utils/math";
+import { add, distance, dot, magnitude, normalize, scale, subtract } from "@/utils/math";
 import {
   BufferGeometry,
   Color,
@@ -16,7 +8,7 @@ import {
   Group,
   Line,
   LineBasicMaterial,
-  LineDashedMaterial,
+  LineDashedMaterial
 } from "three";
 
 /**
@@ -50,6 +42,19 @@ export class Edge {
     this.n2 = n2;
     this.isDirected = isDirected;
     this.line = null;
+  }
+
+  /**
+   * Restore edge data from JSON. Disposes any cached rendering resources so
+   * the edge will recreate its line when next drawn.
+   * @param json Serialized edge data
+   */
+  static fromJson(json: EdgeJson): Edge {
+    return new Edge(
+      Node.fromJson(json.n1),
+      Node.fromJson(json.n2),
+      json.isDirected,
+    );
   }
 
   /**
@@ -250,18 +255,5 @@ export class Edge {
       n2: this.n2.toJson(),
       isDirected: this.isDirected,
     };
-  }
-
-  /**
-   * Restore edge data from JSON. Disposes any cached rendering resources so
-   * the edge will recreate its line when next drawn.
-   * @param json Serialized edge data
-   */
-  fromJson(json: EdgeJson) {
-    this.dispose();
-
-    this.n1.fromJson(json.n1);
-    this.n2.fromJson(json.n2);
-    this.isDirected = json.isDirected ?? false;
   }
 }

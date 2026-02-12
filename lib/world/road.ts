@@ -2,18 +2,8 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Envelope } from "@/lib/primitives/envelope";
 import { RoadJson } from "@/types/save";
-import {
-  Color,
-  FrontSide,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  PlaneGeometry,
-} from "three";
-import {
-  createArrowTexture,
-  createLaneTexture,
-} from "@/utils/road-surface-texture";
+import { Color, FrontSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
+import { createArrowTexture, createLaneTexture } from "@/utils/road-surface-texture";
 import { ARROW_SPACING, ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 import { angle } from "@/utils/math";
 
@@ -101,6 +91,18 @@ export class Road extends Envelope {
    */
   get isDirected(): boolean {
     return this.skeleton.isDirected;
+  }
+
+  /**
+   * Restores the road state from a JSON object.
+   * @param json - Previously serialized road data
+   */
+  static fromJson(json: RoadJson): Road {
+    return new Road(
+      Edge.fromJson(json.skeleton),
+      json.laneCount,
+      json.roadType,
+    );
   }
 
   /**
@@ -199,21 +201,6 @@ export class Road extends Envelope {
       laneCount: this.laneCount,
       roadType: this.roadType,
     };
-  }
-
-  /**
-   * Restores the road state from a JSON object.
-   * @param json - Previously serialized road data
-   */
-  fromJson(json: RoadJson): void {
-    super.fromJson(json);
-
-    // Restore road properties with defaults
-    this.laneCount = json.laneCount ?? 2;
-    this.roadType = json.roadType ?? "unclassified";
-
-    // Rebuild geometry with restored data
-    this.regenerate();
   }
 
   /**

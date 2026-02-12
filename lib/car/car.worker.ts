@@ -180,14 +180,12 @@ const assessDamage = (): boolean => {
 
   // Check traffic collisions
   if (!carState.ignoreCarDamage) {
-    const carPolygon = new Polygon([]);
-    carPolygon.fromJson(carState.polygon);
+    const carPolygon = Polygon.fromJson(carState.polygon);
 
     for (const traffic of carState.traffic) {
       if (!traffic) continue;
 
-      const trafficPolygon = new Polygon([]);
-      trafficPolygon.fromJson(traffic);
+      const trafficPolygon = Polygon.fromJson(traffic);
 
       if (doPolygonsIntersect(carPolygon, trafficPolygon)) {
         return true;
@@ -197,12 +195,10 @@ const assessDamage = (): boolean => {
 
   // Check border collisions
   for (const pathBorderJson of carState.pathBorders) {
-    const pathBorder = new Edge(new Node(0, 0), new Node(0, 0));
-    pathBorder.fromJson(pathBorderJson);
+    const pathBorder = Edge.fromJson(pathBorderJson);
 
     for (const edgeJson of carState.polygon.edges) {
-      const edge = new Edge(new Node(0, 0), new Node(0, 0));
-      edge.fromJson(edgeJson);
+      const edge = Edge.fromJson(edgeJson);
 
       if (getIntersection(pathBorder.n1, pathBorder.n2, edge.n1, edge.n2)) {
         return true;
@@ -274,16 +270,14 @@ const castSensorRays = (): EdgeJson[] => {
 const getSensorReading = (ray: EdgeJson): Intersection | null => {
   const touches: Intersection[] = [];
 
-  const rayEdge = new Edge(new Node(0, 0), new Node(0, 0));
-  rayEdge.fromJson(ray);
+  const rayEdge = Edge.fromJson(ray);
 
   // Test against traffic polygons
   if (!carState.sensor.ignoreTraffic) {
     for (const trafficPolygonJson of carState.traffic) {
       if (!trafficPolygonJson) continue;
 
-      const trafficPolygon = new Polygon([]);
-      trafficPolygon.fromJson(trafficPolygonJson);
+      const trafficPolygon = Polygon.fromJson(trafficPolygonJson);
 
       for (let j = 0; j < trafficPolygon.nodes.length; j++) {
         const polyN1 = trafficPolygon.nodes[j];
@@ -305,8 +299,7 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
 
   // Test against path borders
   for (const pathBorderJson of carState.pathBorders) {
-    const pathBorder = new Edge(new Node(0, 0), new Node(0, 0));
-    pathBorder.fromJson(pathBorderJson);
+    const pathBorder = Edge.fromJson(pathBorderJson);
 
     const intersection = getIntersection(
       rayEdge.n1,
