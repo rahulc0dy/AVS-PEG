@@ -253,8 +253,13 @@ export class World {
   }
 
   /**
-   * Serialize the world state to a plain JSON object suitable for saving.
-   * @returns world JSON containing graph, roads, borders and markings
+   * Serializes the world state to a plain JSON object.
+   *
+   * The returned object conforms to {@link WorldJson} and includes the
+   * graph, traffic light graph, road borders, roads, and markings.
+   * Can be passed to {@link World.fromJson} to reconstruct the world state.
+   *
+   * @returns A {@link WorldJson} object containing the complete serialized world state.
    */
   toJson(): WorldJson {
     return {
@@ -267,9 +272,14 @@ export class World {
   }
 
   /**
-   * Populate the world from serialized JSON. Existing scene resources are
-   * disposed before loading.
-   * @param json - Deserialized `WorldJson` object to load
+   * Deserializes and loads world state from a plain JSON object.
+   *
+   * Disposes all existing scene resources before loading. Reconstructs
+   * the graph, traffic light graph, road borders, roads, and markings
+   * from the serialized data. Updates internal systems (spawner, path
+   * finding) after loading.
+   *
+   * @param json - Serialized world data conforming to {@link WorldJson}.
    */
   fromJson(json: WorldJson): void {
     this.dispose();

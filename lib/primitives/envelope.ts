@@ -33,9 +33,14 @@ export class Envelope {
   }
 
   /**
-   * Restore envelope state from JSON. This updates the skeleton and polygon
-   * structures in-place.
-   * @param json Serialized envelope data
+   * Deserializes an `Envelope` instance from a plain JSON object.
+   *
+   * Reconstructs the skeleton `Edge` and inner `Polygon` from their
+   * serialized representations. Creates a new `Envelope` with the
+   * deserialized geometry.
+   *
+   * @param json - Serialized envelope data conforming to {@link EnvelopeJson}.
+   * @returns A new `Envelope` instance with deserialized skeleton and polygon.
    */
   static fromJson(json: EnvelopeJson): Envelope {
     const envelope = new Envelope(Edge.fromJson(json.skeleton), 1);
@@ -60,7 +65,13 @@ export class Envelope {
   }
 
   /**
-   * Serialize the envelope to JSON including its skeleton edge and polygon.
+   * Serializes this envelope to a plain JSON object.
+   *
+   * The returned object conforms to {@link EnvelopeJson} and includes
+   * the skeleton edge and polygon. Can be passed to {@link Envelope.fromJson}
+   * to reconstruct the envelope.
+   *
+   * @returns An {@link EnvelopeJson} object containing serialized skeleton and polygon.
    */
   toJson() {
     return {

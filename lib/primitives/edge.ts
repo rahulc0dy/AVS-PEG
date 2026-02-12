@@ -1,6 +1,14 @@
 import { Node } from "@/lib/primitives/node";
 import { EdgeJson } from "@/types/save";
-import { add, distance, dot, magnitude, normalize, scale, subtract } from "@/utils/math";
+import {
+  add,
+  distance,
+  dot,
+  magnitude,
+  normalize,
+  scale,
+  subtract,
+} from "@/utils/math";
 import {
   BufferGeometry,
   Color,
@@ -8,7 +16,7 @@ import {
   Group,
   Line,
   LineBasicMaterial,
-  LineDashedMaterial
+  LineDashedMaterial,
 } from "three";
 
 /**
@@ -45,9 +53,13 @@ export class Edge {
   }
 
   /**
-   * Restore edge data from JSON. Disposes any cached rendering resources so
-   * the edge will recreate its line when next drawn.
-   * @param json Serialized edge data
+   * Deserializes an `Edge` instance from a plain JSON object.
+   *
+   * Reconstructs both endpoint `Node` instances from their serialized
+   * representations and creates a new `Edge` with the specified direction.
+   *
+   * @param json - Serialized edge data containing endpoints `n1`, `n2`, and `isDirected` flag.
+   * @returns A new `Edge` instance with deserialized endpoints and direction.
    */
   static fromJson(json: EdgeJson): Edge {
     return new Edge(
@@ -246,8 +258,13 @@ export class Edge {
   }
 
   /**
-   * Serialize the edge to a JSON-friendly object containing its endpoints
-   * and direction flag.
+   * Serializes this edge to a plain JSON object.
+   *
+   * The returned object conforms to {@link EdgeJson} and includes both
+   * endpoints and the direction flag. Can be passed to {@link Edge.fromJson}
+   * to reconstruct the edge.
+   *
+   * @returns An {@link EdgeJson} object containing serialized `n1`, `n2`, and `isDirected`.
    */
   toJson() {
     return {

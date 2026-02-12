@@ -31,9 +31,12 @@ export class Node {
   }
 
   /**
-   * Restore node coordinates from JSON. Disposes any cached mesh so the
-   * rendering state will be recreated on the next draw.
-   * @param json Serialized node data
+   * Deserializes a `Node` instance from a plain JSON object.
+   *
+   * Creates a new `Node` with coordinates extracted from the JSON payload.
+   *
+   * @param json - Serialized node data containing `x` and `y` coordinates.
+   * @returns A new `Node` instance with the deserialized position.
    */
   static fromJson(json: NodeJson): Node {
     return new Node(json.x, json.y);
@@ -89,8 +92,12 @@ export class Node {
   }
 
   /**
-   * Serialize this node to a plain JSON object.
-   * @returns Object with `x` and `y` numeric coordinates
+   * Serializes this node to a plain JSON object.
+   *
+   * The returned object conforms to {@link NodeJson} and can be passed
+   * to {@link Node.fromJson} to reconstruct the node.
+   *
+   * @returns A {@link NodeJson} object with `x` and `y` numeric coordinates.
    */
   toJson() {
     return {

@@ -317,7 +317,13 @@ export class Graph {
   }
 
   /**
-   * Serialize the graph to a plain JSON object containing nodes and edges.
+   * Serializes the graph to a plain JSON object.
+   *
+   * The returned object conforms to {@link GraphJson} and includes all
+   * nodes and edges in the graph. Can be passed to {@link Graph.fromJson}
+   * to reconstruct the graph state.
+   *
+   * @returns A {@link GraphJson} object containing arrays of serialized nodes and edges.
    */
   toJson() {
     return {
@@ -327,9 +333,14 @@ export class Graph {
   }
 
   /**
-   * Populate the graph from serialized JSON. Reconstructs `Node` and `Edge`
-   * instances and replaces the current graph state.
-   * @param json Serialized graph data
+   * Deserializes and loads graph state from a plain JSON object.
+   *
+   * Reconstructs `Node` and `Edge` instances from the serialized data
+   * and replaces the current graph state. Existing nodes and edges are
+   * cleared before loading. Edge endpoints are resolved to shared node
+   * references to maintain graph integrity.
+   *
+   * @param json - Serialized graph data conforming to {@link GraphJson}.
    */
   fromJson(json: GraphJson) {
     const nodes: Node[] = json.nodes.map((n) => new Node(n.x, n.y));

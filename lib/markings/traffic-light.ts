@@ -50,8 +50,14 @@ export class TrafficLight extends Marking {
   }
 
   /**
-   * Populate fields from JSON and restore state (recreate lights).
-   * @param json TrafficLight JSON loaded from disk or network.
+   * Deserializes a `TrafficLight` instance from a plain JSON object.
+   *
+   * Reconstructs the position and direction `Node` instances, creates
+   * the traffic light, and restores its light state (red/yellow/green).
+   *
+   * @param json - Serialized traffic light data conforming to {@link TrafficLightJson}.
+   * @param group - Three.js `Group` to attach the traffic light model and lights to.
+   * @returns A new `TrafficLight` instance with deserialized properties and restored state.
    */
   static fromJson(json: TrafficLightJson, group: Group): TrafficLight {
     const trafficLight = new TrafficLight(
@@ -144,7 +150,15 @@ export class TrafficLight extends Marking {
     }
   }
 
-  /** Serialize to JSON (includes lightState). */
+  /**
+   * Serializes this traffic light to a plain JSON object.
+   *
+   * Extends the base {@link Marking.toJson} with the current light state.
+   * The returned object conforms to {@link TrafficLightJson} and can be
+   * passed to {@link TrafficLight.fromJson} to reconstruct the traffic light.
+   *
+   * @returns A {@link TrafficLightJson} object containing serialized marking data and light state.
+   */
   toJson() {
     return {
       ...super.toJson(),

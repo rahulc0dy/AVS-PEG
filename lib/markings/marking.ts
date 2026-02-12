@@ -55,8 +55,15 @@ export class Marking {
   }
 
   /**
-   * Populate this marking from a serialized representation.
-   * @param json Marking JSON loaded from disk or network.
+   * Deserializes a `Marking` instance from a plain JSON object.
+   *
+   * Reconstructs the position and direction `Node` instances from
+   * the serialized data and creates a new `Marking` attached to
+   * the provided Three.js group.
+   *
+   * @param json - Serialized marking data conforming to {@link MarkingJson}.
+   * @param group - Three.js `Group` to attach the marking's model to.
+   * @returns A new `Marking` instance with deserialized properties.
    */
   static fromJson(json: MarkingJson, group: Group): Marking {
     return new Marking(
@@ -129,7 +136,15 @@ export class Marking {
     this.model = null;
   }
 
-  /** Serialize this marking to JSON for saving. */
+  /**
+   * Serializes this marking to a plain JSON object.
+   *
+   * The returned object conforms to {@link MarkingJson} and includes
+   * position, direction, and type. Can be passed to {@link Marking.fromJson}
+   * or subclass `fromJson` methods to reconstruct the marking.
+   *
+   * @returns A {@link MarkingJson} object containing serialized marking data.
+   */
   toJson() {
     return {
       position: this.position.toJson(),

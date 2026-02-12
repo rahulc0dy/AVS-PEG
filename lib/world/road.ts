@@ -2,8 +2,18 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Envelope } from "@/lib/primitives/envelope";
 import { RoadJson } from "@/types/save";
-import { Color, FrontSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
-import { createArrowTexture, createLaneTexture } from "@/utils/road-surface-texture";
+import {
+  Color,
+  FrontSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+} from "three";
+import {
+  createArrowTexture,
+  createLaneTexture,
+} from "@/utils/road-surface-texture";
 import { ARROW_SPACING, ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
 import { angle } from "@/utils/math";
 
@@ -94,8 +104,13 @@ export class Road extends Envelope {
   }
 
   /**
-   * Restores the road state from a JSON object.
-   * @param json - Previously serialized road data
+   * Deserializes a `Road` instance from a plain JSON object.
+   *
+   * Reconstructs the skeleton `Edge` and creates a new `Road` with
+   * the specified lane count and road type.
+   *
+   * @param json - Serialized road data conforming to {@link RoadJson}.
+   * @returns A new `Road` instance with deserialized geometry and properties.
    */
   static fromJson(json: RoadJson): Road {
     return new Road(
@@ -192,8 +207,13 @@ export class Road extends Envelope {
   }
 
   /**
-   * Serializes the road to a JSON object for saving.
-   * @returns JSON representation including envelope data, lane count, and road type
+   * Serializes this road to a plain JSON object.
+   *
+   * Extends the base {@link Envelope.toJson} with road-specific properties.
+   * The returned object conforms to {@link RoadJson} and can be passed to
+   * {@link Road.fromJson} to reconstruct the road.
+   *
+   * @returns A {@link RoadJson} object containing serialized envelope data, lane count, and road type.
    */
   toJson(): RoadJson {
     return {
