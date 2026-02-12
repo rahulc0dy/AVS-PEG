@@ -61,10 +61,11 @@ export class Sensor {
    * @param readings - Intersection readings for each ray (null if no hit)
    */
   update(rays: EdgeJson[], readings: (Intersection | null)[]) {
-    this.rays = rays.map(
-      (ray) =>
-        new Edge(new Node(ray.n1.x, ray.n1.y), new Node(ray.n2.x, ray.n2.y)),
-    );
+    this.rays = rays.map((rayJson) => {
+      const edge = new Edge(new Node(0, 0), new Node(0, 0));
+      edge.fromJson(rayJson);
+      return edge;
+    });
     this.readings = readings;
   }
 
