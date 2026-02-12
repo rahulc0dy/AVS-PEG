@@ -1,4 +1,12 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -11,7 +19,7 @@ import {
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 
@@ -156,9 +164,9 @@ export class Car {
         } as UpdateCollisionDataPayload,
       });
     }
+    // Sensor readings are computed in the worker and received via SENSOR_UPDATE message
     if (this.sensor) {
-      this.sensor.update(traffic, pathBorders);
-      this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
+      this.sensor.draw(this.group);
     }
   }
 
@@ -312,6 +320,11 @@ export class Car {
           // Reconstruct polygon from worker data
           if (statePayload.polygon) {
             this.polygon?.fromJson(statePayload.polygon);
+          }
+          break;
+        case WorkerOutboundMessageType.SENSOR_UPDATE:
+          if (this.sensor && message.payload.id === this.id) {
+            this.sensor.update(message.payload.rays, message.payload.readings);
           }
           break;
       }

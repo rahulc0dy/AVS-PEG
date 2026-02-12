@@ -2,12 +2,19 @@ import { WorkerCarState } from "@/types/car/state";
 import {
   CarStatePayload,
   CarWorkerInboundMessage,
+  SensorUpdatePayload,
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import { doPolygonsIntersect, getIntersection } from "@/utils/math";
+import {
+  doPolygonsIntersect,
+  getIntersection,
+  Intersection,
+  lerp,
+} from "@/utils/math";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
+import { EdgeJson, NodeJson } from "@/types/save";
 
 let carState: WorkerCarState;
 
@@ -57,6 +64,7 @@ const updateAndBroadcastState = () => {
   carState.polygon = createPolygon();
   carState.damaged = assessDamage();
   broadcastState();
+  computeAndBroadcastSensorReadings();
 };
 
 /** Send current state to main thread */
@@ -207,4 +215,108 @@ const assessDamage = (): boolean => {
   }
 
   return false;
+};
+
+/**
+ * Compute sensor ray intersections and broadcast readings to main thread.
+ * This offloads the heavy intersection detection from the main thread.
+ */
+const computeAndBroadcastSensorReadings = () => {
+  if (!carState.sensor || carState.sensor.rayCount === 0) return;
+
+  const rays = castSensorRays();
+  const readings = rays.map((ray) => getSensorReading(ray));
+
+  self.postMessage({
+    type: WorkerOutboundMessageType.SENSOR_UPDATE,
+    payload: {
+      id: carState.id,
+      readings,
+      rays,
+    } as SensorUpdatePayload,
+  });
+};
+
+/**
+ * Build ray segments in world coordinates for the sensor.
+ *
+ * Rays are evenly distributed across the spread angle and rotated by the
+ * car's heading. Each ray is represented as an EdgeJson (start/end positions).
+ *
+ * @returns Array of ray segments as EdgeJson
+ */
+const castSensorRays = (): EdgeJson[] => {
+  const { rayCount, raySpreadAngle, rayLength } = carState.sensor;
+  const rays: EdgeJson[] = [];
+
+  for (let i = 0; i < rayCount; i++) {
+    const t = rayCount === 1 ? 0.5 : i / (rayCount - 1);
+    const rayAngle =
+      carState.angle + lerp(-raySpreadAngle / 2, raySpreadAngle / 2, t);
+
+    const n1: NodeJson = { x: carState.position.x, y: carState.position.y };
+    const n2: NodeJson = {
+      x: carState.position.x + Math.cos(rayAngle) * rayLength,
+      y: carState.position.y + Math.sin(rayAngle) * rayLength,
+    };
+
+    rays.push({ n1, n2, isDirected: false });
+  }
+
+  return rays;
+};
+
+/**
+ * Find the closest intersection point between a ray and any obstacle.
+ *
+ * Tests against traffic car polygons (if not ignored) and path borders.
+ *
+ * @param ray - Ray segment to test
+ * @returns The nearest Intersection along the ray, or null if none
+ */
+const getSensorReading = (ray: EdgeJson): Intersection | null => {
+  const touches: Intersection[] = [];
+
+  const rayN1 = new Node(ray.n1.x, ray.n1.y);
+  const rayN2 = new Node(ray.n2.x, ray.n2.y);
+
+  // Test against traffic polygons
+  if (!carState.sensor.ignoreTraffic) {
+    for (const trafficPolygonJson of carState.traffic) {
+      if (!trafficPolygonJson) continue;
+
+      const nodes = trafficPolygonJson.nodes;
+      for (let j = 0; j < nodes.length; j++) {
+        const polyN1 = new Node(nodes[j].x, nodes[j].y);
+        const polyN2 = new Node(
+          nodes[(j + 1) % nodes.length].x,
+          nodes[(j + 1) % nodes.length].y,
+        );
+
+        const intersection = getIntersection(rayN1, rayN2, polyN1, polyN2);
+        if (intersection) {
+          touches.push(intersection);
+        }
+      }
+    }
+  }
+
+  // Test against path borders
+  for (const pathBorder of carState.pathBorders) {
+    const borderN1 = new Node(pathBorder.n1.x, pathBorder.n1.y);
+    const borderN2 = new Node(pathBorder.n2.x, pathBorder.n2.y);
+
+    const intersection = getIntersection(rayN1, rayN2, borderN1, borderN2);
+    if (intersection) {
+      touches.push(intersection);
+    }
+  }
+
+  if (touches.length === 0) {
+    return null;
+  }
+
+  // Return the closest intersection (smallest offset)
+  const minOffset = Math.min(...touches.map((t) => t.offset));
+  return touches.find((t) => t.offset === minOffset) ?? null;
 };

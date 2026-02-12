@@ -1,5 +1,5 @@
 import { Car } from "@/lib/car/car";
-import { getIntersection, Intersection, lerp } from "@/utils/math";
+import { Intersection } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import {
@@ -9,6 +9,7 @@ import {
   Line,
   LineBasicMaterial,
 } from "three";
+import { EdgeJson } from "@/types/save";
 
 /**
  * Sensor suite attached to a `Car` that casts multiple rays and reports the
@@ -51,18 +52,20 @@ export class Sensor {
   }
 
   /**
-   * Recompute rays and their closest intersection with other vehicles.
+   * Update sensor state with readings computed by the worker thread.
    *
-   * The `traffic` array contains other cars whose polygons are tested
-   * against each ray; `readings` is populated with the nearest hit (or
-   * null if none).
+   * This method receives pre-computed ray segments and intersection readings
+   * from the car worker, avoiding expensive intersection tests on the main thread.
+   *
+   * @param rays - Ray segments computed by the worker
+   * @param readings - Intersection readings for each ray (null if no hit)
    */
-  update(traffic: Car[], pathBorders: Edge[]) {
-    this.castRays();
-    this.readings = [];
-    for (let i = 0; i < this.rays.length; i++) {
-      this.readings.push(this.getReading(this.rays[i], traffic, pathBorders));
-    }
+  update(rays: EdgeJson[], readings: (Intersection | null)[]) {
+    this.rays = rays.map(
+      (ray) =>
+        new Edge(new Node(ray.n1.x, ray.n1.y), new Node(ray.n2.x, ray.n2.y)),
+    );
+    this.readings = readings;
   }
 
   /**
@@ -150,83 +153,5 @@ export class Sensor {
     if (this.sensorGroup.parent) {
       this.sensorGroup.parent.remove(this.sensorGroup);
     }
-  }
-
-  /**
-   * Build the ray segments in world coordinates.
-   *
-   * Rays are evenly distributed across `raySpreadAngle` and rotated by the
-   * car's heading (angle measured from +X, ACW). Each ray is represented as an
-   * `Edge` (start/end `Node`). This method updates the `rays` array.
-   */
-  private castRays() {
-    this.rays = [];
-    for (let i = 0; i < this.rayCount; i++) {
-      const rayAngle =
-        this.car.angle +
-        lerp(
-          -this.raySpreadAngle / 2,
-          this.raySpreadAngle / 2,
-          this.rayCount === 1 ? 0.5 : i / (this.rayCount - 1),
-        );
-
-      const start = new Node(this.car.position.x, this.car.position.y);
-      const end = new Node(
-        this.car.position.x + Math.cos(rayAngle) * this.rayLength,
-        this.car.position.y + Math.sin(rayAngle) * this.rayLength,
-      );
-      this.rays.push(new Edge(start, end));
-    }
-  }
-
-  /**
-   * Find the closest intersection point between `ray` and any polygon in
-   * `traffic`.
-   *
-   * @param ray - Ray segment to test
-   * @param traffic - Array of other cars whose polygons will be tested
-   * @param pathBorders
-   * @returns The nearest `Intersection` along the ray, or `null` if none
-   */
-  private getReading(ray: Edge, traffic: Car[], pathBorders: Edge[]) {
-    const touches: Intersection[] = [];
-
-    if (!this.ignoreTraffic) {
-      for (let i = 0; i < traffic.length; i++) {
-        const poly = traffic[i].polygon;
-        if (poly === null) continue;
-        for (let j = 0; j < poly.nodes.length; j++) {
-          const value = getIntersection(
-            ray.n1,
-            ray.n2,
-            poly.nodes[j],
-            poly.nodes[(j + 1) % poly.nodes.length],
-          );
-          if (value) {
-            touches.push(value);
-          }
-        }
-      }
-    }
-
-    for (const pathBorder of pathBorders) {
-      const value = getIntersection(
-        ray.n1,
-        ray.n2,
-        pathBorder.n1,
-        pathBorder.n2,
-      );
-      if (value) {
-        touches.push(value);
-      }
-    }
-
-    if (touches.length === 0) {
-      return null;
-    }
-
-    const offsets = touches.map((e) => e.offset);
-    const minOffset = Math.min(...offsets);
-    return touches.find((e) => e.offset == minOffset);
   }
 }

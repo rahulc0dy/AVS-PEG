@@ -1,5 +1,11 @@
-import { CarBasePayload, ControlInputs, SensorConfig } from "@/types/car/shared";
+import { Edge } from "@/lib/primitives/edge";
+import {
+  CarBasePayload,
+  ControlInputs,
+  SensorConfig,
+} from "@/types/car/shared";
 import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
+import { Intersection } from "@/utils/math";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
@@ -47,7 +53,14 @@ export const WorkerInboundMessageType = {
 /** Message types sent from worker to main thread */
 export const WorkerOutboundMessageType = {
   STATE_UPDATE: "worker:state-update",
+  SENSOR_UPDATE: "worker:sensor-update",
 } as const;
+
+export interface SensorUpdatePayload {
+  id: number;
+  readings: (Intersection | null)[];
+  rays: EdgeJson[];
+}
 
 export type CarWorkerInboundMessage =
   | { type: typeof WorkerInboundMessageType.INIT; payload: CarInitPayload }
@@ -60,7 +73,12 @@ export type CarWorkerInboundMessage =
       payload: UpdateCollisionDataPayload;
     };
 
-export type CarWorkerOutboundMessage = {
-  type: typeof WorkerOutboundMessageType.STATE_UPDATE;
-  payload: CarStatePayload;
-};
+export type CarWorkerOutboundMessage =
+  | {
+      type: typeof WorkerOutboundMessageType.STATE_UPDATE;
+      payload: CarStatePayload;
+    }
+  | {
+      type: typeof WorkerOutboundMessageType.SENSOR_UPDATE;
+      payload: SensorUpdatePayload;
+    };
