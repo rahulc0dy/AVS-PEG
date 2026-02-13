@@ -24,9 +24,41 @@ Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Nex
   - `useWorldEditors` - Wires up editor instances and mode switching
   - `useWorldInput` - Pointer/raycasting to world coordinates
   - `useWorldAnimation` - Render loop calling `world.update()` and `editor.draw()`
+  - `useWorldSimulation` - Simulation loop for non-editor views (updates OrbitControls, world, and graph changes)
+  - `useWorldPersistence` - JSON save/load helpers (`saveToJson`, `loadFromJson`)
+  - `useMiniCamera` - Scissored inset camera that follows the first car
+  - `useTrafficDetector` - COCO-SSD model for traffic light detection with color classification
+  - `useThreeScene` - Creates Three.js scene, camera, and renderer
 
 - **`components/canvases/`** - Page-level canvas components using render prop pattern
-  - `SceneCanvas` provides `ThreeSceneContext` → children receive `{scene, camera, renderer, dom}`
+  - `SceneCanvas` - Provides `ThreeSceneContext` → children receive `{scene, camera, renderer, dom}`
+  - `EditingCanvas` - Full editor UI with graph/marking editors
+  - `SimulationCanvas` - Manual driving mode with human-controlled car
+  - `TrainingCanvas` - AI training mode with multiple cars, mutation controls, and fitness tracking
+
+- **`components/world-ui/`** - UI components for world interaction
+  - `FileToolbar` - Save/load/export buttons
+  - `MiniMapOverlay` - Renders the mini camera viewport
+  - `ModeControls` - Editor mode toggle buttons
+  - `Navigation` - Page navigation links
+  - `OsmModal` - OpenStreetMap import dialog
+
+- **`services/`** - External API integrations
+  - `osm-service.ts` - Fetches road data from Overpass API with bbox filtering
+
+- **`utils/`** - Pure utility functions
+  - `browser.ts` - Browser detection and capabilities
+  - `math.ts` - Mathematical helpers (lerp, clamp, angle calculations)
+  - `osm.ts` - OSM data parsing and coordinate conversion
+  - `rendering.ts` - Three.js rendering utilities
+  - `road-surface-texture.ts` - Procedural road texture generation
+
+### App Routes
+
+- `/` - Main landing page
+- `/edit` - Graph and marking editor
+- `/simulate` - Manual driving simulation
+- `/train` - AI training with multiple cars
 
 ### Coordinate System
 
