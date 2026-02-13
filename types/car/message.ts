@@ -1,4 +1,3 @@
-import { Edge } from "@/lib/primitives/edge";
 import {
   CarBasePayload,
   ControlInputs,

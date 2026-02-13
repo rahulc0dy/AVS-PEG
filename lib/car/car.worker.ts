@@ -15,7 +15,7 @@ import {
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
-import { EdgeJson } from "@/types/save";
+import { EdgeJson, PolygonJson } from "@/types/save";
 
 let carState: WorkerCarState;
 
@@ -149,7 +149,7 @@ const updatePosition = () => {
 };
 
 /** Construct a collision polygon from car's position, dimensions and heading. */
-const createPolygon = (): Polygon => {
+const createPolygon = (): PolygonJson => {
   const { position, breadth, length, angle } = carState;
   const rad = Math.hypot(breadth, length) / 2;
   const alpha = Math.atan2(breadth, length);
@@ -171,7 +171,7 @@ const createPolygon = (): Polygon => {
       position.x + Math.cos(Math.PI + angle + alpha) * rad,
       position.y + Math.sin(Math.PI + angle + alpha) * rad,
     ),
-  ]);
+  ]).toJson();
 };
 
 /** Check for collisions with traffic and path borders */

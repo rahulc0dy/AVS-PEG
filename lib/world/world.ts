@@ -306,11 +306,13 @@ export class World {
           break;
         }
         case "source": {
-          this.markings.push(Source.fromJson(mj, this.worldGroup));
+          this.markings.push(Source.fromJson(mj, this.worldGroup) as Source);
           break;
         }
         case "destination": {
-          this.markings.push(Destination.fromJson(mj, this.worldGroup));
+          this.markings.push(
+            Destination.fromJson(mj, this.worldGroup) as Destination,
+          );
           break;
         }
         default: {

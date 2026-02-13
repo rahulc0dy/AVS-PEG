@@ -301,7 +301,7 @@ export class Car {
     this.worker.onmessage = (event: MessageEvent<CarWorkerOutboundMessage>) => {
       const message = event.data;
       switch (message.type) {
-        case WorkerOutboundMessageType.STATE_UPDATE:
+        case WorkerOutboundMessageType.STATE_UPDATE: {
           const statePayload = message.payload;
           this.position = new Node(
             statePayload.position.x,
@@ -314,11 +314,13 @@ export class Car {
             this.polygon = Polygon.fromJson(statePayload.polygon);
           }
           break;
-        case WorkerOutboundMessageType.SENSOR_UPDATE:
+        }
+        case WorkerOutboundMessageType.SENSOR_UPDATE: {
           if (this.sensor && message.payload.id === this.id) {
             this.sensor.update(message.payload.rays, message.payload.readings);
           }
           break;
+        }
       }
     };
 
@@ -337,10 +339,10 @@ export class Car {
         angle: this.angle,
         damaged: this.damaged,
         sensor: {
-          rayCount: this.sensor?.rayCount,
-          rayLength: this.sensor?.rayLength,
-          raySpreadAngle: this.sensor?.raySpreadAngle,
-          ignoreTraffic: this.sensor?.ignoreTraffic,
+          rayCount: this.sensor?.rayCount ?? 0,
+          rayLength: this.sensor?.rayLength ?? 0,
+          raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
+          ignoreTraffic: this.sensor?.ignoreTraffic ?? false,
         },
         controls: {
           forward: this.controls.forward,
