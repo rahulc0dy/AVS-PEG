@@ -104,6 +104,23 @@ export class Road extends Envelope {
   }
 
   /**
+   * Deserializes a `Road` instance from a plain JSON object.
+   *
+   * Reconstructs the skeleton `Edge` and creates a new `Road` with
+   * the specified lane count and road type.
+   *
+   * @param json - Serialized road data conforming to {@link RoadJson}.
+   * @returns A new `Road` instance with deserialized geometry and properties.
+   */
+  static fromJson(json: RoadJson): Road {
+    return new Road(
+      Edge.fromJson(json.skeleton),
+      json.laneCount,
+      json.roadType,
+    );
+  }
+
+  /**
    * Calculates the length of this road segment.
    * @returns Distance between n1 and n2 in world units
    */
@@ -190,8 +207,13 @@ export class Road extends Envelope {
   }
 
   /**
-   * Serializes the road to a JSON object for saving.
-   * @returns JSON representation including envelope data, lane count, and road type
+   * Serializes this road to a plain JSON object.
+   *
+   * Extends the base {@link Envelope.toJson} with road-specific properties.
+   * The returned object conforms to {@link RoadJson} and can be passed to
+   * {@link Road.fromJson} to reconstruct the road.
+   *
+   * @returns A {@link RoadJson} object containing serialized envelope data, lane count, and road type.
    */
   toJson(): RoadJson {
     return {
@@ -199,21 +221,6 @@ export class Road extends Envelope {
       laneCount: this.laneCount,
       roadType: this.roadType,
     };
-  }
-
-  /**
-   * Restores the road state from a JSON object.
-   * @param json - Previously serialized road data
-   */
-  fromJson(json: RoadJson): void {
-    super.fromJson(json);
-
-    // Restore road properties with defaults
-    this.laneCount = json.laneCount ?? 2;
-    this.roadType = json.roadType ?? "unclassified";
-
-    // Rebuild geometry with restored data
-    this.regenerate();
   }
 
   /**

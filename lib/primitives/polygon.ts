@@ -1,14 +1,14 @@
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
-import { getIntersection, average } from "@/utils/math";
+import { average, getIntersection } from "@/utils/math";
 import {
-  Color,
-  Mesh,
-  Group,
-  MeshBasicMaterial,
-  ShapeGeometry,
-  Shape,
   BackSide,
+  Color,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  Shape,
+  ShapeGeometry,
 } from "three";
 import { PolygonJson } from "@/types/save";
 
@@ -196,6 +196,23 @@ export class Polygon {
   }
 
   /**
+   * Deserializes a `Polygon` instance from a plain JSON object.
+   *
+   * Reconstructs all vertex `Node` instances from the serialized data.
+   * Edges are automatically recomputed from the node sequence.
+   *
+   * @param json - Serialized polygon data conforming to {@link PolygonJson}.
+   * @returns A new `Polygon` instance with deserialized vertices and computed edges.
+   */
+  static fromJson(json: PolygonJson): Polygon {
+    return new Polygon(
+      json.nodes.map((n) => {
+        return Node.fromJson(n);
+      }),
+    );
+  }
+
+  /**
    * Computes the axis-aligned bounding box (AABB) of this polygon.
    *
    * The bounding box is cached after first computation. Call {@link dispose}
@@ -368,54 +385,18 @@ export class Polygon {
   }
 
   /**
-   * Serialize the polygon to JSON.
+   * Serializes this polygon to a plain JSON object.
    *
-   * @returns A {@link PolygonJson}-compatible payload
+   * The returned object conforms to {@link PolygonJson} and includes
+   * all vertices and edges. Can be passed to {@link Polygon.fromJson}
+   * to reconstruct the polygon.
+   *
+   * @returns A {@link PolygonJson} object containing serialized nodes and edges.
    */
   toJson(): PolygonJson {
     return {
       nodes: this.nodes.map((n) => n.toJson()),
       edges: this.edges.map((e) => e.toJson()),
     };
-  }
-
-  /**
-   * Restore polygon geometry from JSON.
-   *
-   * Disposes any cached mesh so the visual is recreated on the next draw.
-   *
-   * @param json - Serialized polygon data
-   */
-  fromJson(json: PolygonJson): void {
-    this.dispose();
-
-    this.nodes = json.nodes.map((n) => {
-      const node = new Node(0, 0);
-      node.fromJson(n);
-      return node;
-    });
-
-    this.edges = json.edges
-      .filter((e) => {
-        // Find matching nodes from this.nodes by coordinates
-        const n1 = this.nodes.find((n) => n.x === e.n1.x && n.y === e.n1.y);
-        const n2 = this.nodes.find((n) => n.x === e.n2.x && n.y === e.n2.y);
-
-        if (!n1 || !n2) {
-          console.log("Edge references node not found in polygon");
-          return false;
-        }
-        return true;
-      })
-      .map((e) => {
-        const n1 = this.nodes.find((n) => n.x === e.n1.x && n.y === e.n1.y)!;
-        const n2 = this.nodes.find((n) => n.x === e.n2.x && n.y === e.n2.y)!;
-
-        const edge = new Edge(n1, n2);
-        if (e.isDirected !== undefined) {
-          edge.isDirected = e.isDirected;
-        }
-        return edge;
-      });
   }
 }

@@ -12,16 +12,53 @@ Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Nex
   - `systems/` - `TrafficLightSystem`, `PathFindingSystem`, `SpawnerSystem` - update each frame
   - `editors/` - Extend `BaseEditor` abstract class for graph/marking manipulation
   - `markings/` - `Marking` base class for traffic lights, sources, destinations
-  - `car/` - `Car` with physics, sensors, and `Controls` (AI/Human/None)
+  - `car/` - `Car` with physics offloaded to Web Worker, sensors, and `Controls` (AI/Human/None)
+
+- **`types/car/`** - Type definitions for car worker thread communication
+  - `message.ts` - Message payloads and type constants for worker communication
+  - `shared.ts` - Serializable types shared between main thread and worker
+  - `state.ts` - Worker-side car state interface
 
 - **`components/hooks/`** - React hooks that bridge simulation and UI
   - `useWorld` - Creates/disposes `World` instance
   - `useWorldEditors` - Wires up editor instances and mode switching
   - `useWorldInput` - Pointer/raycasting to world coordinates
   - `useWorldAnimation` - Render loop calling `world.update()` and `editor.draw()`
+  - `useWorldSimulation` - Simulation loop for non-editor views (updates OrbitControls, world, and graph changes)
+  - `useWorldPersistence` - JSON save/load helpers (`saveToJson`, `loadFromJson`)
+  - `useMiniCamera` - Scissored inset camera that follows the first car
+  - `useTrafficDetector` - COCO-SSD model for traffic light detection with color classification
+  - `useThreeScene` - Creates Three.js scene, camera, and renderer
 
 - **`components/canvases/`** - Page-level canvas components using render prop pattern
-  - `SceneCanvas` provides `ThreeSceneContext` → children receive `{scene, camera, renderer, dom}`
+  - `SceneCanvas` - Provides `ThreeSceneContext` → children receive `{scene, camera, renderer, dom}`
+  - `EditingCanvas` - Full editor UI with graph/marking editors
+  - `SimulationCanvas` - Manual driving mode with human-controlled car
+  - `TrainingCanvas` - AI training mode with multiple cars, mutation controls, and fitness tracking
+
+- **`components/world-ui/`** - UI components for world interaction
+  - `FileToolbar` - Save/load/export buttons
+  - `MiniMapOverlay` - Renders the mini camera viewport
+  - `ModeControls` - Editor mode toggle buttons
+  - `Navigation` - Page navigation links
+  - `OsmModal` - OpenStreetMap import dialog
+
+- **`services/`** - External API integrations
+  - `osm-service.ts` - Fetches road data from Overpass API with bbox filtering
+
+- **`utils/`** - Pure utility functions
+  - `browser.ts` - Browser detection and capabilities
+  - `math.ts` - Mathematical helpers (lerp, clamp, angle calculations)
+  - `osm.ts` - OSM data parsing and coordinate conversion
+  - `rendering.ts` - Three.js rendering utilities
+  - `road-surface-texture.ts` - Procedural road texture generation
+
+### App Routes
+
+- `/` - Main landing page
+- `/edit` - Graph and marking editor
+- `/simulate` - Manual driving simulation
+- `/train` - AI training with multiple cars
 
 ### Coordinate System
 
@@ -49,7 +86,30 @@ Each editor owns an `editorGroup: Group` attached to the scene. Toggle visibilit
 
 ### Resource Disposal
 
-All classes with Three.js resources implement `dispose()` to clean up geometries/materials. Call `dispose()` before dereferencing. Example: `Node.dispose()`, `Car.dispose()`, `World.dispose()`.
+All classes with Three.js resources implement `dispose()` to clean up geometries/materials. Call `dispose()` before dereferencing. Example: `Node.dispose()`, `Car.dispose()`, `World.dispose()`. `Car.dispose()` also terminates the associated worker thread.
+
+### Worker Thread Communication (Car Physics)
+
+Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main thread responsive:
+
+**Architecture:**
+
+- `Car` (main thread) handles rendering, sensors, and control inputs
+- `car.worker` (worker thread) runs physics simulation: acceleration, friction, steering, collision detection
+
+**Message Flow:**
+
+1. `Car.initWorker()` spawns worker and sends `INIT` message with initial car state
+2. Each frame, `Car.update()` sends `UPDATE_CONTROLS` and `UPDATE_COLLISION_DATA` to worker
+3. Worker runs physics at `requestAnimationFrame` rate, posts `STATE_UPDATE` back with position, angle, damage, and polygon
+4. Main thread updates `Car` properties from worker state
+
+**Serialization Pattern:**
+Complex classes (`Node`, `Polygon`, `Edge`) are serialized to plain objects (`NodeJson`, `PolygonJson`, `EdgeJson`) from `types/save.ts` for worker transfer. Worker-specific types live in `types/car/`:
+
+- `shared.ts` - Base types: `CarBasePayload`, `SensorConfig`, `ControlInputs`
+- `message.ts` - Message payloads (`CarInitPayload`, `CarStatePayload`, `UpdateCollisionDataPayload`) and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
+- `state.ts` - `WorkerCarState` interface for worker-side state
 
 ### Serialization
 

@@ -1,13 +1,13 @@
 import { Node } from "@/lib/primitives/node";
 import { EdgeJson } from "@/types/save";
 import {
-  distance,
-  subtract,
-  normalize,
   add,
-  scale,
-  magnitude,
+  distance,
   dot,
+  magnitude,
+  normalize,
+  scale,
+  subtract,
 } from "@/utils/math";
 import {
   BufferGeometry,
@@ -50,6 +50,23 @@ export class Edge {
     this.n2 = n2;
     this.isDirected = isDirected;
     this.line = null;
+  }
+
+  /**
+   * Deserializes an `Edge` instance from a plain JSON object.
+   *
+   * Reconstructs both endpoint `Node` instances from their serialized
+   * representations and creates a new `Edge` with the specified direction.
+   *
+   * @param json - Serialized edge data containing endpoints `n1`, `n2`, and `isDirected` flag.
+   * @returns A new `Edge` instance with deserialized endpoints and direction.
+   */
+  static fromJson(json: EdgeJson): Edge {
+    return new Edge(
+      Node.fromJson(json.n1),
+      Node.fromJson(json.n2),
+      json.isDirected,
+    );
   }
 
   /**
@@ -241,8 +258,13 @@ export class Edge {
   }
 
   /**
-   * Serialize the edge to a JSON-friendly object containing its endpoints
-   * and direction flag.
+   * Serializes this edge to a plain JSON object.
+   *
+   * The returned object conforms to {@link EdgeJson} and includes both
+   * endpoints and the direction flag. Can be passed to {@link Edge.fromJson}
+   * to reconstruct the edge.
+   *
+   * @returns An {@link EdgeJson} object containing serialized `n1`, `n2`, and `isDirected`.
    */
   toJson() {
     return {
@@ -250,18 +272,5 @@ export class Edge {
       n2: this.n2.toJson(),
       isDirected: this.isDirected,
     };
-  }
-
-  /**
-   * Restore edge data from JSON. Disposes any cached rendering resources so
-   * the edge will recreate its line when next drawn.
-   * @param json Serialized edge data
-   */
-  fromJson(json: EdgeJson) {
-    this.dispose();
-
-    this.n1.fromJson(json.n1);
-    this.n2.fromJson(json.n2);
-    this.isDirected = json.isDirected ?? false;
   }
 }

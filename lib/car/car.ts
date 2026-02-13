@@ -1,19 +1,19 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "../primitives/node";
-import { doPolygonsIntersect, getIntersection } from "@/utils/math";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
+import {
+  CarInitPayload,
+  CarWorkerOutboundMessage,
+  UpdateCollisionDataPayload,
+  UpdateControlsPayload,
+  WorkerInboundMessageType,
+  WorkerOutboundMessageType
+} from "@/types/car/message";
+import { ControlInputs } from "@/types/car/shared";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -30,6 +30,8 @@ import { Edge } from "@/lib/primitives/edge";
  * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
+  /** Unique identifier for this car. */
+  id: number;
   /** Position in world units. `y` maps to Three.js Z when rendering. */
   position: Node;
   /** Vehicle width along the X axis. */
@@ -59,6 +61,8 @@ export class Car {
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
 
+  private worker: Worker | null = null;
+
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
   /** Root group returned by the GLTF loader (null until loaded). */
@@ -70,10 +74,11 @@ export class Car {
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
 
   /** Parent Three.js group where this car attaches its meshes. */
-  private group: Group;
+  private readonly group: Group;
 
   /**
    * Create a new simulated car.
+   * @param id
    * @param position Initial world position (x, y; where y maps to Three.js Z).
    * @param breadth Vehicle width along X.
    * @param length Vehicle length along Z.
@@ -82,9 +87,9 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
-   * @param options
    */
   constructor(
+    id: number,
     position: Node,
     breadth: number,
     length: number,
@@ -94,6 +99,7 @@ export class Car {
     angle = 0,
     maxSpeed = 0.5,
   ) {
+    this.id = id;
     this.position = position;
     this.breadth = breadth;
     this.length = length;
@@ -111,27 +117,48 @@ export class Car {
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
+
+    this.initWorker();
   }
 
   /**
    * Advance the simulation by one frame.
    *
-   * This updates visuals, moves the car when not damaged, recomputes the
-   * collision polygon, performs collision checks against `traffic`, and
+   * This updates visuals, sends collision data to worker, and
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
-   * @param pathBorders
+   * @param pathBorders Path borders for collision detection.
    */
   update(traffic: Car[], pathBorders: Edge[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
-      this.move();
-      this.polygon = this.createPolygon();
-      this.damaged = this.assessDamage(traffic, pathBorders);
+      // Send control inputs to worker
+      this.worker?.postMessage({
+        type: WorkerInboundMessageType.UPDATE_CONTROLS,
+        payload: {
+          id: this.id,
+          controls: {
+            forward: this.controls.forward,
+            reverse: this.controls.reverse,
+            right: this.controls.right,
+            left: this.controls.left,
+          } as ControlInputs,
+        } as UpdateControlsPayload,
+      });
+
+      // Send collision data to worker
+      this.worker?.postMessage({
+        type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
+        payload: {
+          id: this.id,
+          traffic: traffic.map((car) => car.polygon?.toJson()),
+          pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
+        } as UpdateCollisionDataPayload,
+      });
     }
+    // Sensor readings are computed in the worker and received via SENSOR_UPDATE message
     if (this.sensor) {
-      this.sensor.update(traffic, pathBorders);
-      this.sensor.readings.map((s) => (s == null ? 0 : 1 - s.offset));
+      this.sensor.draw(this.group);
     }
   }
 
@@ -196,8 +223,8 @@ export class Car {
         transparent: true,
         opacity: 0.1,
       });
-      const carMesh = new Mesh(carGeometry, carMaterial);
-      this.carColliderMesh = carMesh;
+
+      this.carColliderMesh = new Mesh(carGeometry, carMaterial);
     }
     this.carColliderMesh.position.set(
       this.position.x,
@@ -214,9 +241,15 @@ export class Car {
   /**
    * Dispose Three.js resources used by this car and remove visuals from the
    * scene. This frees geometries and materials owned by the car's model and
-   * collider mesh.
+   * collider mesh. Also terminates the worker thread.
    */
   dispose() {
+    // Terminate worker thread
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+
     if (this.sensor) {
       this.sensor.dispose();
     }
@@ -260,116 +293,65 @@ export class Car {
     }
   }
 
-  /**
-   * Check for collisions between this car and other vehicles.
-   *
-   * Iterates over the provided `traffic` array and returns `true` if the
-   * current car's collision polygon intersects any other's polygon.
-   */
-  private assessDamage(traffic: Car[], pathBorders: Edge[]): boolean {
-    if (this.polygon === null) return false;
+  private initWorker() {
+    if (!window.Worker) return;
 
-    if (!this.ignoreCarDamage) {
-      for (let i = 0; i < traffic.length; i++) {
-        if (traffic[i].polygon === null) continue;
-        if (doPolygonsIntersect(this.polygon, traffic[i].polygon!)) {
-          return true;
+    this.worker = new Worker(new URL("./car.worker.ts", import.meta.url));
+
+    this.worker.onmessage = (event: MessageEvent<CarWorkerOutboundMessage>) => {
+      const message = event.data;
+      switch (message.type) {
+        case WorkerOutboundMessageType.STATE_UPDATE: {
+          const statePayload = message.payload;
+          this.position = new Node(
+            statePayload.position.x,
+            statePayload.position.y,
+          );
+          this.angle = statePayload.angle;
+          this.damaged = statePayload.damaged;
+          // Reconstruct polygon from worker data
+          if (statePayload.polygon) {
+            this.polygon = Polygon.fromJson(statePayload.polygon);
+          }
+          break;
+        }
+        case WorkerOutboundMessageType.SENSOR_UPDATE: {
+          if (this.sensor && message.payload.id === this.id) {
+            this.sensor.update(message.payload.rays, message.payload.readings);
+          }
+          break;
         }
       }
-    }
+    };
 
-    for (const pathBorder of pathBorders) {
-      for (const edge of this.polygon.edges) {
-        if (getIntersection(pathBorder.n1, pathBorder.n2, edge.n1, edge.n2)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Construct a collision polygon representing this car's footprint.
-   *
-   * The polygon is computed from the car's centre position, dimensions and
-   * heading and returned as a `Polygon` suitable for intersection tests.
-   */
-  private createPolygon(): Polygon {
-    const points = [];
-    const rad = Math.hypot(this.breadth, this.length) / 2;
-    const alpha = Math.atan2(this.breadth, this.length);
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle - alpha) * rad,
-        this.position.y + Math.sin(this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(this.angle + alpha) * rad,
-        this.position.y + Math.sin(this.angle + alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle - alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle - alpha) * rad,
-      ),
-    );
-    points.push(
-      new Node(
-        this.position.x + Math.cos(Math.PI + this.angle + alpha) * rad,
-        this.position.y + Math.sin(Math.PI + this.angle + alpha) * rad,
-      ),
-    );
-    return new Polygon(points);
-  }
-
-  /**
-   * Apply a single timestep of vehicle dynamics.
-   *
-   * Applies acceleration/reverse inputs, clamps speed, applies friction,
-   * handles turning (inverts when reversing) and updates position.
-   */
-  private move() {
-    if (this.controls.forward) {
-      this.speed += this.acceleration;
-    }
-    if (this.controls.reverse) {
-      this.speed -= this.acceleration;
-    }
-
-    if (this.speed > this.maxSpeed) {
-      this.speed = this.maxSpeed;
-    }
-    if (this.speed < -this.maxSpeed / 2) {
-      this.speed = -this.maxSpeed / 2;
-    }
-
-    if (this.speed > 0) {
-      this.speed -= this.friction;
-    }
-    if (this.speed < 0) {
-      this.speed += this.friction;
-    }
-
-    if (Math.abs(this.speed) < this.friction) {
-      this.speed = 0;
-    }
-
-    if (this.speed != 0) {
-      const flip = this.speed > 0 ? 1 : -1;
-      // In math, anti-clockwise is +ve angle, so we reverse the angle to handle it properly
-      if (this.controls.left) {
-        this.angle -= 0.03 * flip;
-      }
-      if (this.controls.right) {
-        this.angle += 0.03 * flip;
-      }
-    }
-
-    this.position.x += Math.cos(this.angle) * this.speed;
-    this.position.y += Math.sin(this.angle) * this.speed;
+    this.worker.postMessage({
+      type: WorkerInboundMessageType.INIT,
+      payload: {
+        id: this.id,
+        position: { x: this.position.x, y: this.position.y },
+        breadth: this.breadth,
+        length: this.length,
+        height: this.height,
+        speed: this.speed,
+        acceleration: this.acceleration,
+        maxSpeed: this.maxSpeed,
+        friction: this.friction,
+        angle: this.angle,
+        damaged: this.damaged,
+        sensor: {
+          rayCount: this.sensor?.rayCount ?? 0,
+          rayLength: this.sensor?.rayLength ?? 0,
+          raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
+          ignoreTraffic: this.sensor?.ignoreTraffic ?? false,
+        },
+        controls: {
+          forward: this.controls.forward,
+          left: this.controls.left,
+          right: this.controls.right,
+          reverse: this.controls.reverse,
+        },
+        ignoreCarDamage: this.ignoreCarDamage,
+      } as CarInitPayload,
+    });
   }
 }

@@ -33,6 +33,54 @@ export class Envelope {
   }
 
   /**
+   * Deserializes an `Envelope` instance from a plain JSON object.
+   *
+   * Reconstructs the skeleton `Edge` and inner `Polygon` from their
+   * serialized representations. Creates a new `Envelope` with the
+   * deserialized geometry.
+   *
+   * @param json - Serialized envelope data conforming to {@link EnvelopeJson}.
+   * @returns A new `Envelope` instance with deserialized skeleton and polygon.
+   */
+  static fromJson(json: EnvelopeJson): Envelope {
+    const envelope = new Envelope(Edge.fromJson(json.skeleton), 1);
+    envelope.poly = Polygon.fromJson(json.poly);
+    return envelope;
+  }
+
+  /**
+   * Draw the envelope by delegating to the underlying polygon's draw method.
+   * @param group - Three.js `Group` to add the envelope mesh to
+   * @param config - Rendering config (expects `fillColor`)
+   */
+  draw(group: Group, config: { fillColor: Color }) {
+    this.poly.draw(group, config);
+  }
+
+  /**
+   * Releases all Three.js resources (geometries, materials, textures).
+   */
+  dispose(): void {
+    this.poly.dispose();
+  }
+
+  /**
+   * Serializes this envelope to a plain JSON object.
+   *
+   * The returned object conforms to {@link EnvelopeJson} and includes
+   * the skeleton edge and polygon. Can be passed to {@link Envelope.fromJson}
+   * to reconstruct the envelope.
+   *
+   * @returns An {@link EnvelopeJson} object containing serialized skeleton and polygon.
+   */
+  toJson() {
+    return {
+      skeleton: this.skeleton.toJson(),
+      poly: this.poly.toJson(),
+    };
+  }
+
+  /**
    * Generate a polygon that surrounds the skeleton edge. The algorithm
    * samples points by sweeping arcs of radius `width/2` around each
    * endpoint and concatenates them to form a closed polygon (a capsule-like
@@ -75,41 +123,5 @@ export class Envelope {
 
     // Create and return the polygon that wraps both arc sequences
     return new Polygon(nodes);
-  }
-
-  /**
-   * Draw the envelope by delegating to the underlying polygon's draw method.
-   * @param group - Three.js `Group` to add the envelope mesh to
-   * @param config - Rendering config (expects `fillColor`)
-   */
-  draw(group: Group, config: { fillColor: Color }) {
-    this.poly.draw(group, config);
-  }
-
-  /**
-   * Releases all Three.js resources (geometries, materials, textures).
-   */
-  dispose(): void {
-    this.poly.dispose();
-  }
-
-  /**
-   * Serialize the envelope to JSON including its skeleton edge and polygon.
-   */
-  toJson() {
-    return {
-      skeleton: this.skeleton.toJson(),
-      poly: this.poly.toJson(),
-    };
-  }
-
-  /**
-   * Restore envelope state from JSON. This updates the skeleton and polygon
-   * structures in-place.
-   * @param json Serialized envelope data
-   */
-  fromJson(json: EnvelopeJson) {
-    this.skeleton.fromJson(json.skeleton);
-    this.poly.fromJson(json.poly);
   }
 }
