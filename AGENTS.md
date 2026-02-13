@@ -105,10 +105,10 @@ Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main
 4. Main thread updates `Car` properties from worker state
 
 **Serialization Pattern:**
-Complex classes (`Node`, `Polygon`, `Edge`) are serialized to plain objects (`Position2D`, `EdgeData`, `PolygonData`) for worker transfer. Types live in `types/car/`:
+Complex classes (`Node`, `Polygon`, `Edge`) are serialized to plain objects (`NodeJson`, `PolygonJson`, `EdgeJson`) from `types/save.ts` for worker transfer. Worker-specific types live in `types/car/`:
 
-- `shared.ts` - Portable data types: `Position2D`, `ControlInputs`, `EdgeData`, `TrafficData`
-- `message.ts` - Message payloads and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
+- `shared.ts` - Base types: `CarBasePayload`, `SensorConfig`, `ControlInputs`
+- `message.ts` - Message payloads (`CarInitPayload`, `CarStatePayload`, `UpdateCollisionDataPayload`) and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
 - `state.ts` - `WorkerCarState` interface for worker-side state
 
 ### Serialization
