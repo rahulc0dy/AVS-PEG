@@ -16,6 +16,8 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { EdgeJson, PolygonJson } from "@/types/save";
+import { NeuralNetwork } from "@/lib/ai/network";
+import { ControlType } from "@/lib/car/controls";
 
 let carState: WorkerCarState;
 
@@ -23,28 +25,35 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
   const message = event.data;
 
   switch (message.type) {
-    case WorkerInboundMessageType.INIT:
+    case WorkerInboundMessageType.INIT: {
       carState = {
         ...message.payload,
         polygon: null,
         traffic: [],
         pathBorders: [],
+        network: new NeuralNetwork([message.payload.sensor.rayCount, 8, 6, 4]),
+        sensorReadings: [],
       };
       startAnimationLoop();
       break;
+    }
 
-    case WorkerInboundMessageType.UPDATE_CONTROLS:
+    case WorkerInboundMessageType.UPDATE_CONTROLS: {
       if (carState.id === message.payload.id) {
-        carState.controls = message.payload.controls;
+        if (carState.controlType == ControlType.HUMAN) {
+          carState.controls = message.payload.controls;
+        }
       }
       break;
+    }
 
-    case WorkerInboundMessageType.UPDATE_COLLISION_DATA:
+    case WorkerInboundMessageType.UPDATE_COLLISION_DATA: {
       if (carState.id === message.payload.id) {
         carState.traffic = message.payload.traffic;
         carState.pathBorders = message.payload.pathBorders;
       }
       break;
+    }
   }
 };
 
@@ -66,6 +75,18 @@ const updateAndBroadcastState = () => {
   carState.damaged = assessDamage();
   broadcastState();
   computeAndBroadcastSensorReadings();
+
+  if (carState.controlType === ControlType.AI) {
+    const outputs = carState.network.decide(
+      carState.sensorReadings
+        .filter((reading) => reading !== null)
+        .map((intersection) => intersection.offset),
+    );
+    carState.controls.forward = outputs[0] == 1;
+    carState.controls.left = outputs[1] == 1;
+    carState.controls.right = outputs[2] == 1;
+    carState.controls.reverse = outputs[3] == 1;
+  }
 };
 
 /** Send current state to main thread */
@@ -217,13 +238,13 @@ const computeAndBroadcastSensorReadings = () => {
   if (!carState.sensor || carState.sensor.rayCount === 0) return;
 
   const rays = castSensorRays();
-  const readings = rays.map((ray) => getSensorReading(ray));
+  carState.sensorReadings = rays.map((ray) => getSensorReading(ray));
 
   self.postMessage({
     type: WorkerOutboundMessageType.SENSOR_UPDATE,
     payload: {
       id: carState.id,
-      readings,
+      readings: carState.sensorReadings,
       rays,
     } as SensorUpdatePayload,
   });

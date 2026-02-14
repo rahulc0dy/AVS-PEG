@@ -344,6 +344,7 @@ export class Car {
           raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
           ignoreTraffic: this.sensor?.ignoreTraffic ?? false,
         },
+        controlType: this.controls.type,
         controls: {
           forward: this.controls.forward,
           left: this.controls.left,

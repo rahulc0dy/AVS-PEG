@@ -90,3 +90,35 @@ export interface MarkingJson {
   /** Optional URL to a 3D model used to represent the marking. */
   modelUrl?: string;
 }
+
+/**
+ * JSON representation of a Level for serialization.
+ */
+export interface LevelJson {
+  inputCount: number;
+  outputCount: number;
+  biases: number[];
+  weights: number[][];
+}
+
+/**
+ * Real-time state of a neural network level for visualization.
+ * Contains current activation values and network structure.
+ */
+export interface LevelStateJson {
+  /** Current input values to this level */
+  inputs: number[];
+  /** Current output values (after activation) */
+  outputs: number[];
+  /** Bias values for each output neuron */
+  biases: number[];
+  /** Weight matrix [inputIndex][outputIndex] */
+  weights: number[][];
+}
+
+/**
+ * JSON representation of a NeuralNetwork for serialization.
+ */
+export interface NeuralNetworkJson {
+  levels: LevelJson[];
+}

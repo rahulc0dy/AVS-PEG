@@ -5,6 +5,7 @@ import {
 } from "@/types/car/shared";
 import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
 import { Intersection } from "@/utils/math";
+import { ControlType } from "@/lib/car/controls";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
@@ -19,6 +20,7 @@ export interface CarInitPayload extends CarBasePayload {
   angle: number;
   damaged: boolean;
   sensor: SensorConfig;
+  controlType: ControlType;
   controls: ControlInputs;
   ignoreCarDamage: boolean;
 }
