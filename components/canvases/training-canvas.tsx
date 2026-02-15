@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
@@ -50,6 +50,33 @@ export default function TrainingCanvas({
   useWorldSimulation(worldRef, camera, dom);
 
   const { loadFromJson } = useWorldPersistence(worldRef);
+
+  /**
+   * Track best car and update fitness statistics.
+   * Runs continuously while training is active.
+   */
+  useEffect(() => {
+    if (!isTraining || !world) return;
+
+    const intervalId = setInterval(() => {
+      const training = world.trainingSystem;
+      const cars = world.cars;
+
+      if (cars.length === 0) return;
+
+      const stats = training.getStats(cars);
+
+      setCarsReachedDestination(stats.reachedDestination);
+      setBestFitness(stats.bestFitness);
+      setBestCarId(stats.bestCarId?.toString() ?? null);
+
+      if (stats.generationComplete) {
+        // May do something in future
+      }
+    }, 100);
+
+    return () => clearInterval(intervalId);
+  }, [isTraining, world]);
 
   const handleSaveBrain = useCallback(async () => {
     // TODO: Brain save to local storage
@@ -104,6 +131,8 @@ export default function TrainingCanvas({
     const spawnedCount = world.cars.length;
     if (spawnedCount > 0) {
       toast(`Successfully spawned ${spawnedCount} cars.`, "success");
+      world.trainingSystem.startTraining();
+      setGeneration(world.trainingSystem.getGeneration());
     } else {
       toast("Could not spawn any cars. Ensure there are roads.", "error");
       return;
@@ -119,6 +148,8 @@ export default function TrainingCanvas({
     if (!world) return;
 
     world.spawnerSystem.clearCars();
+    world.trainingSystem.stopTraining();
+    world.trainingSystem.clearProgress();
     setBestCarId(null);
     setCurrentCarCount(0);
     setIsTraining(false);
@@ -127,25 +158,37 @@ export default function TrainingCanvas({
   }, [worldRef, toast]);
 
   const handleResetCars = useCallback(() => {
-    handleClearCars();
+    const world = worldRef.current;
+    if (!world) return;
+
+    // Clear current cars but don't reset training system generation
+    world.spawnerSystem.clearCars();
+    world.trainingSystem.clearProgress();
+
+    // Spawn new cars (this will increment generation)
     handleSpawnCars();
-    setGeneration((g) => g + 1);
-    toast(`Generation ${generation + 1} started.`, "info");
-  }, [handleClearCars, handleSpawnCars, generation, toast]);
+
+    const newGen = world.trainingSystem.getGeneration();
+    toast(`Generation ${newGen} started.`, "info");
+  }, [worldRef, handleSpawnCars, toast]);
 
   /**
    * Loads a world from JSON and resets training state.
    */
   const handleLoadWorld = useCallback(() => {
     loadFromJson(() => {
+      const world = worldRef.current;
+      if (world) {
+        world.trainingSystem.reset();
+      }
       setBestCarId(null);
       setBestFitness(0);
-      setGeneration(1);
+      setGeneration(0);
       setCurrentCarCount(0);
       setIsTraining(false);
       setCarsReachedDestination(0);
     });
-  }, [loadFromJson]);
+  }, [loadFromJson, worldRef]);
 
   return (
     <>
