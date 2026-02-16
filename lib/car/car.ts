@@ -1,19 +1,19 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
-import { Sensor } from "@/lib/car/sensor";
-import { Controls, ControlType } from "@/lib/car/controls";
-import { Polygon } from "@/lib/primitives/polygon";
-import { Node } from "../primitives/node";
-import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { Edge } from "@/lib/primitives/edge";
+import {BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D,} from "three";
+import {Sensor} from "@/lib/car/sensor";
+import {Controls, ControlType} from "@/lib/car/controls";
+import {Polygon} from "@/lib/primitives/polygon";
+import {Node} from "../primitives/node";
+import {GLTFLoader} from "three/examples/jsm/Addons.js";
+import {Edge} from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
-import { ControlInputs } from "@/types/car/shared";
+import {ControlInputs} from "@/types/car/shared";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -87,6 +87,7 @@ export class Car {
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
    * @param maxSpeed Maximum forward speed.
+   * @param ignoreCarDamage If enabled, car to car damages are ignored.
    */
   constructor(
     id: number,
@@ -97,6 +98,7 @@ export class Car {
     controlType: ControlType,
     group: Group,
     angle = 0,
+    ignoreCarDamage = false,
     maxSpeed = 0.5,
   ) {
     this.id = id;
@@ -117,6 +119,10 @@ export class Car {
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
+
+    if (ignoreCarDamage) {
+      this.ignoreDamageFromCars();
+    }
 
     this.initWorker();
   }
@@ -159,13 +165,6 @@ export class Car {
     // Sensor readings are computed in the worker and received via SENSOR_UPDATE message
     if (this.sensor) {
       this.sensor.draw(this.group);
-    }
-  }
-
-  ignoreDamageFromCars() {
-    this.ignoreCarDamage = true;
-    if (this.sensor) {
-      this.sensor.ignoreTraffic = true;
     }
   }
 
@@ -290,6 +289,13 @@ export class Car {
       // Clear the mesh
       this.carColliderMesh.clear();
       this.carColliderMesh = null;
+    }
+  }
+
+  private ignoreDamageFromCars() {
+    this.ignoreCarDamage = true;
+    if (this.sensor) {
+      this.sensor.ignoreTraffic = true;
     }
   }
 

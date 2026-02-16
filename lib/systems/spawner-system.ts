@@ -1,10 +1,10 @@
-import { Group } from "three";
-import { Car } from "@/lib/car/car";
-import { Road } from "@/lib/world/road";
-import { ControlType } from "@/lib/car/controls";
-import { Edge } from "@/lib/primitives/edge";
-import { Node } from "@/lib/primitives/node";
-import { angle, average } from "@/utils/math";
+import {Group} from "three";
+import {Car} from "@/lib/car/car";
+import {Road} from "@/lib/world/road";
+import {ControlType} from "@/lib/car/controls";
+import {Edge} from "@/lib/primitives/edge";
+import {Node} from "@/lib/primitives/node";
+import {angle, average} from "@/utils/math";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -134,10 +134,10 @@ export class SpawnerSystem {
         controlType,
         this.worldGroup,
         angle,
+        // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
+        // (so overlapped spawns can still move). World/road collisions are unaffected.
+        true,
       );
-      // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
-      // (so overlapped spawns can still move). World/road collisions are unaffected.
-      car.ignoreDamageFromCars();
       this.cars.push(car);
     }
   }
