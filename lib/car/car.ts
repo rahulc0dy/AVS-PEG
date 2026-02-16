@@ -114,7 +114,7 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    if (controlType != ControlType.AI) {
+    if (controlType != ControlType.NONE) {
       this.sensor = new Sensor(this);
     }
     this.controls = new Controls(controlType as ControlType);
@@ -162,10 +162,6 @@ export class Car {
         } as UpdateCollisionDataPayload,
       });
     }
-    // Sensor readings are computed in the worker and received via SENSOR_UPDATE message
-    if (this.sensor) {
-      this.sensor.draw(this.group);
-    }
   }
 
   /**
@@ -178,7 +174,7 @@ export class Car {
    * @param loader Optional `GLTFLoader` to reuse
    */
   draw(target: Group, url: string, loader?: GLTFLoader) {
-    if (this.sensor) {
+    if (this.sensor && this.controls.type == ControlType.HUMAN) {
       this.sensor.draw(target);
     }
     if (!this.model) {
