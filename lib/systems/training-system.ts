@@ -4,8 +4,7 @@ import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Envelope } from "@/lib/primitives/envelope";
 import { ROAD_WIDTH } from "@/env";
-import { angle, distance } from "@/utils/math";
-import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
+import { distance } from "@/utils/math";
 
 /**
  * Represents a segment of the path from source to destination.
@@ -99,177 +98,6 @@ export class TrainingSystem {
       cumulativeLength += edgeLength;
     }
     this.totalPathLength = cumulativeLength;
-    this.rebuildSegmentMeshes();
-  }
-
-  /** Debug border meshes for each segment polygon. */
-  private segmentBorderMeshes: Mesh[][] = [];
-  /** Whether segment meshes need rebuilding. */
-  private needsRedraw: boolean = false;
-
-  /**
-   * Distinct colors for each segment polygon border.
-   * Cycles through this palette for segments beyond the array length.
-   */
-  private static readonly SEGMENT_COLORS: number[] = [
-    0xff0000, // red
-    0x00ff00, // green
-    0x0000ff, // blue
-    0xffff00, // yellow
-    0xff00ff, // magenta
-    0x00ffff, // cyan
-    0xff8800, // orange
-    0x88ff00, // lime
-    0x0088ff, // sky blue
-    0xff0088, // pink
-    0x8800ff, // purple
-    0x00ff88, // mint
-  ];
-
-  /** Material for the best car's segment. */
-  private bestSegmentMaterial: MeshBasicMaterial = new MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.8,
-  });
-
-  /**
-   * Rebuilds the border meshes for each segment envelope polygon.
-   *
-   * Each segment gets a distinct color so overlapping regions between
-   * adjacent envelopes are visually obvious.
-   */
-  private rebuildSegmentMeshes() {
-    // Dispose old meshes
-    for (const meshGroup of this.segmentBorderMeshes) {
-      for (const mesh of meshGroup) {
-        mesh.geometry.dispose();
-        (mesh.material as MeshBasicMaterial).dispose();
-      }
-    }
-    this.segmentBorderMeshes = [];
-
-    const borderHeight = 8;
-
-    for (let segIdx = 0; segIdx < this.segments.length; segIdx++) {
-      const segment = this.segments[segIdx];
-      const colorHex =
-        TrainingSystem.SEGMENT_COLORS[
-          segIdx % TrainingSystem.SEGMENT_COLORS.length
-        ];
-      const material = new MeshBasicMaterial({
-        color: new Color(colorHex),
-        transparent: true,
-        opacity: 0.6,
-      });
-
-      const meshes: Mesh[] = [];
-
-      // Draw each edge of the segment's envelope polygon as a thin box
-      for (const edge of segment.polygon.edges) {
-        const edgeLen = distance(edge.n1, edge.n2);
-        if (edgeLen < 0.01) continue;
-
-        const geo = new BoxGeometry(edgeLen, borderHeight, 1.5);
-        const mesh = new Mesh(geo, material);
-
-        mesh.position.set(
-          (edge.n1.x + edge.n2.x) / 2,
-          borderHeight / 2,
-          (edge.n1.y + edge.n2.y) / 2,
-        );
-        mesh.rotation.y = -angle(
-          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
-        );
-
-        mesh.userData = { segmentIndex: segIdx };
-        meshes.push(mesh);
-      }
-
-      this.segmentBorderMeshes.push(meshes);
-    }
-
-    this.needsRedraw = true;
-  }
-
-  /**
-   * Updates the visual highlighting of the segment containing the best car.
-   * The best car's segment borders are drawn in white to stand out.
-   *
-   * @param cars - The current list of cars
-   */
-  private updateSegmentVisualization(cars: Car[]) {
-    const bestCar = this.getBestCar(cars);
-    if (!bestCar) return;
-
-    const bestCarProgress = this.progressMap.get(bestCar.id);
-    if (!bestCarProgress) return;
-
-    const bestIdx = bestCarProgress.segmentIndex;
-
-    for (let i = 0; i < this.segmentBorderMeshes.length; i++) {
-      const isBest = i === bestIdx;
-      for (const mesh of this.segmentBorderMeshes[i]) {
-        if (isBest) {
-          mesh.material = this.bestSegmentMaterial;
-        } else {
-          // Restore original color
-          const colorHex =
-            TrainingSystem.SEGMENT_COLORS[
-              i % TrainingSystem.SEGMENT_COLORS.length
-            ];
-          const mat = mesh.material as MeshBasicMaterial;
-          mat.color.setHex(colorHex);
-          mat.opacity = 0.6;
-          mat.transparent = true;
-        }
-      }
-    }
-  }
-
-  /**
-   * Draw the training system debug visuals (segment polygon borders).
-   * Each segment's envelope polygon is drawn with a distinct color.
-   *
-   * @param group - The Three.js group to add debug meshes to
-   */
-  draw(group: Group) {
-    for (const meshGroup of this.segmentBorderMeshes) {
-      for (const mesh of meshGroup) {
-        if (mesh.parent !== group) {
-          group.add(mesh);
-        }
-      }
-    }
-  }
-
-  /**
-   * Update the visual highlight on the best-performing car.
-   *
-   * Removes highlight from the previous best car and applies it to
-   * the new best car. Only changes state when the best car changes.
-   *
-   * @param cars - Array of all cars
-   */
-  private updateBestCarHighlight(cars: Car[]): void {
-    const bestCar = this.getBestCar(cars);
-    const newBestId = bestCar?.id ?? null;
-
-    // Only update if the best car has changed
-    if (newBestId === this.currentBestCarId) return;
-
-    // Remove highlight from previous best car
-    if (this.currentBestCarId !== null) {
-      const prevBestCar = cars.find((c) => c.id === this.currentBestCarId);
-      prevBestCar?.setHighlighted(false);
-    }
-
-    // Add highlight to new best car
-    if (bestCar) {
-      bestCar.setHighlighted(true);
-    }
-
-    this.currentBestCarId = newBestId;
   }
 
   /**
@@ -368,9 +196,8 @@ export class TrainingSystem {
       this.progressMap.set(car.id, progress);
     }
 
-    // Update best car highlight and segment visualization
+    // Update best car highlight
     this.updateBestCarHighlight(cars);
-    this.updateSegmentVisualization(cars);
   }
 
   getProgress(carId: number): CarProgress | undefined {
@@ -459,6 +286,52 @@ export class TrainingSystem {
   }
 
   /**
+   * Compare two cars' progress within the same segment.
+   *
+   * When multiple cars are in the same segment, this compares their positions
+   * relative to the segment's edge to determine which car is ahead.
+   *
+   * @param carA - First car
+   * @param carB - Second car
+   * @param segment - The segment both cars are in
+   * @returns Positive if carA is ahead, negative if carB is ahead, 0 if equal
+   */
+  compareProgressInSegment(carA: Car, carB: Car, segment: PathSegment): number {
+    const projectionA = segment.edge.projectNode(carA.position);
+    const projectionB = segment.edge.projectNode(carB.position);
+    return projectionA.offset - projectionB.offset;
+  }
+
+  /**
+   * Update the visual highlight on the best-performing car.
+   *
+   * Removes highlight from the previous best car and applies it to
+   * the new best car. Only changes state when the best car changes.
+   *
+   * @param cars - Array of all cars
+   */
+  private updateBestCarHighlight(cars: Car[]): void {
+    const bestCar = this.getBestCar(cars);
+    const newBestId = bestCar?.id ?? null;
+
+    // Only update if the best car has changed
+    if (newBestId === this.currentBestCarId) return;
+
+    // Remove highlight from previous best car
+    if (this.currentBestCarId !== null) {
+      const prevBestCar = cars.find((c) => c.id === this.currentBestCarId);
+      prevBestCar?.setHighlighted(false);
+    }
+
+    // Add highlight to new best car
+    if (bestCar) {
+      bestCar.setHighlighted(true);
+    }
+
+    this.currentBestCarId = newBestId;
+  }
+
+  /**
    * Calculate progress for a single car.
    *
    * The algorithm finds the highest-indexed segment polygon that contains
@@ -542,23 +415,6 @@ export class TrainingSystem {
       }
     }
     return nearestIndex;
-  }
-
-  /**
-   * Compare two cars' progress within the same segment.
-   *
-   * When multiple cars are in the same segment, this compares their positions
-   * relative to the segment's edge to determine which car is ahead.
-   *
-   * @param carA - First car
-   * @param carB - Second car
-   * @param segment - The segment both cars are in
-   * @returns Positive if carA is ahead, negative if carB is ahead, 0 if equal
-   */
-  compareProgressInSegment(carA: Car, carB: Car, segment: PathSegment): number {
-    const projectionA = segment.edge.projectNode(carA.position);
-    const projectionB = segment.edge.projectNode(carB.position);
-    return projectionA.offset - projectionB.offset;
   }
 
   /**
