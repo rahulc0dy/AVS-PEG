@@ -1,10 +1,18 @@
-import {BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D,} from "three";
-import {Sensor} from "@/lib/car/sensor";
-import {Controls, ControlType} from "@/lib/car/controls";
-import {Polygon} from "@/lib/primitives/polygon";
-import {Node} from "../primitives/node";
-import {GLTFLoader} from "three/examples/jsm/Addons.js";
-import {Edge} from "@/lib/primitives/edge";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
+import { Sensor } from "@/lib/car/sensor";
+import { Controls, ControlType } from "@/lib/car/controls";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Node } from "../primitives/node";
+import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
@@ -13,7 +21,7 @@ import {
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import {ControlInputs} from "@/types/car/shared";
+import { ControlInputs } from "@/types/car/shared";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -72,6 +80,18 @@ export class Car {
 
   /** Mesh used to visualize the car collider (optional, created lazily). */
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
+
+  /** Whether this car is currently highlighted as the best car. */
+  private _isHighlighted: boolean = false;
+
+  /** Default collider color (semi-transparent green). */
+  private static readonly DEFAULT_COLLIDER_COLOR = new Color(0x00ff00);
+  /** Highlight collider color (bright gold/yellow). */
+  private static readonly HIGHLIGHT_COLLIDER_COLOR = new Color(0xffd700);
+  /** Default collider opacity. */
+  private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
+  /** Highlight collider opacity (more visible). */
+  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
 
   /** Parent Three.js group where this car attaches its meshes. */
   private readonly group: Group;
@@ -356,5 +376,44 @@ export class Car {
         ignoreCarDamage: this.ignoreCarDamage,
       } as CarInitPayload,
     });
+  }
+
+  /**
+   * Check if this car is currently highlighted as the best car.
+   * @returns True if the car is highlighted
+   */
+  get isHighlighted(): boolean {
+    return this._isHighlighted;
+  }
+
+  /**
+   * Set the highlight state for this car.
+   *
+   * When highlighted, the car's collider mesh becomes more visible with
+   * a gold/yellow color to indicate it's the current best performer.
+   *
+   * @param highlighted - Whether to highlight the car
+   */
+  setHighlighted(highlighted: boolean): void {
+    if (this._isHighlighted === highlighted) return;
+
+    this._isHighlighted = highlighted;
+    this.updateColliderAppearance();
+  }
+
+  /**
+   * Update the collider mesh appearance based on highlight state.
+   */
+  private updateColliderAppearance(): void {
+    if (!this.carColliderMesh) return;
+
+    const material = this.carColliderMesh.material;
+    if (this._isHighlighted) {
+      material.color.copy(Car.HIGHLIGHT_COLLIDER_COLOR);
+      material.opacity = Car.HIGHLIGHT_COLLIDER_OPACITY;
+    } else {
+      material.color.copy(Car.DEFAULT_COLLIDER_COLOR);
+      material.opacity = Car.DEFAULT_COLLIDER_OPACITY;
+    }
   }
 }

@@ -1,133 +1,296 @@
 import { Car } from "@/lib/car/car";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { distance } from "@/utils/math";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Envelope } from "@/lib/primitives/envelope";
+import { ROAD_WIDTH } from "@/env";
+import { angle, distance } from "@/utils/math";
+import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
 
 /**
- * Progress data for a single car along the path.
+ * Represents a segment of the path from source to destination.
+ *
+ * Each segment corresponds to one edge in the path. The `polygon` is the
+ * envelope around that edge, used for containment checks. Segments are
+ * stored in order from source (index 0) to destination (index n-1).
  */
+export interface PathSegment {
+  /** Index of this segment in the path (0 = closest to source). */
+  index: number;
+  /** The underlying edge of the path. */
+  edge: Edge;
+  /** Envelope polygon around the edge for containment checks. */
+  polygon: Polygon;
+  /** Cumulative path length at the start of this segment. */
+  cumulativeLengthStart: number;
+  /** Cumulative path length at the end of this segment. */
+  cumulativeLengthEnd: number;
+}
+
 export interface CarProgress {
-  /** The car's unique identifier. */
   carId: number;
-  /** Index of the path segment (edge) the car is currently on. */
   segmentIndex: number;
-  /** Offset within the current segment (0 = at n1, 1 = at n2). */
   segmentOffset: number;
-  /** Total progress as a normalized value (0 = start, 1 = end of path). */
   totalProgress: number;
-  /** Whether the car has reached the final destination. */
   reachedDestination: boolean;
-  /** Whether the car is damaged (crashed). */
   isDamaged: boolean;
 }
 
-/**
- * Training statistics for the current generation.
- */
 export interface TrainingStats {
-  /** Current generation number. */
   generation: number;
-  /** Total number of cars in training. */
   totalCars: number;
-  /** Number of cars still active (not damaged). */
   activeCars: number;
-  /** Number of cars that reached the destination. */
   reachedDestination: number;
-  /** Best fitness score in current generation. */
   bestFitness: number;
-  /** ID of the best performing car. */
   bestCarId: number | null;
-  /** Whether training is currently active. */
   isTraining: boolean;
-  /** Whether all cars have finished (damaged or reached destination). */
   generationComplete: boolean;
 }
 
 /**
- * System responsible for AI training, including:
- * - Tracking car progress along path segments
- * - Calculating fitness scores
- * - Determining the best car for brain saving
- * - Managing training generations
+ * Tracks car progress along a path and provides fitness metrics for training.
  *
- * The path is divided into segments (edges). At bends, segments are angled
- * to follow the road. Progress is calculated by projecting car positions
- * onto segments and measuring distance traveled along the path.
- *
- * @example
- * ```ts
- * const training = new TrainingSystem();
- * training.setPath(pathEdges);
- * training.startTraining(cars);
- *
- * // Each frame:
- * training.update(cars);
- * const stats = training.getStats();
- * const bestCar = training.getBestCar(cars);
- * ```
+ * Progress tracking uses individual segment polygons (envelopes) to determine
+ * which segment a car is in. Since polygons overlap at segment boundaries,
+ * the system always chooses the **highest-indexed** (most advanced) polygon
+ * that contains the car. Within a segment, progress is calculated by projecting
+ * the car's position onto the segment's edge.
  */
 export class TrainingSystem {
-  /** The path edges (segments) in order from source to destination. */
-  private path: Edge[] = [];
-
-  /** Cumulative lengths at the end of each segment. */
-  private cumulativeLengths: number[] = [];
-
-  /** Total path length. */
+  /** Path segments in order from source (index 0) to destination. */
+  private segments: PathSegment[] = [];
+  /** Total path length for normalizing progress to [0, 1]. */
   private totalPathLength: number = 0;
-
-  /** Progress data for each car, keyed by car ID. */
+  /** Current progress state for each car, keyed by car ID. */
   private progressMap: Map<number, CarProgress> = new Map();
-
-  /** Current generation number. */
+  /** Current generation number for training. */
   private generation: number = 0;
-
   /** Whether training is currently active. */
   private isTraining: boolean = false;
-
-  /** Distance threshold for considering a car "on" a segment. */
-  private readonly proximityThreshold: number = 50;
-
-  /** Distance threshold for reaching destination. */
+  /** Distance threshold for considering a car as having reached destination. */
   private readonly destinationThreshold: number = 30;
+  /** Currently highlighted best car ID (for visual feedback). */
+  private currentBestCarId: number | null = null;
 
   /**
-   * Set the path for progress tracking.
+   * Set the path for tracking car progress.
    *
-   * Call this whenever the path changes (e.g., when source/destination
-   * markings are updated or when loading a new world).
+   * Creates envelope polygons for each edge in the path. Segments are stored
+   * in order from source to destination, which is critical for the progress
+   * tracking algorithm that chooses the highest-indexed containing polygon.
    *
-   * @param pathEdges - Ordered array of edges from source to destination.
-   *                    Each edge should be oriented so n1 -> n2 follows
-   *                    the direction of travel.
+   * @param pathEdges - Ordered edges from source to destination
    */
   setPath(pathEdges: Edge[]): void {
-    this.path = pathEdges;
+    this.segments = [];
     this.progressMap.clear();
+    let cumulativeLength = 0;
+    for (let i = 0; i < pathEdges.length; i++) {
+      const edge = pathEdges[i];
+      const edgeLength = edge.length();
+      const envelope = new Envelope(edge, ROAD_WIDTH, 8);
+      this.segments.push({
+        index: i,
+        edge: edge,
+        polygon: envelope.poly,
+        cumulativeLengthStart: cumulativeLength,
+        cumulativeLengthEnd: cumulativeLength + edgeLength,
+      });
+      cumulativeLength += edgeLength;
+    }
+    this.totalPathLength = cumulativeLength;
+    this.rebuildSegmentMeshes();
+  }
 
-    // Precompute cumulative lengths for efficient progress calculation
-    this.cumulativeLengths = [];
-    let cumulative = 0;
+  /** Debug border meshes for each segment polygon. */
+  private segmentBorderMeshes: Mesh[][] = [];
+  /** Whether segment meshes need rebuilding. */
+  private needsRedraw: boolean = false;
 
-    for (const edge of this.path) {
-      cumulative += edge.length();
-      this.cumulativeLengths.push(cumulative);
+  /**
+   * Distinct colors for each segment polygon border.
+   * Cycles through this palette for segments beyond the array length.
+   */
+  private static readonly SEGMENT_COLORS: number[] = [
+    0xff0000, // red
+    0x00ff00, // green
+    0x0000ff, // blue
+    0xffff00, // yellow
+    0xff00ff, // magenta
+    0x00ffff, // cyan
+    0xff8800, // orange
+    0x88ff00, // lime
+    0x0088ff, // sky blue
+    0xff0088, // pink
+    0x8800ff, // purple
+    0x00ff88, // mint
+  ];
+
+  /** Material for the best car's segment. */
+  private bestSegmentMaterial: MeshBasicMaterial = new MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.8,
+  });
+
+  /**
+   * Rebuilds the border meshes for each segment envelope polygon.
+   *
+   * Each segment gets a distinct color so overlapping regions between
+   * adjacent envelopes are visually obvious.
+   */
+  private rebuildSegmentMeshes() {
+    // Dispose old meshes
+    for (const meshGroup of this.segmentBorderMeshes) {
+      for (const mesh of meshGroup) {
+        mesh.geometry.dispose();
+        (mesh.material as MeshBasicMaterial).dispose();
+      }
+    }
+    this.segmentBorderMeshes = [];
+
+    const borderHeight = 8;
+
+    for (let segIdx = 0; segIdx < this.segments.length; segIdx++) {
+      const segment = this.segments[segIdx];
+      const colorHex =
+        TrainingSystem.SEGMENT_COLORS[
+          segIdx % TrainingSystem.SEGMENT_COLORS.length
+        ];
+      const material = new MeshBasicMaterial({
+        color: new Color(colorHex),
+        transparent: true,
+        opacity: 0.6,
+      });
+
+      const meshes: Mesh[] = [];
+
+      // Draw each edge of the segment's envelope polygon as a thin box
+      for (const edge of segment.polygon.edges) {
+        const edgeLen = distance(edge.n1, edge.n2);
+        if (edgeLen < 0.01) continue;
+
+        const geo = new BoxGeometry(edgeLen, borderHeight, 1.5);
+        const mesh = new Mesh(geo, material);
+
+        mesh.position.set(
+          (edge.n1.x + edge.n2.x) / 2,
+          borderHeight / 2,
+          (edge.n1.y + edge.n2.y) / 2,
+        );
+        mesh.rotation.y = -angle(
+          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
+        );
+
+        mesh.userData = { segmentIndex: segIdx };
+        meshes.push(mesh);
+      }
+
+      this.segmentBorderMeshes.push(meshes);
     }
 
-    this.totalPathLength = cumulative;
+    this.needsRedraw = true;
   }
 
   /**
-   * Get the current path.
-   */
-  getPath(): Edge[] {
-    return this.path;
-  }
-
-  /**
-   * Start a new training session.
+   * Updates the visual highlighting of the segment containing the best car.
+   * The best car's segment borders are drawn in white to stand out.
    *
-   * @param incrementGeneration - Whether to increment the generation counter.
+   * @param cars - The current list of cars
+   */
+  private updateSegmentVisualization(cars: Car[]) {
+    const bestCar = this.getBestCar(cars);
+    if (!bestCar) return;
+
+    const bestCarProgress = this.progressMap.get(bestCar.id);
+    if (!bestCarProgress) return;
+
+    const bestIdx = bestCarProgress.segmentIndex;
+
+    for (let i = 0; i < this.segmentBorderMeshes.length; i++) {
+      const isBest = i === bestIdx;
+      for (const mesh of this.segmentBorderMeshes[i]) {
+        if (isBest) {
+          mesh.material = this.bestSegmentMaterial;
+        } else {
+          // Restore original color
+          const colorHex =
+            TrainingSystem.SEGMENT_COLORS[
+              i % TrainingSystem.SEGMENT_COLORS.length
+            ];
+          const mat = mesh.material as MeshBasicMaterial;
+          mat.color.setHex(colorHex);
+          mat.opacity = 0.6;
+          mat.transparent = true;
+        }
+      }
+    }
+  }
+
+  /**
+   * Draw the training system debug visuals (segment polygon borders).
+   * Each segment's envelope polygon is drawn with a distinct color.
+   *
+   * @param group - The Three.js group to add debug meshes to
+   */
+  draw(group: Group) {
+    for (const meshGroup of this.segmentBorderMeshes) {
+      for (const mesh of meshGroup) {
+        if (mesh.parent !== group) {
+          group.add(mesh);
+        }
+      }
+    }
+  }
+
+  /**
+   * Update the visual highlight on the best-performing car.
+   *
+   * Removes highlight from the previous best car and applies it to
+   * the new best car. Only changes state when the best car changes.
+   *
+   * @param cars - Array of all cars
+   */
+  private updateBestCarHighlight(cars: Car[]): void {
+    const bestCar = this.getBestCar(cars);
+    const newBestId = bestCar?.id ?? null;
+
+    // Only update if the best car has changed
+    if (newBestId === this.currentBestCarId) return;
+
+    // Remove highlight from previous best car
+    if (this.currentBestCarId !== null) {
+      const prevBestCar = cars.find((c) => c.id === this.currentBestCarId);
+      prevBestCar?.setHighlighted(false);
+    }
+
+    // Add highlight to new best car
+    if (bestCar) {
+      bestCar.setHighlighted(true);
+    }
+
+    this.currentBestCarId = newBestId;
+  }
+
+  /**
+   * Get all path segments.
+   * @returns Array of path segments in order from source to destination
+   */
+  getSegments(): PathSegment[] {
+    return this.segments;
+  }
+
+  /**
+   * Get the number of segments in the path.
+   * @returns Number of segments
+   */
+  getSegmentCount(): number {
+    return this.segments.length;
+  }
+
+  /**
+   * Start a training session.
+   * @param incrementGeneration - Whether to increment the generation counter
    */
   startTraining(incrementGeneration: boolean = true): void {
     if (incrementGeneration) {
@@ -145,7 +308,7 @@ export class TrainingSystem {
   }
 
   /**
-   * Reset training state completely.
+   * Reset all training state including generation counter.
    */
   reset(): void {
     this.generation = 0;
@@ -155,6 +318,7 @@ export class TrainingSystem {
 
   /**
    * Get the current generation number.
+   * @returns Current generation
    */
   getGeneration(): number {
     return this.generation;
@@ -162,6 +326,7 @@ export class TrainingSystem {
 
   /**
    * Check if training is currently active.
+   * @returns True if training is active
    */
   getIsTraining(): boolean {
     return this.isTraining;
@@ -170,58 +335,57 @@ export class TrainingSystem {
   /**
    * Update progress for all cars.
    *
-   * Projects each car's position onto the path segments to determine
-   * which segment it's on and how far along the path it has traveled.
+   * Should be called each frame during training to track car positions
+   * and calculate fitness scores.
    *
-   * @param cars - Array of cars to track.
+   * @param cars - Array of cars to track
    */
   update(cars: Car[]): void {
     if (
       !this.isTraining ||
-      this.path.length === 0 ||
+      this.segments.length === 0 ||
       this.totalPathLength === 0
     ) {
       return;
     }
-
     for (const car of cars) {
+      // Skip recalculation for damaged cars — their progress is frozen
+      // at the peak value they reached before the collision.
+      const existing = this.progressMap.get(car.id);
+      if (existing && existing.isDamaged) continue;
+
       const progress = this.calculateCarProgress(car);
+
+      // Only accept the new progress if it's >= the previous best.
+      // This prevents regression when the car slides backward after
+      // a collision or falls outside all segment polygons.
+      if (existing && existing.totalProgress > progress.totalProgress) {
+        // Keep existing progress but update damage status
+        existing.isDamaged = car.damaged;
+        continue;
+      }
+
       this.progressMap.set(car.id, progress);
     }
+
+    // Update best car highlight and segment visualization
+    this.updateBestCarHighlight(cars);
+    this.updateSegmentVisualization(cars);
   }
 
-  /**
-   * Get progress data for a specific car.
-   *
-   * @param carId - The car's unique identifier.
-   * @returns Progress data, or undefined if not tracked.
-   */
   getProgress(carId: number): CarProgress | undefined {
     return this.progressMap.get(carId);
   }
 
-  /**
-   * Get all tracked progress data.
-   *
-   * @returns Map of car ID to progress data.
-   */
   getAllProgress(): Map<number, CarProgress> {
     return this.progressMap;
   }
 
-  /**
-   * Get comprehensive training statistics.
-   *
-   * @param cars - Array of cars being trained.
-   * @returns Training statistics object.
-   */
   getStats(cars: Car[]): TrainingStats {
     const activeCars = cars.filter((c) => !c.damaged).length;
     const reachedDestination = this.getDestinationCount();
-
     let bestFitness = 0;
     let bestCarId: number | null = null;
-
     for (const car of cars) {
       const fitness = this.getFitness(car.id);
       if (fitness > bestFitness) {
@@ -229,13 +393,11 @@ export class TrainingSystem {
         bestCarId = car.id;
       }
     }
-
     const generationComplete =
       cars.length > 0 &&
       cars.every(
         (car) => car.damaged || this.getProgress(car.id)?.reachedDestination,
       );
-
     return {
       generation: this.generation,
       totalCars: cars.length,
@@ -248,78 +410,37 @@ export class TrainingSystem {
     };
   }
 
-  /**
-   * Find the best car based on progress along the path.
-   *
-   * Cars are ranked by:
-   * 1. Total progress (higher is better)
-   * 2. Undamaged cars are preferred over damaged ones at similar progress
-   *
-   * @param cars - Array of cars to evaluate.
-   * @returns The best car, or null if no cars are provided.
-   */
   getBestCar(cars: Car[]): Car | null {
-    if (cars.length === 0 || this.path.length === 0) {
+    if (cars.length === 0 || this.segments.length === 0) {
       return null;
     }
-
     let bestCar: Car | null = null;
     let bestProgress: CarProgress | null = null;
-
     for (const car of cars) {
       const progress = this.progressMap.get(car.id);
       if (!progress) continue;
-
       if (!bestCar || !bestProgress) {
         bestCar = car;
         bestProgress = progress;
         continue;
       }
-
       if (this.isBetterProgress(progress, bestProgress)) {
         bestCar = car;
         bestProgress = progress;
       }
     }
-
     return bestCar;
   }
 
-  /**
-   * Get the fitness score for a car (normalized to 0-1 range).
-   *
-   * The fitness considers:
-   * - Progress along the path (primary factor)
-   * - Damage state (damaged cars get a penalty)
-   * - Reaching destination (bonus)
-   *
-   * @param carId - The car's unique identifier.
-   * @returns Fitness score (0-1), or 0 if car not found.
-   */
   getFitness(carId: number): number {
     const progress = this.progressMap.get(carId);
     if (!progress) return 0;
-
-    let fitness = progress.totalProgress;
-
-    // Bonus for reaching destination
     if (progress.reachedDestination) {
-      fitness = 1.0;
+      return 1.0;
     }
-
-    // Penalty for being damaged (but don't zero out progress)
-    if (progress.isDamaged) {
-      fitness *= 0.9;
-    }
-
-    return Math.min(1, Math.max(0, fitness));
+    return Math.min(1, Math.max(0, progress.totalProgress));
   }
 
-  /**
-   * Get the number of cars that have reached the destination.
-   *
-   * @returns Count of cars at destination.
-   */
   getDestinationCount(): number {
     let count = 0;
     for (const progress of this.progressMap.values()) {
@@ -331,86 +452,44 @@ export class TrainingSystem {
   }
 
   /**
-   * Clear all tracked progress data (keeps generation and training state).
+   * Clear all progress tracking data.
    */
   clearProgress(): void {
     this.progressMap.clear();
   }
 
   /**
-   * Calculate progress for a single car by projecting its position
-   * onto path segments.
+   * Calculate progress for a single car.
+   *
+   * The algorithm finds the highest-indexed segment polygon that contains
+   * the car's position. This ensures that when polygons overlap (at segment
+   * boundaries), we always choose the most advanced segment the car has reached.
+   *
+   * @param car - Car to calculate progress for
+   * @returns Progress data for the car
    */
   private calculateCarProgress(car: Car): CarProgress {
     const pos = car.position;
 
-    // Find the best matching segment
-    let bestSegmentIndex = 0;
-    let bestOffset = 0;
-    let minDistance = Infinity;
+    // Find the most advanced segment containing the car
+    const segmentIndex = this.findMostAdvancedContainingSegment(pos);
+    const effectiveSegmentIndex =
+      segmentIndex >= 0 ? segmentIndex : this.findNearestSegment(pos);
 
-    for (let i = 0; i < this.path.length; i++) {
-      const edge = this.path[i];
-      const projection = edge.projectNode(pos);
+    const segment = this.segments[effectiveSegmentIndex];
+    const projection = segment.edge.projectNode(pos);
+    const clampedOffset = Math.max(0, Math.min(1, projection.offset));
+    const progressInSegment = clampedOffset * segment.edge.length();
+    const absoluteProgress = segment.cumulativeLengthStart + progressInSegment;
+    const totalProgress = absoluteProgress / this.totalPathLength;
 
-      // Clamp offset to [0, 1] for points beyond segment endpoints
-      const clampedOffset = Math.max(0, Math.min(1, projection.offset));
-      const clampedPoint = this.getPointOnEdge(edge, clampedOffset);
-      const dist = distance(pos, clampedPoint);
-
-      // Prefer segments where the car is actually on/near the segment
-      // and prefer later segments if car is progressing forward
-      if (dist < minDistance) {
-        // Check if within proximity threshold
-        if (dist <= this.proximityThreshold) {
-          minDistance = dist;
-          bestSegmentIndex = i;
-          bestOffset = projection.offset;
-        } else if (minDistance > this.proximityThreshold) {
-          // If we haven't found a close segment yet, track the closest one
-          minDistance = dist;
-          bestSegmentIndex = i;
-          bestOffset = clampedOffset;
-        }
-      }
-    }
-
-    // Handle edge cases where car might be slightly ahead of current segment
-    // If offset > 1 and there's a next segment, consider moving to it
-    if (bestOffset > 1 && bestSegmentIndex < this.path.length - 1) {
-      const nextEdge = this.path[bestSegmentIndex + 1];
-      const nextProjection = nextEdge.projectNode(pos);
-      const nextPoint = this.getPointOnEdge(
-        nextEdge,
-        Math.max(0, Math.min(1, nextProjection.offset)),
-      );
-      const nextDist = distance(pos, nextPoint);
-
-      if (nextDist <= this.proximityThreshold && nextProjection.offset >= 0) {
-        bestSegmentIndex++;
-        bestOffset = nextProjection.offset;
-      }
-    }
-
-    // Clamp offset for final calculation
-    const clampedOffset = Math.max(0, Math.min(1, bestOffset));
-
-    // Calculate total progress
-    const previousLength =
-      bestSegmentIndex > 0 ? this.cumulativeLengths[bestSegmentIndex - 1] : 0;
-    const currentSegmentLength = this.path[bestSegmentIndex].length();
-    const progressInSegment = clampedOffset * currentSegmentLength;
-    const totalProgress =
-      (previousLength + progressInSegment) / this.totalPathLength;
-
-    // Check if reached destination
-    const lastEdge = this.path[this.path.length - 1];
-    const distToDestination = distance(pos, lastEdge.n2);
+    const lastSegment = this.segments[this.segments.length - 1];
+    const distToDestination = distance(pos, lastSegment.edge.n2);
     const reachedDestination = distToDestination <= this.destinationThreshold;
 
     return {
       carId: car.id,
-      segmentIndex: bestSegmentIndex,
+      segmentIndex: effectiveSegmentIndex,
       segmentOffset: clampedOffset,
       totalProgress: Math.max(0, Math.min(1, totalProgress)),
       reachedDestination,
@@ -419,46 +498,91 @@ export class TrainingSystem {
   }
 
   /**
-   * Get a point on an edge at a given offset (0-1).
+   * Find the most advanced (highest-indexed) segment that contains the position.
+   *
+   * Since segment polygons overlap at boundaries, a car can be inside multiple
+   * polygons simultaneously. This method returns the highest-indexed segment
+   * containing the car, ensuring progress never "jumps back" when crossing
+   * segment boundaries.
+   *
+   * @param pos - Position to check
+   * @returns Index of the most advanced containing segment, or -1 if not in any
    */
-  private getPointOnEdge(edge: Edge, offset: number): Node {
-    return new Node(
-      edge.n1.x + (edge.n2.x - edge.n1.x) * offset,
-      edge.n1.y + (edge.n2.y - edge.n1.y) * offset,
-    );
+  private findMostAdvancedContainingSegment(pos: Node): number {
+    let highestContainingIndex = -1;
+
+    // Check all segments and keep track of the highest index that contains the position
+    for (let i = 0; i < this.segments.length; i++) {
+      if (this.segments[i].polygon.containsNode(pos)) {
+        highestContainingIndex = i;
+        // Don't break - we want the highest index, so keep checking
+      }
+    }
+
+    return highestContainingIndex;
   }
 
   /**
-   * Compare two progress values to determine which is better.
+   * Find the nearest segment to a position when no segment contains it.
    *
-   * @returns true if progressA is better than progressB.
+   * This is a fallback for when the car is outside all segment polygons
+   * (e.g., if it has driven off the road).
+   *
+   * @param pos - Position to find nearest segment for
+   * @returns Index of the nearest segment
+   */
+  private findNearestSegment(pos: Node): number {
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+    for (let i = 0; i < this.segments.length; i++) {
+      const dist = this.segments[i].edge.distanceToNode(pos);
+      if (dist < nearestDistance) {
+        nearestDistance = dist;
+        nearestIndex = i;
+      }
+    }
+    return nearestIndex;
+  }
+
+  /**
+   * Compare two cars' progress within the same segment.
+   *
+   * When multiple cars are in the same segment, this compares their positions
+   * relative to the segment's edge to determine which car is ahead.
+   *
+   * @param carA - First car
+   * @param carB - Second car
+   * @param segment - The segment both cars are in
+   * @returns Positive if carA is ahead, negative if carB is ahead, 0 if equal
+   */
+  compareProgressInSegment(carA: Car, carB: Car, segment: PathSegment): number {
+    const projectionA = segment.edge.projectNode(carA.position);
+    const projectionB = segment.edge.projectNode(carB.position);
+    return projectionA.offset - projectionB.offset;
+  }
+
+  /**
+   * Determine if progressA represents better progress than progressB.
+   *
+   * The best car is simply the one that has travelled the farthest along
+   * the path. Damage is irrelevant — a damaged car that reached segment 5
+   * is better than an undamaged car at segment 3, since mutations in the
+   * next generation can fix the collision.
+   *
+   * @param progressA - First progress to compare
+   * @param progressB - Second progress to compare
+   * @returns True if progressA is better than progressB
    */
   private isBetterProgress(
     progressA: CarProgress,
     progressB: CarProgress,
   ): boolean {
-    // Reached destination is always best
     if (progressA.reachedDestination && !progressB.reachedDestination) {
       return true;
     }
     if (!progressA.reachedDestination && progressB.reachedDestination) {
       return false;
     }
-
-    // If same destination state, compare total progress
-    const progressDiff = progressA.totalProgress - progressB.totalProgress;
-
-    // If progress is significantly different, use that
-    if (Math.abs(progressDiff) > 0.01) {
-      return progressDiff > 0;
-    }
-
-    // If progress is similar, prefer undamaged cars
-    if (progressA.isDamaged !== progressB.isDamaged) {
-      return !progressA.isDamaged;
-    }
-
-    // Otherwise, use raw progress
-    return progressDiff > 0;
+    return progressA.totalProgress > progressB.totalProgress;
   }
 }

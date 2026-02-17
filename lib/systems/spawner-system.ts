@@ -1,10 +1,10 @@
-import {Group} from "three";
-import {Car} from "@/lib/car/car";
-import {Road} from "@/lib/world/road";
-import {ControlType} from "@/lib/car/controls";
-import {Edge} from "@/lib/primitives/edge";
-import {Node} from "@/lib/primitives/node";
-import {angle, average} from "@/utils/math";
+import { Group } from "three";
+import { Car } from "@/lib/car/car";
+import { Road } from "@/lib/world/road";
+import { ControlType } from "@/lib/car/controls";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { angle, average } from "@/utils/math";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -104,6 +104,13 @@ export class SpawnerSystem {
     this.spawnCarsAtPosition(
       count,
       controlType,
+      firstPathEdge.projectNode(sourceNode).point,
+      angle(firstPathEdge.directionVector()),
+    );
+
+    this.spawnCarsAtPosition(
+      1,
+      ControlType.HUMAN,
       firstPathEdge.projectNode(sourceNode).point,
       angle(firstPathEdge.directionVector()),
     );

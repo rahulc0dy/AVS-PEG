@@ -243,6 +243,7 @@ export class World {
     }
 
     this.pathFindingSystem.draw(this.worldGroup);
+    this.trainingSystem.draw(this.worldGroup);
 
     this.scene.add(this.worldGroup);
   }
