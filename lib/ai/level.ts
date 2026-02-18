@@ -1,5 +1,6 @@
 import { getRandomNumberBetween } from "@/utils/math";
-import { LevelJson, LevelStateJson } from "@/types/save";
+import { LevelJson } from "@/types/save";
+import { LevelStateJson } from "@/types/car/state";
 
 /**
  * A single layer in a neural network.

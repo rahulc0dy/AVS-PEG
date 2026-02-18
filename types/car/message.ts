@@ -6,6 +6,7 @@ import {
 import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
 import { Intersection } from "@/utils/math";
 import { ControlType } from "@/lib/car/controls";
+import { NeuralNetworkStateJson } from "@/types/car/state";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
@@ -42,6 +43,7 @@ export interface CarStatePayload extends CarBasePayload {
   angle: number;
   damaged: boolean;
   polygon: PolygonJson | null;
+  network: NeuralNetworkStateJson | null;
 }
 
 /** Message types sent from main thread to worker */

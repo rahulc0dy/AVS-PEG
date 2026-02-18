@@ -196,7 +196,7 @@ export class TrainingSystem {
       this.progressMap.set(car.id, progress);
     }
 
-    // Update best car highlight
+    // Update the best car highlight
     this.updateBestCarHighlight(cars);
   }
 

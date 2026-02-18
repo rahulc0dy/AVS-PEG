@@ -30,3 +30,31 @@ export type WorkerCarState = {
   network: NeuralNetwork;
   sensorReadings: (Intersection | null)[];
 };
+
+/**
+ * Real-time state of the neural network for visualization.
+ * Contains current inputs, outputs, and activations for each level.
+ */
+export interface NeuralNetworkStateJson {
+  /** Current input values to the network */
+  inputs: number[];
+  /** Current output values from the network */
+  outputs: number[];
+  /** State of each level (including weights and biases for visualization) */
+  levels: LevelStateJson[];
+}
+
+/**
+ * Real-time state of a neural network level for visualization.
+ * Contains current activation values and network structure.
+ */
+export interface LevelStateJson {
+  /** Current input values to this level */
+  inputs: number[];
+  /** Current output values (after activation) */
+  outputs: number[];
+  /** Bias values for each output neuron */
+  biases: number[];
+  /** Weight matrix [inputIndex][outputIndex] */
+  weights: number[][];
+}

@@ -99,6 +99,7 @@ const broadcastState = () => {
       angle: carState.angle,
       damaged: carState.damaged,
       polygon: carState.polygon,
+      network: carState.network.getState(),
     } as CarStatePayload,
   });
 };

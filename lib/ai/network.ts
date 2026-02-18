@@ -1,6 +1,7 @@
 import {Level} from "@/lib/ai/level";
 import {getRandomNumberBetween, lerp} from "@/utils/math";
-import {NeuralNetworkJson, NeuralNetworkStateJson} from "@/types/save";
+import {NeuralNetworkJson} from "@/types/save";
+import {NeuralNetworkStateJson} from "@/types/car/state";
 
 /**
  * A feedforward neural network for AI decision-making.

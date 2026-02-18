@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -19,9 +11,10 @@ import {
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType,
+  WorkerOutboundMessageType
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
+import { NeuralNetworkStateJson } from "@/types/car/state";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -38,6 +31,14 @@ import { ControlInputs } from "@/types/car/shared";
  * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
+  /** Default collider color (semi-transparent green). */
+  private static readonly DEFAULT_COLLIDER_COLOR = new Color(0x00ff00);
+  /** Highlight collider color (bright gold/yellow). */
+  private static readonly HIGHLIGHT_COLLIDER_COLOR = new Color(0xffd700);
+  /** Default collider opacity. */
+  private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
+  /** Highlight collider opacity (more visible). */
+  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
   /** Unique identifier for this car. */
   id: number;
   /** Position in world units. `y` maps to Three.js Z when rendering. */
@@ -68,31 +69,16 @@ export class Car {
   polygon: Polygon | null = null;
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
-
+  network: NeuralNetworkStateJson | null = null;
   private worker: Worker | null = null;
-
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
   /** Root group returned by the GLTF loader (null until loaded). */
   private model: Group | null = null;
   /** Simple guard to prevent concurrent model loads. */
   private loadingModel = false;
-
   /** Mesh used to visualize the car collider (optional, created lazily). */
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
-
-  /** Whether this car is currently highlighted as the best car. */
-  private _isHighlighted: boolean = false;
-
-  /** Default collider color (semi-transparent green). */
-  private static readonly DEFAULT_COLLIDER_COLOR = new Color(0x00ff00);
-  /** Highlight collider color (bright gold/yellow). */
-  private static readonly HIGHLIGHT_COLLIDER_COLOR = new Color(0xffd700);
-  /** Default collider opacity. */
-  private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
-  /** Highlight collider opacity (more visible). */
-  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
-
   /** Parent Three.js group where this car attaches its meshes. */
   private readonly group: Group;
 
@@ -145,6 +131,17 @@ export class Car {
     }
 
     this.initWorker();
+  }
+
+  /** Whether this car is currently highlighted as the best car. */
+  private _isHighlighted: boolean = false;
+
+  /**
+   * Check if this car is currently highlighted as the best car.
+   * @returns True if the car is highlighted
+   */
+  get isHighlighted(): boolean {
+    return this._isHighlighted;
   }
 
   /**
@@ -308,6 +305,21 @@ export class Car {
     }
   }
 
+  /**
+   * Set the highlight state for this car.
+   *
+   * When highlighted, the car's collider mesh becomes more visible with
+   * a gold/yellow color to indicate it's the current best performer.
+   *
+   * @param highlighted - Whether to highlight the car
+   */
+  setHighlighted(highlighted: boolean): void {
+    if (this._isHighlighted === highlighted) return;
+
+    this._isHighlighted = highlighted;
+    this.updateColliderAppearance();
+  }
+
   private ignoreDamageFromCars() {
     this.ignoreCarDamage = true;
     if (this.sensor) {
@@ -335,6 +347,7 @@ export class Car {
           if (statePayload.polygon) {
             this.polygon = Polygon.fromJson(statePayload.polygon);
           }
+          this.network = statePayload.network;
           break;
         }
         case WorkerOutboundMessageType.SENSOR_UPDATE: {
@@ -376,29 +389,6 @@ export class Car {
         ignoreCarDamage: this.ignoreCarDamage,
       } as CarInitPayload,
     });
-  }
-
-  /**
-   * Check if this car is currently highlighted as the best car.
-   * @returns True if the car is highlighted
-   */
-  get isHighlighted(): boolean {
-    return this._isHighlighted;
-  }
-
-  /**
-   * Set the highlight state for this car.
-   *
-   * When highlighted, the car's collider mesh becomes more visible with
-   * a gold/yellow color to indicate it's the current best performer.
-   *
-   * @param highlighted - Whether to highlight the car
-   */
-  setHighlighted(highlighted: boolean): void {
-    if (this._isHighlighted === highlighted) return;
-
-    this._isHighlighted = highlighted;
-    this.updateColliderAppearance();
   }
 
   /**

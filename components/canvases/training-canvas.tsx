@@ -12,6 +12,8 @@ import Label from "@/components/ui/label";
 import Checkbox from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/toast";
 import { ControlType } from "@/lib/car/controls";
+import { NeuralNetworkVisualizer } from "@/components/world-ui/neural-network-visualizer";
+import { NeuralNetworkStateJson } from "@/types/car/state";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -40,6 +42,8 @@ export default function TrainingCanvas({
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
+  const [bestCarBrain, setBestCarBrain] =
+    useState<NeuralNetworkStateJson | null>(null);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -69,6 +73,7 @@ export default function TrainingCanvas({
       setCarsReachedDestination(stats.reachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
+      setBestCarBrain(cars[stats.bestCarId ?? 0]?.network ?? null);
 
       if (stats.generationComplete) {
         // May do something in future
@@ -278,6 +283,8 @@ export default function TrainingCanvas({
           </div>
         </CardContent>
       </Card>
+
+      <NeuralNetworkVisualizer state={bestCarBrain} />
     </>
   );
 }
