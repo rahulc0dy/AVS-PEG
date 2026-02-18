@@ -1,19 +1,6 @@
-import { Level } from "@/lib/ai/level";
-import { getRandomNumberBetween, lerp } from "@/utils/math";
-import { LevelStateJson, NeuralNetworkJson } from "@/types/save";
-
-/**
- * Real-time state of the neural network for visualization.
- * Contains current inputs, outputs, and activations for each level.
- */
-export interface NeuralNetworkStateJson {
-  /** Current input values to the network */
-  inputs: number[];
-  /** Current output values from the network */
-  outputs: number[];
-  /** State of each level (including weights and biases for visualization) */
-  levels: LevelStateJson[];
-}
+import {Level} from "@/lib/ai/level";
+import {getRandomNumberBetween, lerp} from "@/utils/math";
+import {NeuralNetworkJson, NeuralNetworkStateJson} from "@/types/save";
 
 /**
  * A feedforward neural network for AI decision-making.

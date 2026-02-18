@@ -1,5 +1,5 @@
-import { LightState } from "@/lib/markings/traffic-light";
-import { MarkingType } from "./marking";
+import {LightState} from "@/lib/markings/traffic-light";
+import {MarkingType} from "@/types/marking";
 
 /**
  * Serialized representation of the entire world used for saving/loading.
@@ -121,4 +121,17 @@ export interface LevelStateJson {
  */
 export interface NeuralNetworkJson {
   levels: LevelJson[];
+}
+
+/**
+ * Real-time state of the neural network for visualization.
+ * Contains current inputs, outputs, and activations for each level.
+ */
+export interface NeuralNetworkStateJson {
+  /** Current input values to the network */
+  inputs: number[];
+  /** Current output values from the network */
+  outputs: number[];
+  /** State of each level (including weights and biases for visualization) */
+  levels: LevelStateJson[];
 }
