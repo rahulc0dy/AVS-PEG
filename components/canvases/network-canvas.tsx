@@ -12,6 +12,12 @@ interface HoveredNeuron {
   neuronIdx: number;
 }
 
+interface HoveredConnection {
+  layerIdx: number;
+  fromIdx: number;
+  toIdx: number;
+}
+
 interface MousePosition {
   x: number;
   y: number;
@@ -112,6 +118,39 @@ function calculateNeuronPositions(
 }
 
 /**
+ * Checks if a point is near a line segment within a given threshold.
+ */
+function isPointNearLine(
+  px: number,
+  py: number,
+  from: NeuronPosition,
+  to: NeuronPosition,
+  threshold: number,
+): boolean {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (lengthSquared === 0) {
+    // Line segment is a point
+    const dist = Math.sqrt((px - from.x) ** 2 + (py - from.y) ** 2);
+    return dist <= threshold;
+  }
+
+  // Calculate projection of point onto line segment
+  let t = ((px - from.x) * dx + (py - from.y) * dy) / lengthSquared;
+  t = Math.max(0, Math.min(1, t));
+
+  // Find closest point on line segment
+  const closestX = from.x + t * dx;
+  const closestY = from.y + t * dy;
+
+  // Calculate distance from point to closest point on line
+  const distance = Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
+  return distance <= threshold;
+}
+
+/**
  * Canvas-based neural network visualization.
  * Renders neurons, connections with weights, and layer labels.
  */
@@ -125,6 +164,8 @@ export const NetworkCanvas = ({
   const [hoveredNeuron, setHoveredNeuron] = useState<HoveredNeuron | null>(
     null,
   );
+  const [hoveredConnection, setHoveredConnection] =
+    useState<HoveredConnection | null>(null);
   const [mousePosition, setMousePosition] = useState<MousePosition | null>(
     null,
   );
@@ -169,7 +210,14 @@ export const NetworkCanvas = ({
     neuronPositionsRef.current = neuronPositions;
 
     // Draw all connections (weights) between layers
-    drawConnections(ctx, neuronPositions, weights, numLayers);
+    drawConnections(
+      ctx,
+      neuronPositions,
+      weights,
+      numLayers,
+      hoveredConnection,
+      mousePosition,
+    );
 
     // Draw all neurons
     drawNeurons(
@@ -188,6 +236,7 @@ export const NetworkCanvas = ({
     activations,
     biases,
     hoveredNeuron,
+    hoveredConnection,
     mousePosition,
   ]);
 
@@ -202,7 +251,7 @@ export const NetworkCanvas = ({
       const y = e.clientY - rect.top;
       const radius = neuronRadiusRef.current;
 
-      // Check if mouse is over any neuron
+      // Check if mouse is over any neuron first
       for (
         let layerIdx = 0;
         layerIdx < neuronPositionsRef.current.length;
@@ -214,12 +263,36 @@ export const NetworkCanvas = ({
           const distance = Math.sqrt((x - neuron.x) ** 2 + (y - neuron.y) ** 2);
           if (distance <= radius) {
             setHoveredNeuron({ layerIdx, neuronIdx });
+            setHoveredConnection(null);
             setMousePosition({ x, y });
             return;
           }
         }
       }
+
+      // Check if mouse is over any connection
+      const positions = neuronPositionsRef.current;
+      for (let layerIdx = 0; layerIdx < positions.length - 1; layerIdx++) {
+        const fromLayer = positions[layerIdx];
+        const toLayer = positions[layerIdx + 1];
+
+        for (let fromIdx = 0; fromIdx < fromLayer.length; fromIdx++) {
+          for (let toIdx = 0; toIdx < toLayer.length; toIdx++) {
+            const from = fromLayer[fromIdx];
+            const to = toLayer[toIdx];
+
+            if (isPointNearLine(x, y, from, to, 5)) {
+              setHoveredConnection({ layerIdx, fromIdx, toIdx });
+              setHoveredNeuron(null);
+              setMousePosition({ x, y });
+              return;
+            }
+          }
+        }
+      }
+
       setHoveredNeuron(null);
+      setHoveredConnection(null);
       setMousePosition(null);
     },
     [],
@@ -227,6 +300,7 @@ export const NetworkCanvas = ({
 
   const handleMouseLeave = useCallback(() => {
     setHoveredNeuron(null);
+    setHoveredConnection(null);
     setMousePosition(null);
   }, []);
 
@@ -247,12 +321,15 @@ export const NetworkCanvas = ({
 
 /**
  * Draws connections (weight lines) between layers.
+ * Shows weight value at mouse position when connection is hovered.
  */
 function drawConnections(
   ctx: CanvasRenderingContext2D,
   neuronPositions: NeuronPosition[][],
   weights: number[][][] | null,
   numLayers: number,
+  hoveredConnection: HoveredConnection | null,
+  mousePosition: MousePosition | null,
 ): void {
   for (let layerIdx = 0; layerIdx < numLayers - 1; layerIdx++) {
     const fromLayer = neuronPositions[layerIdx];
@@ -264,13 +341,32 @@ function drawConnections(
         const from = fromLayer[fromIdx];
         const to = toLayer[toIdx];
         const weight = layerWeights?.[fromIdx]?.[toIdx] ?? 0;
+        const isHovered =
+          hoveredConnection?.layerIdx === layerIdx &&
+          hoveredConnection?.fromIdx === fromIdx &&
+          hoveredConnection?.toIdx === toIdx;
 
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
         ctx.lineTo(to.x, to.y);
         ctx.strokeStyle = getWeightColor(weight);
-        ctx.lineWidth = getWeightLineWidth(weight);
+        ctx.lineWidth = isHovered
+          ? getWeightLineWidth(weight) * 2
+          : getWeightLineWidth(weight);
         ctx.stroke();
+
+        // Draw weight value at mouse position when hovered
+        if (isHovered && mousePosition) {
+          ctx.fillStyle = COLORS.labelText;
+          ctx.font = LAYOUT.labelFontSize;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(
+            weight.toFixed(2),
+            mousePosition.x + 10,
+            mousePosition.y - 5,
+          );
+        }
       }
     }
   }
