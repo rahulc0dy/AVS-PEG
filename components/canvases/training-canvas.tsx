@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { ControlType } from "@/lib/car/controls";
 import { NeuralNetworkVisualizer } from "@/components/world-ui/neural-network-visualizer";
 import { NeuralNetworkStateJson } from "@/types/car/state";
+import { Car } from "@/lib/car/car";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -44,6 +45,7 @@ export default function TrainingCanvas({
   const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
   const [bestCarBrain, setBestCarBrain] =
     useState<NeuralNetworkStateJson | null>(null);
+  const [bestCar, setBestCar] = useState<Car | null>(null);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -73,7 +75,9 @@ export default function TrainingCanvas({
       setCarsReachedDestination(stats.reachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
-      setBestCarBrain(cars[stats.bestCarId ?? 0]?.network ?? null);
+      const currentBestCar = cars[stats.bestCarId ?? 0] ?? null;
+      setBestCar(currentBestCar);
+      setBestCarBrain(currentBestCar?.network ?? null);
 
       if (stats.generationComplete) {
         // May do something in future
@@ -98,6 +102,32 @@ export default function TrainingCanvas({
   const handleDiscardBrain = useCallback(() => {
     // TODO: Discard brain logic
   }, []);
+
+  /**
+   * Handle weight change from the neural network visualizer.
+   * Updates the best car's neural network weight.
+   */
+  const handleWeightChange = useCallback(
+    (layerIdx: number, fromIdx: number, toIdx: number, value: number) => {
+      if (bestCar) {
+        bestCar.updateWeight(layerIdx, fromIdx, toIdx, value);
+      }
+    },
+    [bestCar],
+  );
+
+  /**
+   * Handle bias change from the neural network visualizer.
+   * Updates the best car's neural network bias.
+   */
+  const handleBiasChange = useCallback(
+    (layerIdx: number, neuronIdx: number, value: number) => {
+      if (bestCar) {
+        bestCar.updateBias(layerIdx, neuronIdx, value);
+      }
+    },
+    [bestCar],
+  );
 
   const handleSpawnCars = useCallback(() => {
     const world = worldRef.current;
@@ -284,7 +314,11 @@ export default function TrainingCanvas({
         </CardContent>
       </Card>
 
-      <NeuralNetworkVisualizer state={bestCarBrain} />
+      <NeuralNetworkVisualizer
+        state={bestCarBrain}
+        onWeightChange={handleWeightChange}
+        onBiasChange={handleBiasChange}
+      />
     </>
   );
 }

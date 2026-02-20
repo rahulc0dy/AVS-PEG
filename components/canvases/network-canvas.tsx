@@ -5,6 +5,13 @@ interface NetworkCanvasProps {
   activations: number[][] | null;
   weights: number[][][] | null;
   biases: number[][] | null;
+  onWeightChange?: (
+    layerIdx: number,
+    fromIdx: number,
+    toIdx: number,
+    value: number,
+  ) => void;
+  onBiasChange?: (layerIdx: number, neuronIdx: number, value: number) => void;
 }
 
 interface HoveredNeuron {
@@ -159,6 +166,8 @@ export const NetworkCanvas = ({
   activations,
   weights,
   biases,
+  onWeightChange,
+  onBiasChange,
 }: NetworkCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredNeuron, setHoveredNeuron] = useState<HoveredNeuron | null>(
@@ -304,6 +313,45 @@ export const NetworkCanvas = ({
     setMousePosition(null);
   }, []);
 
+  // Handle scroll to change weight or bias values
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLCanvasElement>) => {
+      const STEP = 0.01;
+      const delta = e.deltaY > 0 ? -STEP : STEP;
+
+      // Handle connection (weight) scroll
+      if (hoveredConnection && onWeightChange) {
+        e.preventDefault();
+        const { layerIdx, fromIdx, toIdx } = hoveredConnection;
+        const currentWeight = weights?.[layerIdx]?.[fromIdx]?.[toIdx] ?? 0;
+        // Round to 2 decimal places, then apply delta
+        const roundedCurrent = Math.round(currentWeight * 100) / 100;
+        const newValue = Math.max(-1, Math.min(1, roundedCurrent + delta));
+        onWeightChange(layerIdx, fromIdx, toIdx, newValue);
+      }
+
+      // Handle neuron (bias) scroll - only for hidden and output layers (layerIdx > 0)
+      if (hoveredNeuron && onBiasChange && hoveredNeuron.layerIdx > 0) {
+        e.preventDefault();
+        const { layerIdx, neuronIdx } = hoveredNeuron;
+        // biases array is indexed by layerIdx - 1 (no bias for input layer)
+        const currentBias = biases?.[layerIdx - 1]?.[neuronIdx] ?? 0;
+        // Round to 2 decimal places, then apply delta
+        const roundedCurrent = Math.round(currentBias * 100) / 100;
+        const newValue = Math.max(-1, Math.min(1, roundedCurrent + delta));
+        onBiasChange(layerIdx - 1, neuronIdx, newValue);
+      }
+    },
+    [
+      hoveredConnection,
+      hoveredNeuron,
+      weights,
+      biases,
+      onWeightChange,
+      onBiasChange,
+    ],
+  );
+
   return (
     <canvas
       ref={canvasRef}
@@ -311,6 +359,7 @@ export const NetworkCanvas = ({
       style={{ minHeight: "50vh" }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onWheel={handleWheel}
     />
   );
 };

@@ -8,6 +8,13 @@ import { NetworkCanvas } from "@/components/canvases/network-canvas";
 
 interface NeuralNetworkVisualizerProps {
   state?: NeuralNetworkStateJson | null;
+  onWeightChange?: (
+    layerIdx: number,
+    fromIdx: number,
+    toIdx: number,
+    value: number,
+  ) => void;
+  onBiasChange?: (layerIdx: number, neuronIdx: number, value: number) => void;
 }
 
 /**
@@ -16,6 +23,8 @@ interface NeuralNetworkVisualizerProps {
  */
 export const NeuralNetworkVisualizer = ({
   state,
+  onWeightChange,
+  onBiasChange,
 }: NeuralNetworkVisualizerProps) => {
   // Calculate network architecture for visualization
   const architecture = useMemo(() => {
@@ -83,6 +92,8 @@ export const NeuralNetworkVisualizer = ({
           activations={activations}
           weights={weights}
           biases={biases}
+          onWeightChange={onWeightChange}
+          onBiasChange={onBiasChange}
         />
       ) : null}
     </SlideablePanel>

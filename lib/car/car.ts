@@ -8,8 +8,10 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
+  UpdateBiasPayload,
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
+  UpdateWeightPayload,
   WorkerInboundMessageType,
   WorkerOutboundMessageType
 } from "@/types/car/message";
@@ -318,6 +320,53 @@ export class Car {
 
     this._isHighlighted = highlighted;
     this.updateColliderAppearance();
+  }
+
+  /**
+   * Update a weight value in the neural network.
+   * Sends the update to the worker thread.
+   *
+   * @param layerIdx Index of the layer (0-based, for weights between layer i and i+1)
+   * @param fromIdx Index of the source neuron
+   * @param toIdx Index of the target neuron
+   * @param value New weight value
+   */
+  updateWeight(
+    layerIdx: number,
+    fromIdx: number,
+    toIdx: number,
+    value: number,
+  ): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.UPDATE_WEIGHT,
+      payload: {
+        id: this.id,
+        layerIdx,
+        fromIdx,
+        toIdx,
+        value,
+      } as UpdateWeightPayload,
+    });
+  }
+
+  /**
+   * Update a bias value in the neural network.
+   * Sends the update to the worker thread.
+   *
+   * @param layerIdx Index of the layer (0-based)
+   * @param neuronIdx Index of the neuron
+   * @param value New bias value
+   */
+  updateBias(layerIdx: number, neuronIdx: number, value: number): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.UPDATE_BIAS,
+      payload: {
+        id: this.id,
+        layerIdx,
+        neuronIdx,
+        value,
+      } as UpdateBiasPayload,
+    });
   }
 
   private ignoreDamageFromCars() {

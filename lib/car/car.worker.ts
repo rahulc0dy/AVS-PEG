@@ -3,6 +3,8 @@ import {
   CarStatePayload,
   CarWorkerInboundMessage,
   SensorUpdatePayload,
+  UpdateBiasPayload,
+  UpdateWeightPayload,
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
@@ -31,7 +33,7 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         polygon: null,
         traffic: [],
         pathBorders: [],
-        network: new NeuralNetwork([message.payload.sensor.rayCount, 8, 6, 4]),
+        network: new NeuralNetwork([message.payload.sensor.rayCount, 4, 4, 4]),
         sensorReadings: [],
       };
       startAnimationLoop();
@@ -51,6 +53,28 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
       if (carState.id === message.payload.id) {
         carState.traffic = message.payload.traffic;
         carState.pathBorders = message.payload.pathBorders;
+      }
+      break;
+    }
+
+    case WorkerInboundMessageType.UPDATE_WEIGHT: {
+      const payload = message.payload as UpdateWeightPayload;
+      if (carState.id === payload.id && carState.network) {
+        const level = carState.network.levels[payload.layerIdx];
+        if (level && level.weights[payload.fromIdx]) {
+          level.weights[payload.fromIdx][payload.toIdx] = payload.value;
+        }
+      }
+      break;
+    }
+
+    case WorkerInboundMessageType.UPDATE_BIAS: {
+      const payload = message.payload as UpdateBiasPayload;
+      if (carState.id === payload.id && carState.network) {
+        const level = carState.network.levels[payload.layerIdx];
+        if (level && level.biases) {
+          level.biases[payload.neuronIdx] = payload.value;
+        }
       }
       break;
     }
