@@ -14,7 +14,12 @@ import { useToast } from "@/components/ui/toast";
 import { ControlType } from "@/lib/car/controls";
 import { NeuralNetworkVisualizer } from "@/components/world-ui/neural-network-visualizer";
 import { NeuralNetworkStateJson } from "@/types/car/state";
+import { NeuralNetworkJson } from "@/types/save";
 import { Car } from "@/lib/car/car";
+import { NeuralNetwork } from "@/lib/ai/network";
+
+/** Local storage key for saved brain */
+const BRAIN_STORAGE_KEY = "avs-peg-saved-brain";
 
 interface TrainingCanvasProps {
   scene: Scene;
@@ -42,7 +47,22 @@ export default function TrainingCanvas({
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
-  const [hasLoadedBrain, setHasLoadedBrain] = useState(false);
+  const [hasLoadedBrain, setHasLoadedBrain] = useState(() => {
+    // Check for saved brain on initial render
+    if (typeof window === "undefined") return false;
+    try {
+      const savedBrain = localStorage.getItem(BRAIN_STORAGE_KEY);
+      if (savedBrain) {
+        const brainJson = JSON.parse(savedBrain) as NeuralNetworkJson;
+        NeuralNetwork.fromJson(brainJson);
+        return true;
+      }
+    } catch (e) {
+      console.warn("Could not load saved brain from localStorage", e);
+      localStorage.removeItem(BRAIN_STORAGE_KEY);
+    }
+    return false;
+  });
   const [bestCarBrain, setBestCarBrain] =
     useState<NeuralNetworkStateJson | null>(null);
   const [bestCar, setBestCar] = useState<Car | null>(null);
@@ -88,20 +108,105 @@ export default function TrainingCanvas({
   }, [isTraining, world]);
 
   const handleSaveBrain = useCallback(async () => {
-    // TODO: Brain save to local storage
-  }, []);
+    if (!bestCarBrain) {
+      toast("No best car brain to save. Spawn cars first.", "error");
+      return;
+    }
+
+    try {
+      // Convert NeuralNetworkStateJson to NeuralNetworkJson format
+      const brainJson: NeuralNetworkJson = {
+        levels: bestCarBrain.levels.map((level) => ({
+          inputCount: level.inputs.length,
+          outputCount: level.outputs.length,
+          biases: level.biases,
+          weights: level.weights,
+        })),
+      };
+
+      localStorage.setItem(BRAIN_STORAGE_KEY, JSON.stringify(brainJson));
+      setHasLoadedBrain(true);
+      toast("Best brain saved to local storage.", "success");
+    } catch (e) {
+      console.error("Could not save brain to localStorage", e);
+      toast("Failed to save brain. Storage may be full.", "error");
+    }
+  }, [bestCarBrain, toast]);
 
   const handleExportBrain = useCallback(async () => {
-    // TODO: Brain export logic
-  }, []);
+    try {
+      const brainStr = localStorage.getItem(BRAIN_STORAGE_KEY);
+      if (!brainStr) {
+        toast("No saved brain to export. Save a brain first.", "error");
+        return;
+      }
+
+      const blob = new Blob([brainStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `avs-brain-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast("Brain exported successfully.", "success");
+    } catch (e) {
+      console.error("Could not export brain", e);
+      toast("Failed to export brain.", "error");
+    }
+  }, [toast]);
 
   const handleImportBrain = useCallback(async () => {
-    // TODO: Brain import logic
-  }, []);
+    try {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json";
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const brainJson = JSON.parse(text) as NeuralNetworkJson;
+
+          // Validate the brain structure
+          if (!brainJson.levels || !Array.isArray(brainJson.levels)) {
+            toast("Invalid brain file format.", "error");
+            return;
+          }
+
+          // Verify we can create a neural network from it
+          NeuralNetwork.fromJson(brainJson);
+
+          localStorage.setItem(BRAIN_STORAGE_KEY, JSON.stringify(brainJson));
+          setHasLoadedBrain(true);
+          toast("Brain imported and saved to local storage.", "success");
+        } catch (parseError) {
+          console.error("Could not parse brain file", parseError);
+          toast(
+            "Invalid brain file. Please select a valid JSON file.",
+            "error",
+          );
+        }
+      };
+      input.click();
+    } catch (e) {
+      console.error("Could not import brain", e);
+      toast("Failed to import brain.", "error");
+    }
+  }, [toast]);
 
   const handleDiscardBrain = useCallback(() => {
-    // TODO: Discard brain logic
-  }, []);
+    try {
+      localStorage.removeItem(BRAIN_STORAGE_KEY);
+      setHasLoadedBrain(false);
+      toast("Saved brain discarded.", "info");
+    } catch (e) {
+      console.error("Could not discard brain", e);
+      toast("Failed to discard brain.", "error");
+    }
+  }, [toast]);
 
   /**
    * Handle weight change from the neural network visualizer.
@@ -138,6 +243,17 @@ export default function TrainingCanvas({
       return;
     }
 
+    // Get saved brain from localStorage if available
+    let baseBrain: NeuralNetworkJson | undefined;
+    try {
+      const savedBrain = localStorage.getItem(BRAIN_STORAGE_KEY);
+      if (savedBrain) {
+        baseBrain = JSON.parse(savedBrain) as NeuralNetworkJson;
+      }
+    } catch (e) {
+      console.warn("Could not load saved brain for spawning", e);
+    }
+
     if (stackSpawnAtSource) {
       const source = world.markings.find((m) => m.type === "source");
       const sourcePos = source ? source.position : undefined;
@@ -157,15 +273,25 @@ export default function TrainingCanvas({
           ControlType.AI,
           sourcePos,
           path,
+          baseBrain,
+          mutationAmount,
         );
       }
     } else {
-      world.spawnerSystem.spawnCars(carCount, ControlType.AI);
+      world.spawnerSystem.spawnCars(
+        carCount,
+        ControlType.AI,
+        baseBrain,
+        mutationAmount,
+      );
     }
 
     const spawnedCount = world.cars.length;
     if (spawnedCount > 0) {
-      toast(`Successfully spawned ${spawnedCount} cars.`, "success");
+      toast(
+        `Successfully spawned ${spawnedCount} cars.${baseBrain ? " Using saved brain with mutation." : ""}`,
+        "success",
+      );
       world.trainingSystem.startTraining();
       setGeneration(world.trainingSystem.getGeneration());
     } else {
@@ -176,7 +302,7 @@ export default function TrainingCanvas({
     setCurrentCarCount(spawnedCount);
     setIsTraining(true);
     setCarsReachedDestination(0);
-  }, [worldRef, carCount, stackSpawnAtSource, toast]);
+  }, [worldRef, carCount, stackSpawnAtSource, mutationAmount, toast]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;

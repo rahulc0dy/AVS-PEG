@@ -8,6 +8,7 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
+  SetBrainPayload,
   UpdateBiasPayload,
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
@@ -17,6 +18,7 @@ import {
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 import { NeuralNetworkStateJson } from "@/types/car/state";
+import { NeuralNetworkJson } from "@/types/save";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -366,6 +368,22 @@ export class Car {
         neuronIdx,
         value,
       } as UpdateBiasPayload,
+    });
+  }
+
+  /**
+   * Set the entire neural network brain from JSON.
+   * Sends the brain data to the worker thread to replace the current network.
+   *
+   * @param brain The neural network JSON to set
+   */
+  setBrain(brain: NeuralNetworkJson): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.SET_BRAIN,
+      payload: {
+        id: this.id,
+        brain,
+      } as SetBrainPayload,
     });
   }
 

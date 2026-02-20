@@ -3,6 +3,7 @@ import {
   CarStatePayload,
   CarWorkerInboundMessage,
   SensorUpdatePayload,
+  SetBrainPayload,
   UpdateBiasPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
@@ -75,6 +76,14 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         if (level && level.biases) {
           level.biases[payload.neuronIdx] = payload.value;
         }
+      }
+      break;
+    }
+
+    case WorkerInboundMessageType.SET_BRAIN: {
+      const payload = message.payload as SetBrainPayload;
+      if (carState.id === payload.id) {
+        carState.network = NeuralNetwork.fromJson(payload.brain);
       }
       break;
     }
