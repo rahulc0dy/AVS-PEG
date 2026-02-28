@@ -306,6 +306,13 @@ export function getNearestEdge(
   return nearest;
 }
 
+/**
+ * Return a random number in the half-open range [min, max).
+ *
+ * @param min - lower bound (inclusive)
+ * @param max - upper bound (exclusive)
+ * @returns random number between min and max
+ */
 export function getRandomNumberBetween(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }

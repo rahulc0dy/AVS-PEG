@@ -1,5 +1,5 @@
-import {LightState} from "@/lib/markings/traffic-light";
-import {MarkingType} from "@/types/marking";
+import { LightState } from "@/lib/markings/traffic-light";
+import { MarkingType } from "@/types/marking";
 
 /**
  * Serialized representation of the entire world used for saving/loading.
@@ -92,7 +92,7 @@ export interface MarkingJson {
 }
 
 /**
- * JSON representation of a Level for serialization.
+ * Serialized representation of a {@link Level}.
  */
 export interface LevelJson {
   inputCount: number;
@@ -102,7 +102,7 @@ export interface LevelJson {
 }
 
 /**
- * JSON representation of a NeuralNetwork for serialization.
+ * Serialized representation of a {@link NeuralNetwork}.
  */
 export interface NeuralNetworkJson {
   levels: LevelJson[];

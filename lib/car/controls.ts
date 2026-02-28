@@ -1,5 +1,3 @@
-import { NeuralNetwork } from "@/lib/ai/network";
-
 /**
  * Available control schemes for a `Car`.
  *
@@ -48,31 +46,13 @@ export class Controls {
         this.addKeyboardListeners();
         break;
       case ControlType.AI:
-        // Simple AI behaviour: drive forward by default
+        // Simple AI behavior: drive forward by default
         this.forward = true;
         break;
       case ControlType.NONE:
         // No input by default
         break;
     }
-  }
-
-  /** Apply a network output vector `[forward,left,right,reverse]` to flags. */
-  applyNetworkOutputs(outputs: number[]) {
-    this.forward = outputs[0] === 1;
-    this.left = outputs[1] === 1;
-    this.right = outputs[2] === 1;
-    this.reverse = outputs[3] === 1;
-  }
-
-  /**
-   * For AI-controlled cars: compute network outputs from sensor offsets and
-   * update the control flags.
-   */
-  applyAi(sensorOffsets: number[], brain: NeuralNetwork) {
-    if (this.type !== ControlType.AI) return;
-    const outputs = brain.decide(sensorOffsets);
-    this.applyNetworkOutputs(outputs);
   }
 
   /**

@@ -1,7 +1,7 @@
-import {Level} from "@/lib/ai/level";
-import {getRandomNumberBetween, lerp} from "@/utils/math";
-import {NeuralNetworkJson} from "@/types/save";
-import {NeuralNetworkStateJson} from "@/types/car/state";
+import { Level } from "@/lib/ai/level";
+import { getRandomNumberBetween, lerp } from "@/utils/math";
+import { NeuralNetworkJson } from "@/types/save";
+import { NeuralNetworkStateJson } from "@/types/car/state";
 
 /**
  * A feedforward neural network for AI decision-making.
@@ -96,21 +96,6 @@ export class NeuralNetwork {
    */
   decide(inputs: number[]): number[] {
     return NeuralNetwork.feedForward(inputs, this);
-  }
-
-  /**
-   * Get the expected number of inputs for this network.
-   */
-  getInputCount(): number {
-    return this.levels[0]?.inputs.length ?? 0;
-  }
-
-  /**
-   * Get the expected number of outputs for this network.
-   */
-  getOutputCount(): number {
-    const lastLevel = this.levels[this.levels.length - 1];
-    return lastLevel?.outputs.length ?? 0;
   }
 
   /**
