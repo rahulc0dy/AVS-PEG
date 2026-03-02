@@ -313,11 +313,19 @@ export const NetworkCanvas = ({
     setMousePosition(null);
   }, []);
 
+  // Focus canvas on mouse enter so keyboard events work
+  const handleMouseEnter = useCallback(() => {
+    canvasRef.current?.focus();
+  }, []);
+
   // Handle scroll to change weight or bias values
+  // Normal scroll: step of 0.1, Shift+scroll: step of 0.01
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
-      const STEP = 0.01;
-      const delta = e.deltaY > 0 ? -STEP : STEP;
+      const LARGE_STEP = 0.1;
+      const SMALL_STEP = 0.01;
+      const step = e.shiftKey ? SMALL_STEP : LARGE_STEP;
+      const delta = e.deltaY > 0 ? -step : step;
 
       // Handle connection (weight) scroll
       if (hoveredConnection && onWeightChange) {
@@ -352,14 +360,38 @@ export const NetworkCanvas = ({
     ],
   );
 
+  // Handle keyboard input for direct value setting (0 or 1)
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+      if (e.key !== "0" && e.key !== "1") return;
+      const value = e.key === "0" ? 0 : 1;
+
+      // Handle connection (weight) direct value
+      if (hoveredConnection && onWeightChange) {
+        const { layerIdx, fromIdx, toIdx } = hoveredConnection;
+        onWeightChange(layerIdx, fromIdx, toIdx, value);
+      }
+
+      // Handle neuron (bias) direct value - only for hidden and output layers (layerIdx > 0)
+      if (hoveredNeuron && onBiasChange && hoveredNeuron.layerIdx > 0) {
+        const { layerIdx, neuronIdx } = hoveredNeuron;
+        onBiasChange(layerIdx - 1, neuronIdx, value);
+      }
+    },
+    [hoveredConnection, hoveredNeuron, onWeightChange, onBiasChange],
+  );
+
   return (
     <canvas
       ref={canvasRef}
       className="w-full h-full"
-      style={{ minHeight: "50vh" }}
+      style={{ minHeight: "50vh", outline: "none" }}
+      tabIndex={0}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
+      onKeyDown={handleKeyDown}
     />
   );
 };
