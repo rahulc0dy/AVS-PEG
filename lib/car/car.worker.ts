@@ -34,7 +34,12 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         polygon: null,
         traffic: [],
         pathBorders: [],
-        network: new NeuralNetwork([message.payload.sensor.rayCount, 4, 4, 4]),
+        network: new NeuralNetwork([
+          message.payload.sensor.rayCount + 1,
+          4,
+          4,
+          4,
+        ]),
         sensorReadings: [],
       };
       startAnimationLoop();
@@ -110,11 +115,17 @@ const updateAndBroadcastState = () => {
   computeAndBroadcastSensorReadings();
 
   if (carState.controlType === ControlType.AI) {
-    const outputs = carState.network.decide(
-      carState.sensorReadings
-        .filter((reading) => reading !== null)
-        .map((intersection) => intersection.offset),
+    // Map each sensor ray to its offset (0 = obstacle at car, 1 = at ray tip).
+    // Null readings (no obstacle detected) default to 1.0 (clear ahead).
+    // Using .map instead of .filter preserves array length so inputs stay
+    // aligned with the network's expected input count (rayCount + 1).
+    const sensorInputs = carState.sensorReadings.map((reading) =>
+      reading ? reading.offset : 1.0,
     );
+    // Append normalized speed as an additional input
+    const normalizedSpeed =
+      carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
+    const outputs = carState.network.decide([...sensorInputs, normalizedSpeed]);
     carState.controls.forward = outputs[0] == 1;
     carState.controls.left = outputs[1] == 1;
     carState.controls.right = outputs[2] == 1;
