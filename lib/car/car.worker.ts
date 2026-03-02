@@ -36,8 +36,8 @@ onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         pathBorders: [],
         network: new NeuralNetwork([
           message.payload.sensor.rayCount + 1,
-          4,
-          4,
+          6,
+          6,
           4,
         ]),
         sensorReadings: [],
