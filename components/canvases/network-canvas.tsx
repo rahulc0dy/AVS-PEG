@@ -5,6 +5,10 @@ interface NetworkCanvasProps {
   activations: number[][] | null;
   weights: number[][][] | null;
   biases: number[][] | null;
+  /** Labels displayed beside each input-layer neuron. */
+  inputLabels?: string[];
+  /** Labels displayed beside each output-layer neuron. */
+  outputLabels?: string[];
   onWeightChange?: (
     layerIdx: number,
     fromIdx: number,
@@ -166,6 +170,8 @@ export const NetworkCanvas = ({
   activations,
   weights,
   biases,
+  inputLabels,
+  outputLabels,
   onWeightChange,
   onBiasChange,
 }: NetworkCanvasProps) => {
@@ -238,6 +244,8 @@ export const NetworkCanvas = ({
       numLayers,
       hoveredNeuron,
       mousePosition,
+      inputLabels,
+      outputLabels,
     );
   }, [
     architecture,
@@ -247,6 +255,8 @@ export const NetworkCanvas = ({
     hoveredNeuron,
     hoveredConnection,
     mousePosition,
+    inputLabels,
+    outputLabels,
   ]);
 
   // Handle mouse move for hover detection
@@ -456,6 +466,7 @@ function drawConnections(
 /**
  * Draws neurons as filled circles with strokes.
  * Shows bias value at mouse position when neuron is hovered.
+ * Draws permanent labels beside input-layer and output-layer neurons.
  */
 function drawNeurons(
   ctx: CanvasRenderingContext2D,
@@ -466,7 +477,11 @@ function drawNeurons(
   numLayers: number,
   hoveredNeuron: HoveredNeuron | null,
   mousePosition: MousePosition | null,
+  inputLabels?: string[],
+  outputLabels?: string[],
 ): void {
+  const lastLayerIdx = numLayers - 1;
+
   for (let layerIdx = 0; layerIdx < numLayers; layerIdx++) {
     const layer = neuronPositions[layerIdx];
     const layerActivations = activations?.[layerIdx];
@@ -496,6 +511,32 @@ function drawNeurons(
         ctx.textBaseline = "bottom";
         // Offset slightly from cursor so it doesn't overlap
         ctx.fillText(bias, mousePosition.x + 10, mousePosition.y - 5);
+      }
+
+      // Draw permanent label beside input-layer neurons (to the left)
+      if (layerIdx === 0 && inputLabels?.[neuronIdx]) {
+        ctx.fillStyle = COLORS.labelText;
+        ctx.font = LAYOUT.labelFontSize;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          inputLabels[neuronIdx],
+          x - neuronRadius - LAYOUT.labelOffset,
+          y,
+        );
+      }
+
+      // Draw permanent label beside output-layer neurons (to the right)
+      if (layerIdx === lastLayerIdx && outputLabels?.[neuronIdx]) {
+        ctx.fillStyle = COLORS.labelText;
+        ctx.font = LAYOUT.labelFontSize;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          outputLabels[neuronIdx],
+          x + neuronRadius + LAYOUT.labelOffset,
+          y,
+        );
       }
     }
   }

@@ -8,6 +8,10 @@ import { NetworkCanvas } from "@/components/canvases/network-canvas";
 
 interface NeuralNetworkVisualizerProps {
   state?: NeuralNetworkStateJson | null;
+  /** Labels displayed beside each input-layer neuron. */
+  inputLabels?: string[];
+  /** Labels displayed beside each output-layer neuron. */
+  outputLabels?: string[];
   onWeightChange?: (
     layerIdx: number,
     fromIdx: number,
@@ -23,6 +27,8 @@ interface NeuralNetworkVisualizerProps {
  */
 export const NeuralNetworkVisualizer = ({
   state,
+  inputLabels,
+  outputLabels,
   onWeightChange,
   onBiasChange,
 }: NeuralNetworkVisualizerProps) => {
@@ -92,6 +98,8 @@ export const NeuralNetworkVisualizer = ({
           activations={activations}
           weights={weights}
           biases={biases}
+          inputLabels={inputLabels}
+          outputLabels={outputLabels}
           onWeightChange={onWeightChange}
           onBiasChange={onBiasChange}
         />

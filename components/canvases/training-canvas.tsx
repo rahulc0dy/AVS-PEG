@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
@@ -66,6 +66,23 @@ export default function TrainingCanvas({
   const [bestCarBrain, setBestCarBrain] =
     useState<NeuralNetworkStateJson | null>(null);
   const [bestCar, setBestCar] = useState<Car | null>(null);
+
+  /** Output labels corresponding to the 4 car control outputs. */
+  const OUTPUT_LABELS = ["Forward", "Left", "Right", "Reverse"];
+
+  /** Input labels derived from the current network input count. */
+  const inputLabels = useMemo(() => {
+    if (!bestCarBrain) return undefined;
+    const inputCount = bestCarBrain.inputs.length;
+    const labels: string[] = [];
+    // All inputs except the last one are sensor rays
+    for (let i = 0; i < inputCount - 1; i++) {
+      labels.push(`Ray ${i + 1}`);
+    }
+    // Last input is normalized speed
+    labels.push("Speed");
+    return labels;
+  }, [bestCarBrain]);
 
   // Initialize the World instance (no initial cars)
   const { worldRef, world } = useWorld(scene, { showGrid: true });
@@ -442,6 +459,8 @@ export default function TrainingCanvas({
 
       <NeuralNetworkVisualizer
         state={bestCarBrain}
+        inputLabels={inputLabels}
+        outputLabels={OUTPUT_LABELS}
         onWeightChange={handleWeightChange}
         onBiasChange={handleBiasChange}
       />
