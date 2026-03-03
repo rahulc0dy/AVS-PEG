@@ -1,5 +1,5 @@
 import { Level } from "@/lib/ai/level";
-import { getRandomNumberBetween, lerp } from "@/utils/math";
+import { clamp, getRandomNumberBetween, lerp } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetworkStateJson } from "@/types/car/state";
 
@@ -65,6 +65,8 @@ export class NeuralNetwork {
    * @param amount Mutation strength: 0 = no change, 1 = fully random
    */
   static mutate(network: NeuralNetwork, amount: number = 1): void {
+    amount = clamp(amount, 0, 1);
+
     for (const level of network.levels) {
       // Mutate biases
       for (let i = 0; i < level.biases.length; i++) {

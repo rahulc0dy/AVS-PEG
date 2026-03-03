@@ -101,22 +101,6 @@ export class TrainingSystem {
   }
 
   /**
-   * Get all path segments.
-   * @returns Array of path segments in order from source to destination
-   */
-  getSegments(): PathSegment[] {
-    return this.segments;
-  }
-
-  /**
-   * Get the number of segments in the path.
-   * @returns Number of segments
-   */
-  getSegmentCount(): number {
-    return this.segments.length;
-  }
-
-  /**
    * Start a training session.
    * @param incrementGeneration - Whether to increment the generation counter
    */
@@ -150,14 +134,6 @@ export class TrainingSystem {
    */
   getGeneration(): number {
     return this.generation;
-  }
-
-  /**
-   * Check if training is currently active.
-   * @returns True if training is active
-   */
-  getIsTraining(): boolean {
-    return this.isTraining;
   }
 
   /**
@@ -202,10 +178,6 @@ export class TrainingSystem {
 
   getProgress(carId: number): CarProgress | undefined {
     return this.progressMap.get(carId);
-  }
-
-  getAllProgress(): Map<number, CarProgress> {
-    return this.progressMap;
   }
 
   getStats(cars: Car[]): TrainingStats {
@@ -283,23 +255,6 @@ export class TrainingSystem {
    */
   clearProgress(): void {
     this.progressMap.clear();
-  }
-
-  /**
-   * Compare two cars' progress within the same segment.
-   *
-   * When multiple cars are in the same segment, this compares their positions
-   * relative to the segment's edge to determine which car is ahead.
-   *
-   * @param carA - First car
-   * @param carB - Second car
-   * @param segment - The segment both cars are in
-   * @returns Positive if carA is ahead, negative if carB is ahead, 0 if equal
-   */
-  compareProgressInSegment(carA: Car, carB: Car, segment: PathSegment): number {
-    const projectionA = segment.edge.projectNode(carA.position);
-    const projectionB = segment.edge.projectNode(carB.position);
-    return projectionA.offset - projectionB.offset;
   }
 
   /**
@@ -420,7 +375,7 @@ export class TrainingSystem {
   /**
    * Determine if progressA represents better progress than progressB.
    *
-   * The best car is simply the one that has travelled the farthest along
+   * The best car is simply the one that has traveled the farthest along
    * the path. Damage is irrelevant — a damaged car that reached segment 5
    * is better than an undamaged car at segment 3, since mutations in the
    * next generation can fix the collision.

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {clamp} from "@/utils/math";
 
 // ============================================================================
 // Types
@@ -51,10 +52,6 @@ const LAYOUT = {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
 
 function getWeightColor(w: number): string {
   const n = clamp(w, -1, 1);

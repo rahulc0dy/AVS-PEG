@@ -134,13 +134,6 @@ export class SpawnerSystem {
       baseBrain,
       mutationAmount,
     );
-
-    this.spawnCarsAtPosition(
-      1,
-      ControlType.HUMAN,
-      firstPathEdge.projectNode(sourceNode).point,
-      angle(firstPathEdge.directionVector()),
-    );
   }
 
   /**
