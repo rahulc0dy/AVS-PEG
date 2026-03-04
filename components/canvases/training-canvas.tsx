@@ -95,7 +95,7 @@ export default function TrainingCanvas({
   const { loadFromJson } = useWorldPersistence(worldRef);
 
   /**
-   * Track best car and update fitness statistics.
+   * Track the best car and update fitness statistics.
    * Runs continuously while training is active.
    */
   useEffect(() => {
@@ -112,7 +112,10 @@ export default function TrainingCanvas({
       setCarsReachedDestination(stats.numOfCarsReachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
-      const currentBestCar = cars[stats.bestCarId ?? 0] ?? null;
+      const currentBestCar =
+        stats.bestCarId === null
+          ? null
+          : (cars.find((car) => car.id === stats.bestCarId) ?? null);
       setBestCar(currentBestCar);
       setBestCarBrain(currentBestCar?.network ?? null);
 
@@ -335,7 +338,7 @@ export default function TrainingCanvas({
     toast("All cars cleared.", "info");
   }, [worldRef, toast]);
 
-  const handleResetCars = useCallback(() => {
+  const handleNextGeneration = useCallback(() => {
     const world = worldRef.current;
     if (!world) return;
 
@@ -410,7 +413,7 @@ export default function TrainingCanvas({
             <Button onClick={handleSpawnCars} disabled={isTraining}>
               Spawn Cars
             </Button>
-            <Button onClick={handleResetCars} disabled={!isTraining}>
+            <Button onClick={handleNextGeneration} disabled={!isTraining}>
               Next Generation
             </Button>
             <Button onClick={handleClearCars} disabled={!isTraining}>
