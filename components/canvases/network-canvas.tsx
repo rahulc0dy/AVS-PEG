@@ -1,9 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {clamp} from "@/utils/math";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { clamp } from "@/utils/math";
 
 interface NetworkCanvasProps {
   architecture: number[];
@@ -30,10 +26,6 @@ type HoverTarget =
   | { type: "neuron"; layerIdx: number; neuronIdx: number }
   | { type: "connection"; layerIdx: number; fromIdx: number; toIdx: number };
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 const COLORS = {
   neuronStroke: "#a1a1aa",
   labelText: "#ffffff",
@@ -49,21 +41,17 @@ const LAYOUT = {
   labelOffset: 8,
 } as const;
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function getWeightColor(w: number): string {
-  const n = clamp(w, -1, 1);
-  const alpha = Math.abs(n) * 0.6 + 0.1;
-  const intensity = Math.floor(Math.abs(n) * 200 + 55);
-  return n > 0
+function getWeightColor(weight: number): string {
+  const normalized = clamp(weight, -1, 1);
+  const alpha = Math.abs(normalized) * 0.6 + 0.1;
+  const intensity = Math.floor(Math.abs(normalized) * 200 + 55);
+  return normalized > 0
     ? `rgba(55, ${intensity}, 100, ${alpha})`
     : `rgba(${intensity}, 55, 100, ${alpha})`;
 }
 
-function getWeightLineWidth(w: number): number {
-  return Math.abs(clamp(w, -1, 1)) * 2 + 0.5;
+function getWeightLineWidth(weight: number): number {
+  return Math.abs(clamp(weight, -1, 1)) * 2 + 0.5;
 }
 
 function getNeuronFillColor(activation: number): string {
@@ -79,43 +67,50 @@ function computePositions(
   radius: number,
 ): Point[][] {
   const layerSpacing = width / (architecture.length + 1);
-  return architecture.map((count, i) => {
-    const x = layerSpacing * (i + 1);
-    const layerHeight = (count - 1) * radius * LAYOUT.spacingMultiplier;
+  return architecture.map((neuronCount, layerIndex) => {
+    const x = layerSpacing * (layerIndex + 1);
+    const layerHeight = (neuronCount - 1) * radius * LAYOUT.spacingMultiplier;
     const startY = (height - layerHeight) / 2;
-    return Array.from({ length: count }, (_, j) => ({
+    return Array.from({ length: neuronCount }, (_, neuronIndex) => ({
       x,
-      y: startY + j * radius * LAYOUT.spacingMultiplier,
+      y: startY + neuronIndex * radius * LAYOUT.spacingMultiplier,
     }));
   });
 }
 
-function distSq(a: Point, b: Point): number {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+function distSq(pointA: Point, pointB: Point): number {
+  return (pointA.x - pointB.x) ** 2 + (pointA.y - pointB.y) ** 2;
 }
 
 function isPointNearLine(
-  p: Point,
-  a: Point,
-  b: Point,
+  point: Point,
+  lineStart: Point,
+  lineEnd: Point,
   threshold: number,
 ): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return distSq(p, a) <= threshold * threshold;
-  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq, 0, 1);
+  const deltaX = lineEnd.x - lineStart.x;
+  const deltaY = lineEnd.y - lineStart.y;
+  const lengthSq = deltaX * deltaX + deltaY * deltaY;
+  if (lengthSq === 0) return distSq(point, lineStart) <= threshold * threshold;
+  const projection = clamp(
+    ((point.x - lineStart.x) * deltaX + (point.y - lineStart.y) * deltaY) / lengthSq,
+    0,
+    1,
+  );
   return (
-    distSq(p, { x: a.x + t * dx, y: a.y + t * dy }) <= threshold * threshold
+    distSq(point, {
+      x: lineStart.x + projection * deltaX,
+      y: lineStart.y + projection * deltaY,
+    }) <= threshold * threshold
   );
 }
 
-function drawTooltip(ctx: CanvasRenderingContext2D, text: string, pos: Point) {
+function drawTooltip(ctx: CanvasRenderingContext2D, text: string, position: Point) {
   ctx.fillStyle = COLORS.labelText;
   ctx.font = LAYOUT.font;
   ctx.textAlign = "left";
   ctx.textBaseline = "bottom";
-  ctx.fillText(text, pos.x + 10, pos.y - 5);
+  ctx.fillText(text, position.x + 10, position.y - 5);
 }
 
 function drawLabel(
@@ -132,9 +127,89 @@ function drawLabel(
   ctx.fillText(text, x, y);
 }
 
-// ============================================================================
-// Component
-// ============================================================================
+function drawConnections(
+  ctx: CanvasRenderingContext2D,
+  positions: Point[][],
+  architecture: number[],
+  weights: number[][][] | null,
+  hover: HoverTarget | null,
+  mousePos: Point | null,
+) {
+  for (let layerIndex = 0; layerIndex < architecture.length - 1; layerIndex++) {
+    for (let fromIndex = 0; fromIndex < positions[layerIndex].length; fromIndex++) {
+      for (let toIndex = 0; toIndex < positions[layerIndex + 1].length; toIndex++) {
+        const fromPos = positions[layerIndex][fromIndex];
+        const toPos = positions[layerIndex + 1][toIndex];
+        const weight = weights?.[layerIndex]?.[fromIndex]?.[toIndex] ?? 0;
+        const isHovered =
+          hover?.type === "connection" &&
+          hover.layerIdx === layerIndex &&
+          hover.fromIdx === fromIndex &&
+          hover.toIdx === toIndex;
+
+        ctx.beginPath();
+        ctx.moveTo(fromPos.x, fromPos.y);
+        ctx.lineTo(toPos.x, toPos.y);
+        ctx.strokeStyle = getWeightColor(weight);
+        ctx.lineWidth = getWeightLineWidth(weight) * (isHovered ? 2 : 1);
+        ctx.stroke();
+
+        if (isHovered && mousePos) drawTooltip(ctx, weight.toFixed(2), mousePos);
+      }
+    }
+  }
+}
+
+function drawNeurons(
+  ctx: CanvasRenderingContext2D,
+  positions: Point[][],
+  architecture: number[],
+  radius: number,
+  activations: number[][] | null,
+  biases: number[][] | null,
+  hover: HoverTarget | null,
+  mousePos: Point | null,
+  inputLabels?: string[],
+  outputLabels?: string[],
+) {
+  const lastLayerIndex = architecture.length - 1;
+
+  for (let layerIndex = 0; layerIndex < architecture.length; layerIndex++) {
+    for (let neuronIndex = 0; neuronIndex < positions[layerIndex].length; neuronIndex++) {
+      const { x, y } = positions[layerIndex][neuronIndex];
+      const activation = activations?.[layerIndex]?.[neuronIndex] ?? 0;
+      const isHovered =
+        hover?.type === "neuron" &&
+        hover.layerIdx === layerIndex &&
+        hover.neuronIdx === neuronIndex;
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = getNeuronFillColor(activation);
+      ctx.fill();
+      ctx.strokeStyle = COLORS.neuronStroke;
+      ctx.lineWidth = LAYOUT.strokeWidth * (isHovered ? 2 : 1);
+      ctx.stroke();
+
+      if (isHovered && mousePos) {
+        const bias = layerIndex > 0 ? biases?.[layerIndex - 1]?.[neuronIndex] : undefined;
+        const label =
+          bias != null
+            ? `val: ${activation.toFixed(2)}  bias: ${bias.toFixed(2)}`
+            : activation.toFixed(2);
+        drawTooltip(ctx, label, mousePos);
+      }
+
+      if (layerIndex === 0 && inputLabels?.[neuronIndex]) {
+        drawLabel(ctx, inputLabels[neuronIndex], x - radius - LAYOUT.labelOffset, y, "right");
+      }
+
+      if (layerIndex === lastLayerIndex && outputLabels?.[neuronIndex]) {
+        drawLabel(ctx, outputLabels[neuronIndex], x + radius + LAYOUT.labelOffset, y, "left");
+      }
+    }
+  }
+}
 
 export const NetworkCanvas = ({
   architecture,
@@ -175,71 +250,8 @@ export const NetworkCanvas = ({
     const positions = computePositions(architecture, width, height, radius);
     positionsRef.current = positions;
 
-    // Draw connections
-    for (let li = 0; li < architecture.length - 1; li++) {
-      for (let fi = 0; fi < positions[li].length; fi++) {
-        for (let ti = 0; ti < positions[li + 1].length; ti++) {
-          const from = positions[li][fi];
-          const to = positions[li + 1][ti];
-          const w = weights?.[li]?.[fi]?.[ti] ?? 0;
-          const isHovered =
-            hover?.type === "connection" &&
-            hover.layerIdx === li &&
-            hover.fromIdx === fi &&
-            hover.toIdx === ti;
-
-          ctx.beginPath();
-          ctx.moveTo(from.x, from.y);
-          ctx.lineTo(to.x, to.y);
-          ctx.strokeStyle = getWeightColor(w);
-          ctx.lineWidth = getWeightLineWidth(w) * (isHovered ? 2 : 1);
-          ctx.stroke();
-
-          if (isHovered && mousePos) drawTooltip(ctx, w.toFixed(2), mousePos);
-        }
-      }
-    }
-
-    // Draw neurons
-    const lastLayer = architecture.length - 1;
-    for (let li = 0; li < architecture.length; li++) {
-      for (let ni = 0; ni < positions[li].length; ni++) {
-        const { x, y } = positions[li][ni];
-        const activation = activations?.[li]?.[ni] ?? 0;
-        const isHovered =
-          hover?.type === "neuron" &&
-          hover.layerIdx === li &&
-          hover.neuronIdx === ni;
-
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = getNeuronFillColor(activation);
-        ctx.fill();
-        ctx.strokeStyle = COLORS.neuronStroke;
-        ctx.lineWidth = LAYOUT.strokeWidth * (isHovered ? 2 : 1);
-        ctx.stroke();
-
-        // Value tooltip on hover: activation for all neurons, plus bias for non-input layers
-        if (isHovered && mousePos) {
-          const bias = li > 0 ? biases?.[li - 1]?.[ni] : undefined;
-          const label =
-            bias != null
-              ? `val: ${activation.toFixed(2)}  bias: ${bias.toFixed(2)}`
-              : activation.toFixed(2);
-          drawTooltip(ctx, label, mousePos);
-        }
-
-        // Input labels (left of first layer)
-        if (li === 0 && inputLabels?.[ni]) {
-          drawLabel(ctx, inputLabels[ni], x - radius - LAYOUT.labelOffset, y, "right");
-        }
-
-        // Output labels (right of last layer)
-        if (li === lastLayer && outputLabels?.[ni]) {
-          drawLabel(ctx, outputLabels[ni], x + radius + LAYOUT.labelOffset, y, "left");
-        }
-      }
-    }
+    drawConnections(ctx, positions, architecture, weights, hover, mousePos);
+    drawNeurons(ctx, positions, architecture, radius, activations, biases, hover, mousePos, inputLabels, outputLabels);
   }, [
     architecture,
     weights,
@@ -258,35 +270,35 @@ export const NetworkCanvas = ({
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const p: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      const r = radiusRef.current;
+      const cursorPosition: Point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const radius = radiusRef.current;
       const positions = positionsRef.current;
 
       // Check neurons
-      for (let li = 0; li < positions.length; li++) {
-        for (let ni = 0; ni < positions[li].length; ni++) {
-          if (distSq(p, positions[li][ni]) <= r * r) {
-            setHover({ type: "neuron", layerIdx: li, neuronIdx: ni });
-            setMousePos(p);
+      for (let layerIndex = 0; layerIndex < positions.length; layerIndex++) {
+        for (let neuronIndex = 0; neuronIndex < positions[layerIndex].length; neuronIndex++) {
+          if (distSq(cursorPosition, positions[layerIndex][neuronIndex]) <= radius * radius) {
+            setHover({ type: "neuron", layerIdx: layerIndex, neuronIdx: neuronIndex });
+            setMousePos(cursorPosition);
             return;
           }
         }
       }
 
       // Check connections
-      for (let li = 0; li < positions.length - 1; li++) {
-        for (let fi = 0; fi < positions[li].length; fi++) {
-          for (let ti = 0; ti < positions[li + 1].length; ti++) {
+      for (let layerIndex = 0; layerIndex < positions.length - 1; layerIndex++) {
+        for (let fromIndex = 0; fromIndex < positions[layerIndex].length; fromIndex++) {
+          for (let toIndex = 0; toIndex < positions[layerIndex + 1].length; toIndex++) {
             if (
-              isPointNearLine(p, positions[li][fi], positions[li + 1][ti], 5)
+              isPointNearLine(cursorPosition, positions[layerIndex][fromIndex], positions[layerIndex + 1][toIndex], 5)
             ) {
               setHover({
                 type: "connection",
-                layerIdx: li,
-                fromIdx: fi,
-                toIdx: ti,
+                layerIdx: layerIndex,
+                fromIdx: fromIndex,
+                toIdx: toIndex,
               });
-              setMousePos(p);
+              setMousePos(cursorPosition);
               return;
             }
           }
@@ -313,18 +325,18 @@ export const NetworkCanvas = ({
       if (hover?.type === "connection" && onWeightChange) {
         e.preventDefault();
         const { layerIdx, fromIdx, toIdx } = hover;
-        const cur =
+        const currentWeight =
           Math.round((weights?.[layerIdx]?.[fromIdx]?.[toIdx] ?? 0) * 100) /
           100;
-        onWeightChange(layerIdx, fromIdx, toIdx, clamp(cur + delta, -1, 1));
+        onWeightChange(layerIdx, fromIdx, toIdx, clamp(currentWeight + delta, -1, 1));
       }
 
       if (hover?.type === "neuron" && hover.layerIdx > 0 && onBiasChange) {
         e.preventDefault();
         const { layerIdx, neuronIdx } = hover;
-        const cur =
+        const currentBias =
           Math.round((biases?.[layerIdx - 1]?.[neuronIdx] ?? 0) * 100) / 100;
-        onBiasChange(layerIdx - 1, neuronIdx, clamp(cur + delta, -1, 1));
+        onBiasChange(layerIdx - 1, neuronIdx, clamp(currentBias + delta, -1, 1));
       }
     },
     [hover, weights, biases, onWeightChange, onBiasChange],
