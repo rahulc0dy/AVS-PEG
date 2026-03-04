@@ -331,7 +331,7 @@ export function getRandomNumberBetween(min: number, max: number): number {
  * @param max - upper bound
  * @returns clamped value within [min, max]
  */
-export function clamp(v: number, min: number, max: number) {
+export function clamp(v: number, min: number, max: number): number {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
     throw new Error("min and max must be finite numbers");
   }

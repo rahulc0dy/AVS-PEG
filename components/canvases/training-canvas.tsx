@@ -109,14 +109,14 @@ export default function TrainingCanvas({
 
       const stats = training.getStats(cars);
 
-      setCarsReachedDestination(stats.reachedDestination);
+      setCarsReachedDestination(stats.numOfCarsReachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
       const currentBestCar = cars[stats.bestCarId ?? 0] ?? null;
       setBestCar(currentBestCar);
       setBestCarBrain(currentBestCar?.network ?? null);
 
-      if (stats.generationComplete) {
+      if (stats.isGenerationComplete) {
         // May do something in future
       }
     }, 100);

@@ -216,13 +216,13 @@ export class World {
 
     if (source && destination) {
       this.pathFindingSystem.findPath(source.position, destination.position);
-      // Sync path with training system
-      this.trainingSystem.setPath(this.pathFindingSystem.getPath());
     } else {
       // Clear the path if either marking is missing
       this.pathFindingSystem.reset();
-      this.trainingSystem.setPath([]);
     }
+
+    // Sync path with training system
+    this.trainingSystem.setPath(this.pathFindingSystem.getPath());
   }
 
   /**
