@@ -43,6 +43,7 @@ export class Car {
   private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
   /** Highlight collider opacity (more visible). */
   private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
+
   /** Unique identifier for this car. */
   id: number;
   /** Position in world units. `y` maps to Three.js Z when rendering. */
@@ -73,18 +74,25 @@ export class Car {
   polygon: Polygon | null = null;
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
+  /** Latest neural network state snapshot received from the worker (or `null` if unavailable). */
   network: NeuralNetworkStateJson | null = null;
+  /** Web Worker handling physics, collisions, and neural network updates for this car. */
   private worker: Worker | null = null;
+
   /** URL used to lazily load the GLTF model for this car. */
   private modelUrl: string = "/models/car.gltf";
   /** Root group returned by the GLTF loader (null until loaded). */
   private model: Group | null = null;
   /** Simple guard to prevent concurrent model loads. */
   private loadingModel = false;
+
   /** Mesh used to visualize the car collider (optional, created lazily). */
   private carColliderMesh: Mesh<BoxGeometry, MeshBasicMaterial> | null = null;
+
   /** Parent Three.js group where this car attaches its meshes. */
   private readonly group: Group;
+  /** Whether this car is currently highlighted as the best car. */
+  private _isHighlighted: boolean = false;
 
   /**
    * Create a new simulated car.
@@ -96,8 +104,8 @@ export class Car {
    * @param controlType Input scheme (human/ai/none).
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
-   * @param maxSpeed Maximum forward speed.
    * @param ignoreCarDamage If enabled, car to car damages are ignored.
+   * @param maxSpeed Maximum forward speed.
    */
   constructor(
     id: number,
@@ -135,17 +143,6 @@ export class Car {
     }
 
     this.initWorker();
-  }
-
-  /** Whether this car is currently highlighted as the best car. */
-  private _isHighlighted: boolean = false;
-
-  /**
-   * Check if this car is currently highlighted as the best car.
-   * @returns True if the car is highlighted
-   */
-  get isHighlighted(): boolean {
-    return this._isHighlighted;
   }
 
   /**

@@ -4,7 +4,7 @@ import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { angle, average } from "@/utils/math";
+import { angle, average, clamp } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 
@@ -217,7 +217,8 @@ export class SpawnerSystem {
     const network = NeuralNetwork.fromJson(
       JSON.parse(JSON.stringify(baseBrain)),
     );
-    NeuralNetwork.mutate(network, mutationAmount);
+    const safeMutationAmount = clamp(mutationAmount, 0, 1);
+    NeuralNetwork.mutate(network, safeMutationAmount);
     return network.toJson();
   }
 }

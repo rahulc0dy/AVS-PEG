@@ -24,7 +24,7 @@ import { ControlType } from "@/lib/car/controls";
 
 let carState: WorkerCarState;
 
-onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
+self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
   const message = event.data;
 
   switch (message.type) {
@@ -115,22 +115,27 @@ const updateAndBroadcastState = () => {
   computeAndBroadcastSensorReadings();
 
   if (carState.controlType === ControlType.AI) {
-    // Map each sensor ray to its offset (0 = obstacle at car, 1 = at ray tip).
-    // Null readings (no obstacle detected) default to 1.0 (clear ahead).
-    // Using .map instead of .filter preserves array length so inputs stay
-    // aligned with the network's expected input count (rayCount + 1).
-    const sensorInputs = carState.sensorReadings.map((reading) =>
-      reading ? reading.offset : 1.0,
-    );
-    // Append normalized speed as an additional input
-    const normalizedSpeed =
-      carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
-    const outputs = carState.network.decide([...sensorInputs, normalizedSpeed]);
-    carState.controls.forward = outputs[0] == 1;
-    carState.controls.left = outputs[1] == 1;
-    carState.controls.right = outputs[2] == 1;
-    carState.controls.reverse = outputs[3] == 1;
+    applyAIControls();
   }
+};
+
+/** Apply AI-driven controls based on neural network decisions. */
+const applyAIControls = () => {
+  // Map each sensor ray to its offset (0 = obstacle at car, 1 = at ray tip).
+  // Null readings (no obstacle detected) default to 1.0 (clear ahead).
+  // Using .map instead of .filter preserves array length so inputs stay
+  // aligned with the network's expected input count (rayCount + 1).
+  const sensorInputs = carState.sensorReadings.map((reading) =>
+    reading ? reading.offset : 1.0,
+  );
+  // Append normalized speed as an additional input
+  const normalizedSpeed =
+    carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
+  const outputs = carState.network.decide([...sensorInputs, normalizedSpeed]);
+  carState.controls.forward = outputs[0] == 1;
+  carState.controls.left = outputs[1] == 1;
+  carState.controls.right = outputs[2] == 1;
+  carState.controls.reverse = outputs[3] == 1;
 };
 
 /** Send current state to main thread */
