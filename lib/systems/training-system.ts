@@ -341,17 +341,15 @@ export class TrainingSystem {
     // and use that segment for progress calculation. This allows progress to be
     // tracked even when the car slides outside the path boundaries, without
     // regressing to an earlier segment.
-    const effectiveSegmentIndex =
-      segmentIndex >= 0
-        ? segmentIndex
-        : this.segments.findIndex(
-            (pathSegment) =>
-              pathSegment.edge ===
-              getNearestEdge(
-                pos,
-                this.segments.map((seg) => seg.edge),
-              ),
-          ) || 0;
+    const effectiveSegmentIndex = ((): number => {
+      if (segmentIndex >= 0) return segmentIndex;
+      const edges = this.segments.map((seg) => seg.edge);
+      const nearestEdge = getNearestEdge(pos, edges);
+      const nearestIndex = this.segments.findIndex(
+        (pathSegment) => pathSegment.edge === nearestEdge,
+      );
+      return nearestIndex >= 0 ? nearestIndex : 0;
+    })();
 
     const segment = this.segments[effectiveSegmentIndex];
     const projection = segment.edge.projectNode(pos);
