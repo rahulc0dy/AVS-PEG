@@ -19,6 +19,7 @@ export enum ControlType {
  * either lowercase or uppercase (e.g. `w` and `W` both work).
  */
 export class Controls {
+  readonly type: ControlType;
   /** True while the forward input is active (ArrowUp / W). */
   forward = false;
   /** True while the left input is active (ArrowLeft / A). */
@@ -34,6 +35,7 @@ export class Controls {
    *               `AI` enables a simple forward default).
    */
   constructor(type: ControlType) {
+    this.type = type;
     this.forward = false;
     this.left = false;
     this.right = false;
@@ -44,7 +46,7 @@ export class Controls {
         this.addKeyboardListeners();
         break;
       case ControlType.AI:
-        // Simple AI behaviour: drive forward by default
+        // Simple AI behavior: drive forward by default
         this.forward = true;
         break;
       case ControlType.NONE:

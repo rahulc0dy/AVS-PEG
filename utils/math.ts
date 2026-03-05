@@ -305,3 +305,38 @@ export function getNearestEdge(
   }
   return nearest;
 }
+
+/**
+ * Return a random number in the half-open range [min, max).
+ *
+ * @param min - lower bound (inclusive)
+ * @param max - upper bound (exclusive)
+ * @returns random number between min and max
+ */
+export function getRandomNumberBetween(min: number, max: number): number {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    throw new Error("min and max must be finite numbers");
+  }
+  if (max < min) {
+    throw new Error("max must be greater than or equal to min");
+  }
+  return Math.random() * (max - min) + min;
+}
+
+/**
+ * Clamp a value between a minimum and maximum.
+ *
+ * @param v - value to clamp
+ * @param min - lower bound
+ * @param max - upper bound
+ * @returns clamped value within [min, max]
+ */
+export function clamp(v: number, min: number, max: number): number {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    throw new Error("min and max must be finite numbers");
+  }
+  if (max < min) {
+    throw new Error("max must be greater than or equal to min");
+  }
+  return Math.max(min, Math.min(max, v));
+}

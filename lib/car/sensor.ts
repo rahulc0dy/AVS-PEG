@@ -35,9 +35,9 @@ export class Sensor {
    */
   constructor(car: Car) {
     this.car = car;
-    this.rayCount = 10;
-    this.rayLength = 50;
-    this.raySpreadAngle = Math.PI / 2;
+    this.rayCount = 5;
+    this.rayLength = 60;
+    this.raySpreadAngle = Math.PI / 1.5;
 
     this.rays = [];
     this.readings = [];

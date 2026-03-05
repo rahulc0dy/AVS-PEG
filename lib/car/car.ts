@@ -8,12 +8,17 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
+  SetBrainPayload,
+  UpdateBiasPayload,
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
+  UpdateWeightPayload,
   WorkerInboundMessageType,
   WorkerOutboundMessageType
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
+import { NeuralNetworkStateJson } from "@/types/car/state";
+import { NeuralNetworkJson } from "@/types/save";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -30,6 +35,15 @@ import { ControlInputs } from "@/types/car/shared";
  * counter-clockwise rotation (standard math coordinates).
  */
 export class Car {
+  /** Default collider color (semi-transparent green). */
+  private static readonly DEFAULT_COLLIDER_COLOR = new Color(0x00ff00);
+  /** Highlight collider color (bright gold/yellow). */
+  private static readonly HIGHLIGHT_COLLIDER_COLOR = new Color(0xffd700);
+  /** Default collider opacity. */
+  private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
+  /** Highlight collider opacity (more visible). */
+  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
+
   /** Unique identifier for this car. */
   id: number;
   /** Position in world units. `y` maps to Three.js Z when rendering. */
@@ -60,7 +74,9 @@ export class Car {
   polygon: Polygon | null = null;
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
-
+  /** Latest neural network state snapshot received from the worker (or `null` if unavailable). */
+  network: NeuralNetworkStateJson | null = null;
+  /** Web Worker handling physics, collisions, and neural network updates for this car. */
   private worker: Worker | null = null;
 
   /** URL used to lazily load the GLTF model for this car. */
@@ -75,6 +91,8 @@ export class Car {
 
   /** Parent Three.js group where this car attaches its meshes. */
   private readonly group: Group;
+  /** Whether this car is currently highlighted as the best car. */
+  private _isHighlighted: boolean = false;
 
   /**
    * Create a new simulated car.
@@ -86,6 +104,7 @@ export class Car {
    * @param controlType Input scheme (human/ai/none).
    * @param group Parent group that will receive the car's meshes.
    * @param angle Initial heading in radians.
+   * @param ignoreCarDamage If enabled, car to car damages are ignored.
    * @param maxSpeed Maximum forward speed.
    */
   constructor(
@@ -97,6 +116,7 @@ export class Car {
     controlType: ControlType,
     group: Group,
     angle = 0,
+    ignoreCarDamage = false,
     maxSpeed = 0.5,
   ) {
     this.id = id;
@@ -112,11 +132,15 @@ export class Car {
     this.angle = angle;
     this.damaged = false;
 
-    if (controlType != ControlType.AI) {
+    if (controlType != ControlType.NONE) {
       this.sensor = new Sensor(this);
     }
     this.controls = new Controls(controlType as ControlType);
     this.group = group;
+
+    if (ignoreCarDamage) {
+      this.ignoreDamageFromCars();
+    }
 
     this.initWorker();
   }
@@ -156,17 +180,6 @@ export class Car {
         } as UpdateCollisionDataPayload,
       });
     }
-    // Sensor readings are computed in the worker and received via SENSOR_UPDATE message
-    if (this.sensor) {
-      this.sensor.draw(this.group);
-    }
-  }
-
-  ignoreDamageFromCars() {
-    this.ignoreCarDamage = true;
-    if (this.sensor) {
-      this.sensor.ignoreTraffic = true;
-    }
   }
 
   /**
@@ -179,7 +192,7 @@ export class Car {
    * @param loader Optional `GLTFLoader` to reuse
    */
   draw(target: Group, url: string, loader?: GLTFLoader) {
-    if (this.sensor) {
+    if (this.sensor && this.controls.type == ControlType.HUMAN) {
       this.sensor.draw(target);
     }
     if (!this.model) {
@@ -293,6 +306,91 @@ export class Car {
     }
   }
 
+  /**
+   * Set the highlight state for this car.
+   *
+   * When highlighted, the car's collider mesh becomes more visible with
+   * a gold/yellow color to indicate it's the current best performer.
+   *
+   * @param highlighted - Whether to highlight the car
+   */
+  setHighlighted(highlighted: boolean): void {
+    if (this._isHighlighted === highlighted) return;
+
+    this._isHighlighted = highlighted;
+    this.updateColliderAppearance();
+  }
+
+  /**
+   * Update a weight value in the neural network.
+   * Sends the update to the worker thread.
+   *
+   * @param layerIdx Index of the layer (0-based, for weights between layer i and i+1)
+   * @param fromIdx Index of the source neuron
+   * @param toIdx Index of the target neuron
+   * @param value New weight value
+   */
+  updateWeight(
+    layerIdx: number,
+    fromIdx: number,
+    toIdx: number,
+    value: number,
+  ): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.UPDATE_WEIGHT,
+      payload: {
+        id: this.id,
+        layerIdx,
+        fromIdx,
+        toIdx,
+        value,
+      } as UpdateWeightPayload,
+    });
+  }
+
+  /**
+   * Update a bias value in the neural network.
+   * Sends the update to the worker thread.
+   *
+   * @param layerIdx Index of the layer (0-based)
+   * @param neuronIdx Index of the neuron
+   * @param value New bias value
+   */
+  updateBias(layerIdx: number, neuronIdx: number, value: number): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.UPDATE_BIAS,
+      payload: {
+        id: this.id,
+        layerIdx,
+        neuronIdx,
+        value,
+      } as UpdateBiasPayload,
+    });
+  }
+
+  /**
+   * Set the entire neural network brain from JSON.
+   * Sends the brain data to the worker thread to replace the current network.
+   *
+   * @param brain The neural network JSON to set
+   */
+  setBrain(brain: NeuralNetworkJson): void {
+    this.worker?.postMessage({
+      type: WorkerInboundMessageType.SET_BRAIN,
+      payload: {
+        id: this.id,
+        brain,
+      } as SetBrainPayload,
+    });
+  }
+
+  private ignoreDamageFromCars() {
+    this.ignoreCarDamage = true;
+    if (this.sensor) {
+      this.sensor.ignoreTraffic = true;
+    }
+  }
+
   private initWorker() {
     if (!window.Worker) return;
 
@@ -313,6 +411,7 @@ export class Car {
           if (statePayload.polygon) {
             this.polygon = Polygon.fromJson(statePayload.polygon);
           }
+          this.network = statePayload.network;
           break;
         }
         case WorkerOutboundMessageType.SENSOR_UPDATE: {
@@ -344,6 +443,7 @@ export class Car {
           raySpreadAngle: this.sensor?.raySpreadAngle ?? 0,
           ignoreTraffic: this.sensor?.ignoreTraffic ?? false,
         },
+        controlType: this.controls.type,
         controls: {
           forward: this.controls.forward,
           left: this.controls.left,
@@ -353,5 +453,21 @@ export class Car {
         ignoreCarDamage: this.ignoreCarDamage,
       } as CarInitPayload,
     });
+  }
+
+  /**
+   * Update the collider mesh appearance based on highlight state.
+   */
+  private updateColliderAppearance(): void {
+    if (!this.carColliderMesh) return;
+
+    const material = this.carColliderMesh.material;
+    if (this._isHighlighted) {
+      material.color.copy(Car.HIGHLIGHT_COLLIDER_COLOR);
+      material.opacity = Car.HIGHLIGHT_COLLIDER_OPACITY;
+    } else {
+      material.color.copy(Car.DEFAULT_COLLIDER_COLOR);
+      material.opacity = Car.DEFAULT_COLLIDER_OPACITY;
+    }
   }
 }

@@ -3,6 +3,9 @@ import {
   CarStatePayload,
   CarWorkerInboundMessage,
   SensorUpdatePayload,
+  SetBrainPayload,
+  UpdateBiasPayload,
+  UpdateWeightPayload,
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
@@ -16,35 +19,79 @@ import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { EdgeJson, PolygonJson } from "@/types/save";
+import { NeuralNetwork } from "@/lib/ai/network";
+import { ControlType } from "@/lib/car/controls";
 
 let carState: WorkerCarState;
 
-onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
+self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
   const message = event.data;
 
   switch (message.type) {
-    case WorkerInboundMessageType.INIT:
+    case WorkerInboundMessageType.INIT: {
       carState = {
         ...message.payload,
         polygon: null,
         traffic: [],
         pathBorders: [],
+        network: new NeuralNetwork([
+          message.payload.sensor.rayCount + 1,
+          6,
+          6,
+          4,
+        ]),
+        sensorReadings: [],
       };
       startAnimationLoop();
       break;
+    }
 
-    case WorkerInboundMessageType.UPDATE_CONTROLS:
+    case WorkerInboundMessageType.UPDATE_CONTROLS: {
       if (carState.id === message.payload.id) {
-        carState.controls = message.payload.controls;
+        if (carState.controlType == ControlType.HUMAN) {
+          carState.controls = message.payload.controls;
+        }
       }
       break;
+    }
 
-    case WorkerInboundMessageType.UPDATE_COLLISION_DATA:
+    case WorkerInboundMessageType.UPDATE_COLLISION_DATA: {
       if (carState.id === message.payload.id) {
         carState.traffic = message.payload.traffic;
         carState.pathBorders = message.payload.pathBorders;
       }
       break;
+    }
+
+    case WorkerInboundMessageType.UPDATE_WEIGHT: {
+      const payload = message.payload as UpdateWeightPayload;
+      if (carState.id === payload.id && carState.network) {
+        const level = carState.network.levels[payload.layerIdx];
+        if (level && level.weights[payload.fromIdx]) {
+          level.weights[payload.fromIdx][payload.toIdx] = payload.value;
+        }
+      }
+      break;
+    }
+
+    case WorkerInboundMessageType.UPDATE_BIAS: {
+      const payload = message.payload as UpdateBiasPayload;
+      if (carState.id === payload.id && carState.network) {
+        const level = carState.network.levels[payload.layerIdx];
+        if (level && level.biases) {
+          level.biases[payload.neuronIdx] = payload.value;
+        }
+      }
+      break;
+    }
+
+    case WorkerInboundMessageType.SET_BRAIN: {
+      const payload = message.payload as SetBrainPayload;
+      if (carState.id === payload.id) {
+        carState.network = NeuralNetwork.fromJson(payload.brain);
+      }
+      break;
+    }
   }
 };
 
@@ -66,6 +113,29 @@ const updateAndBroadcastState = () => {
   carState.damaged = assessDamage();
   broadcastState();
   computeAndBroadcastSensorReadings();
+
+  if (carState.controlType === ControlType.AI) {
+    applyAIControls();
+  }
+};
+
+/** Apply AI-driven controls based on neural network decisions. */
+const applyAIControls = () => {
+  // Map each sensor ray to its offset (0 = obstacle at car, 1 = at ray tip).
+  // Null readings (no obstacle detected) default to 1.0 (clear ahead).
+  // Using .map instead of .filter preserves array length so inputs stay
+  // aligned with the network's expected input count (rayCount + 1).
+  const sensorInputs = carState.sensorReadings.map((reading) =>
+    reading ? reading.offset : 1.0,
+  );
+  // Append normalized speed as an additional input
+  const normalizedSpeed =
+    carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
+  const outputs = carState.network.decide([...sensorInputs, normalizedSpeed]);
+  carState.controls.forward = outputs[0] == 1;
+  carState.controls.left = outputs[1] == 1;
+  carState.controls.right = outputs[2] == 1;
+  carState.controls.reverse = outputs[3] == 1;
 };
 
 /** Send current state to main thread */
@@ -78,6 +148,7 @@ const broadcastState = () => {
       angle: carState.angle,
       damaged: carState.damaged,
       polygon: carState.polygon,
+      network: carState.network.getState(),
     } as CarStatePayload,
   });
 };
@@ -217,13 +288,13 @@ const computeAndBroadcastSensorReadings = () => {
   if (!carState.sensor || carState.sensor.rayCount === 0) return;
 
   const rays = castSensorRays();
-  const readings = rays.map((ray) => getSensorReading(ray));
+  carState.sensorReadings = rays.map((ray) => getSensorReading(ray));
 
   self.postMessage({
     type: WorkerOutboundMessageType.SENSOR_UPDATE,
     payload: {
       id: carState.id,
-      readings,
+      readings: carState.sensorReadings,
       rays,
     } as SensorUpdatePayload,
   });

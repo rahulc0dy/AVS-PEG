@@ -4,7 +4,9 @@ import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { angle, average } from "@/utils/math";
+import { angle, average, clamp } from "@/utils/math";
+import { NeuralNetworkJson } from "@/types/save";
+import { NeuralNetwork } from "@/lib/ai/network";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -54,8 +56,15 @@ export class SpawnerSystem {
    *
    * @param count - Number of cars to spawn
    * @param controlType - Control type for all spawned cars (e.g., AI, HUMAN, NONE)
+   * @param baseBrain - Optional base brain to use (with mutation) instead of random
+   * @param mutationAmount - Amount of mutation to apply (0 = no change, 1 = fully random)
    */
-  spawnCars(count: number, controlType: ControlType): void {
+  spawnCars(
+    count: number,
+    controlType: ControlType,
+    baseBrain?: NeuralNetworkJson,
+    mutationAmount: number = 0.1,
+  ): void {
     if (count <= 0 || this.roads.length === 0) return;
 
     // Cap count to roads length
@@ -82,18 +91,34 @@ export class SpawnerSystem {
         this.worldGroup,
         roadAngle,
       );
+
+      // Set brain with mutation if provided
+      if (baseBrain) {
+        const mutatedBrain = this.createMutatedBrain(baseBrain, mutationAmount);
+        car.setBrain(mutatedBrain);
+      }
+
       this.cars.push(car);
     }
   }
 
   /**
    * Spawn multiple cars stacked/overlapping at the world's Source marking.
+   *
+   * @param count - Number of cars to spawn
+   * @param controlType - Control type for all spawned cars
+   * @param sourceNode - Source node position
+   * @param pathEdges - Path edges for positioning
+   * @param baseBrain - Optional base brain to use (with mutation) instead of random
+   * @param mutationAmount - Amount of mutation to apply (0 = no change, 1 = fully random)
    */
   spawnCarsAtSource(
     count: number,
     controlType: ControlType,
     sourceNode: Node,
     pathEdges: Edge[],
+    baseBrain?: NeuralNetworkJson,
+    mutationAmount: number = 0.1,
   ): void {
     if (pathEdges.length === 0) {
       console.warn("No path found for source marking, skipping spawn.");
@@ -106,6 +131,8 @@ export class SpawnerSystem {
       controlType,
       firstPathEdge.projectNode(sourceNode).point,
       angle(firstPathEdge.directionVector()),
+      baseBrain,
+      mutationAmount,
     );
   }
 
@@ -113,12 +140,21 @@ export class SpawnerSystem {
    * Spawn multiple cars at the exact same position.
    *
    * This intentionally allows overlaps (used for certain training scenarios).
+   *
+   * @param count - Number of cars to spawn
+   * @param controlType - Control type for all spawned cars
+   * @param position - Position to spawn at
+   * @param angle - Angle to spawn at
+   * @param baseBrain - Optional base brain to use (with mutation) instead of random
+   * @param mutationAmount - Amount of mutation to apply (0 = no change, 1 = fully random)
    */
   spawnCarsAtPosition(
     count: number,
     controlType: ControlType,
     position: Node,
     angle: number = 0,
+    baseBrain?: NeuralNetworkJson,
+    mutationAmount: number = 0.1,
   ): void {
     for (let i = 0; i < count; i++) {
       const car = new Car(
@@ -134,10 +170,17 @@ export class SpawnerSystem {
         controlType,
         this.worldGroup,
         angle,
+        // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
+        // (so overlapped spawns can still move). World/road collisions are unaffected.
+        true,
       );
-      // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
-      // (so overlapped spawns can still move). World/road collisions are unaffected.
-      car.ignoreDamageFromCars();
+
+      // Set brain with mutation if provided
+      if (baseBrain) {
+        const mutatedBrain = this.createMutatedBrain(baseBrain, mutationAmount);
+        car.setBrain(mutatedBrain);
+      }
+
       this.cars.push(car);
     }
   }
@@ -157,5 +200,25 @@ export class SpawnerSystem {
    */
   getCarCount(): number {
     return this.cars.length;
+  }
+
+  /**
+   * Create a mutated copy of a brain.
+   *
+   * @param baseBrain - The base brain JSON to mutate
+   * @param mutationAmount - Amount of mutation (0 = no change, 1 = fully random)
+   * @returns A new mutated brain JSON
+   */
+  private createMutatedBrain(
+    baseBrain: NeuralNetworkJson,
+    mutationAmount: number,
+  ): NeuralNetworkJson {
+    // Create a deep copy and convert to NeuralNetwork for mutation
+    const network = NeuralNetwork.fromJson(
+      JSON.parse(JSON.stringify(baseBrain)),
+    );
+    const safeMutationAmount = clamp(mutationAmount, 0, 1);
+    NeuralNetwork.mutate(network, safeMutationAmount);
+    return network.toJson();
   }
 }

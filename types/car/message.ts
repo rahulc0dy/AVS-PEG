@@ -1,10 +1,8 @@
-import {
-  CarBasePayload,
-  ControlInputs,
-  SensorConfig,
-} from "@/types/car/shared";
-import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
+import { CarBasePayload, ControlInputs, SensorConfig } from "@/types/car/shared";
+import { EdgeJson, NeuralNetworkJson, NodeJson, PolygonJson } from "@/types/save";
 import { Intersection } from "@/utils/math";
+import { ControlType } from "@/lib/car/controls";
+import { NeuralNetworkStateJson } from "@/types/car/state";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
@@ -19,6 +17,7 @@ export interface CarInitPayload extends CarBasePayload {
   angle: number;
   damaged: boolean;
   sensor: SensorConfig;
+  controlType: ControlType;
   controls: ControlInputs;
   ignoreCarDamage: boolean;
 }
@@ -34,12 +33,33 @@ export interface UpdateCollisionDataPayload extends CarBasePayload {
   pathBorders: EdgeJson[];
 }
 
+/** Payload for updating a single weight in the neural network */
+export interface UpdateWeightPayload extends CarBasePayload {
+  layerIdx: number;
+  fromIdx: number;
+  toIdx: number;
+  value: number;
+}
+
+/** Payload for updating a single bias in the neural network */
+export interface UpdateBiasPayload extends CarBasePayload {
+  layerIdx: number;
+  neuronIdx: number;
+  value: number;
+}
+
+/** Payload for setting the entire neural network from JSON */
+export interface SetBrainPayload extends CarBasePayload {
+  brain: NeuralNetworkJson;
+}
+
 /** Payload for car state updates sent from worker */
 export interface CarStatePayload extends CarBasePayload {
   position: NodeJson;
   angle: number;
   damaged: boolean;
   polygon: PolygonJson | null;
+  network: NeuralNetworkStateJson | null;
 }
 
 /** Message types sent from main thread to worker */
@@ -47,6 +67,9 @@ export const WorkerInboundMessageType = {
   INIT: "worker:init",
   UPDATE_CONTROLS: "worker:update-controls",
   UPDATE_COLLISION_DATA: "worker:update-collision-data",
+  UPDATE_WEIGHT: "worker:update-weight",
+  UPDATE_BIAS: "worker:update-bias",
+  SET_BRAIN: "worker:set-brain",
 } as const;
 
 /** Message types sent from worker to main thread */
@@ -70,6 +93,18 @@ export type CarWorkerInboundMessage =
   | {
       type: typeof WorkerInboundMessageType.UPDATE_COLLISION_DATA;
       payload: UpdateCollisionDataPayload;
+    }
+  | {
+      type: typeof WorkerInboundMessageType.UPDATE_WEIGHT;
+      payload: UpdateWeightPayload;
+    }
+  | {
+      type: typeof WorkerInboundMessageType.UPDATE_BIAS;
+      payload: UpdateBiasPayload;
+    }
+  | {
+      type: typeof WorkerInboundMessageType.SET_BRAIN;
+      payload: SetBrainPayload;
     };
 
 export type CarWorkerOutboundMessage =

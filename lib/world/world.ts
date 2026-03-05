@@ -14,6 +14,7 @@ import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
+import { TrainingSystem } from "@/lib/systems/training-system";
 
 /**
  * Configuration options for initializing a World instance.
@@ -57,6 +58,9 @@ export class World {
   trafficLightSystem!: TrafficLightSystem;
 
   pathFindingSystem!: PathFindingSystem;
+
+  /** Training system for AI car training and progress tracking. */
+  trainingSystem!: TrainingSystem;
 
   /** Spawner system for managing car spawning. */
   spawnerSystem!: SpawnerSystem;
@@ -108,6 +112,8 @@ export class World {
 
     this.pathFindingSystem = new PathFindingSystem(this.graph);
 
+    this.trainingSystem = new TrainingSystem();
+
     this.spawnerSystem = new SpawnerSystem(
       this.cars,
       this.worldGroup,
@@ -130,6 +136,12 @@ export class World {
         this.pathFindingSystem.getPathBorders(),
       );
     }
+
+    // Update progress tracking for all cars
+    if (this.cars.length > 0) {
+      this.trainingSystem.update(this.cars);
+    }
+
     for (const marking of this.markings) {
       marking.update();
     }
@@ -208,6 +220,9 @@ export class World {
       // Clear the path if either marking is missing
       this.pathFindingSystem.reset();
     }
+
+    // Sync path with training system
+    this.trainingSystem.setPath(this.pathFindingSystem.getPath());
   }
 
   /**

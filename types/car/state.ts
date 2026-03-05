@@ -1,5 +1,8 @@
 import { ControlInputs, SensorConfig } from "@/types/car/shared";
 import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
+import { ControlType } from "@/lib/car/controls";
+import { NeuralNetwork } from "@/lib/ai/network";
+import { Intersection } from "@/utils/math";
 
 /** Complete car state maintained within the worker thread */
 export type WorkerCarState = {
@@ -15,6 +18,7 @@ export type WorkerCarState = {
   angle: number;
   damaged: boolean;
   sensor: SensorConfig;
+  controlType: ControlType;
   controls: ControlInputs;
   ignoreCarDamage: boolean;
   /** Cached polygon for collision detection */
@@ -23,4 +27,34 @@ export type WorkerCarState = {
   traffic: PolygonJson[];
   /** Path borders for collision detection */
   pathBorders: EdgeJson[];
+  network: NeuralNetwork;
+  sensorReadings: (Intersection | null)[];
 };
+
+/**
+ * Real-time state of the neural network for visualization.
+ * Contains current inputs, outputs, and activations for each level.
+ */
+export interface NeuralNetworkStateJson {
+  /** Current input values to the network */
+  inputs: number[];
+  /** Current output values from the network */
+  outputs: number[];
+  /** State of each level (including weights and biases for visualization) */
+  levels: LevelStateJson[];
+}
+
+/**
+ * Real-time state of a neural network level for visualization.
+ * Contains current activation values and network structure.
+ */
+export interface LevelStateJson {
+  /** Current input values to this level */
+  inputs: number[];
+  /** Current output values (after activation) */
+  outputs: number[];
+  /** Bias values for each output neuron */
+  biases: number[];
+  /** Weight matrix [inputIndex][outputIndex] */
+  weights: number[][];
+}
