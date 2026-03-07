@@ -284,6 +284,10 @@ export function getNearestNode(
  * is less than `threshold`. Returns `null` when no edge is within the
  * threshold.
  *
+ * An axis-aligned bounding box (AABB) check is performed per edge before the
+ * more expensive distance calculation, so edges that are obviously too far
+ * away are skipped cheaply.
+ *
  * @param loc - query location
  * @param edges - candidate edges to search
  * @param threshold - maximum allowed distance (defaults to `Number.MAX_SAFE_INTEGER`)
@@ -296,7 +300,27 @@ export function getNearestEdge(
 ): Edge | null {
   let minDist = Number.MAX_SAFE_INTEGER;
   let nearest: Edge | null = null;
+
   for (const seg of edges) {
+    // early-exit: skip edges whose bounding box is further than the
+    // current best distance. Uses the tighter of `threshold` and `minDist`
+    // as the rejection radius so edges are pruned more aggressively as a
+    // closer candidate is found.
+    const rejectDist = Math.min(threshold, minDist);
+    const minX = Math.min(seg.n1.x, seg.n2.x);
+    const maxX = Math.max(seg.n1.x, seg.n2.x);
+    const minY = Math.min(seg.n1.y, seg.n2.y);
+    const maxY = Math.max(seg.n1.y, seg.n2.y);
+
+    if (
+      loc.x < minX - rejectDist ||
+      loc.x > maxX + rejectDist ||
+      loc.y < minY - rejectDist ||
+      loc.y > maxY + rejectDist
+    ) {
+      continue;
+    }
+
     const dist = seg.distanceToNode(loc);
     if (dist < minDist && dist < threshold) {
       minDist = dist;

@@ -1,14 +1,6 @@
 import { Node } from "@/lib/primitives/node";
 import { EdgeJson } from "@/types/save";
-import {
-  add,
-  distance,
-  dot,
-  magnitude,
-  normalize,
-  scale,
-  subtract,
-} from "@/utils/math";
+import { distance, normalize, subtract } from "@/utils/math";
 import {
   BufferGeometry,
   Color,
@@ -109,25 +101,37 @@ export class Edge {
    * If the perpendicular projection of `node` onto the infinite line lies
    * within the segment, the perpendicular distance is returned. Otherwise the
    * distance to the nearest endpoint is returned.
+   *
+   * Uses inline arithmetic to avoid allocating intermediate objects on every
+   * call — important for hot-path searches like `getNearestEdge`.
+   *
    * @param node - External node
    * @returns Shortest distance from `node` to this edge
    */
   distanceToNode(node: Node): number {
-    // Get the projection of the given node onto the edge
-    const projection = this.projectNode(node);
+    // Edge vector (n1 → n2)
+    const ex = this.n2.x - this.n1.x;
+    const ey = this.n2.y - this.n1.y;
+    const edgeLenSq = ex * ex + ey * ey;
 
-    // If the projection lies within the segment (not beyond either endpoint)
-    const isWithinSegment = projection.offset > 0 && projection.offset < 1;
-    if (isWithinSegment) {
-      // The shortest distance is the perpendicular distance to the edge
-      return distance(node, projection.point);
+    // Vector from n1 to the query node
+    const vx = node.x - this.n1.x;
+    const vy = node.y - this.n1.y;
+
+    // Offset ratio along the segment (0 at n1, 1 at n2)
+    const offset = edgeLenSq === 0 ? 0 : (vx * ex + vy * ey) / edgeLenSq;
+
+    if (offset > 0 && offset < 1) {
+      // Projection falls within the segment — return perpendicular distance
+      const px = this.n1.x + ex * offset - node.x;
+      const py = this.n1.y + ey * offset - node.y;
+      return Math.hypot(px, py);
     }
 
-    // Otherwise, the closest distance is to one of the endpoints
-    const distanceToStart = distance(node, this.n1);
-    const distanceToEnd = distance(node, this.n2);
-
-    return Math.min(distanceToStart, distanceToEnd);
+    // Projection is outside the segment — return distance to nearest endpoint
+    const d1 = Math.hypot(vx, vy);
+    const d2 = Math.hypot(node.x - this.n2.x, node.y - this.n2.y);
+    return Math.min(d1, d2);
   }
 
   /**
@@ -135,32 +139,32 @@ export class Edge {
    * and return both the projected point and the offset ratio along the
    * segment. Offset is 0 at `n1` and 1 at `n2`.
    *
+   * Uses inline arithmetic to avoid allocating intermediate `Node` objects,
+   * which matters for hot-path callers like marking-editor preview snapping.
+   *
    * @param node - Node to project
    * @returns Object containing `point` (projected Node) and `offset` (ratio)
    */
   projectNode(node: Node): { point: Node; offset: number } {
-    // Vector from the start of the edge (n1) to the external point
-    const vectorToNode = subtract(node, this.n1);
+    // Edge vector (n1 → n2)
+    const ex = this.n2.x - this.n1.x;
+    const ey = this.n2.y - this.n1.y;
 
-    // Vector representing the edge itself (from n1 to n2)
-    const edgeVector = subtract(this.n2, this.n1);
+    // Squared length of the edge (avoids a sqrt for normalization)
+    const edgeLenSq = ex * ex + ey * ey;
 
-    // Unit direction vector along the edge
-    const edgeDirection = normalize(edgeVector);
+    // Vector from n1 to the query node
+    const vx = node.x - this.n1.x;
+    const vy = node.y - this.n1.y;
 
-    // Scalar projection: how far along the edge the point projects (in units of length)
-    const projectionLength = dot(vectorToNode, edgeDirection);
+    // Offset ratio along the segment: dot(v, e) / dot(e, e)
+    // 0 = at n1, 1 = at n2. Values outside [0,1] are beyond the segment.
+    const offset = edgeLenSq === 0 ? 0 : (vx * ex + vy * ey) / edgeLenSq;
 
-    // Actual coordinates of the projected node on the infinite line
-    const projectedNode = add(this.n1, scale(edgeDirection, projectionLength));
+    // Projected point on the infinite line
+    const point = new Node(this.n1.x + ex * offset, this.n1.y + ey * offset);
 
-    // Offset ratio along the segment: 0 = at n1, 1 = at n2
-    const offsetRatio = projectionLength / magnitude(edgeVector);
-
-    return {
-      point: projectedNode,
-      offset: offsetRatio,
-    };
+    return { point, offset };
   }
 
   /**
