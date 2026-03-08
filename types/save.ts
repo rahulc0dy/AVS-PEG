@@ -62,6 +62,14 @@ export interface TrafficLightJson extends MarkingJson {
 }
 
 /**
+ * Stop sign-specific serialized marking.
+ * Extends the base `MarkingJson`.
+ * No additional properties are required because
+ * stop signs do not have dynamic state.
+ */
+export interface StopSignJson extends MarkingJson {}
+
+/**
  * Serialized envelope (road) containing a skeleton edge and polygon outline.
  */
 export interface EnvelopeJson {
