@@ -10,6 +10,7 @@ export type MarkingType =
   | "traffic-light"
   | "source"
   | "destination"
+  | "stop-sign"
   | "default";
 
 export type GraphEdgeType = "directed" | "undirected";

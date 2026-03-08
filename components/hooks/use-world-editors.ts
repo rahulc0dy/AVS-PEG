@@ -1,6 +1,7 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
+import { StopSignEditor } from "@/lib/editors/stop-sign-editor";
 import { World } from "@/lib/world/world";
 import { EditorMode } from "@/types/editor";
 import { useEffect, useRef, useState } from "react";
@@ -42,6 +43,7 @@ export function useWorldEditors(
   const sourceDestinationEditorRef = useRef<SourceDestinationEditor | null>(
     null,
   );
+  const stopSignEditorRef = useRef<StopSignEditor | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
 
   /**
@@ -51,6 +53,7 @@ export function useWorldEditors(
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
+    stopSignEditorRef.current?.disable();
   };
 
   /**
@@ -71,6 +74,9 @@ export function useWorldEditors(
         break;
       case "source-destination":
         sourceDestinationEditorRef.current?.enable();
+        break;
+      case "stop-sign":
+        stopSignEditorRef.current?.enable();
         break;
     }
   };
@@ -106,7 +112,12 @@ export function useWorldEditors(
       world.trafficLightGraph,
       world.worldGroup,
     );
-
+    stopSignEditorRef.current = new StopSignEditor(
+      scene,
+      world.roadBorders,
+      world.markings,
+      world.worldGroup,
+    );
     sourceDestinationEditorRef.current = new SourceDestinationEditor(
       scene,
       world.roadBorders,
@@ -125,12 +136,15 @@ export function useWorldEditors(
       }
       graphEditorRef.current?.disable();
       trafficLightEditorRef.current?.disable();
+      stopSignEditorRef.current?.disable();
       sourceDestinationEditorRef.current?.disable();
       graphEditorRef.current?.dispose();
       trafficLightEditorRef.current?.dispose();
+      stopSignEditorRef.current?.dispose();
       sourceDestinationEditorRef.current?.dispose();
       graphEditorRef.current = null;
       trafficLightEditorRef.current = null;
+      stopSignEditorRef.current = null;
       sourceDestinationEditorRef.current = null;
     };
   }, [world, scene, camera, dom]);
@@ -156,6 +170,9 @@ export function useWorldEditors(
         case "source-destination":
           sourceDestinationEditorRef.current?.handlePointerMove(point);
           break;
+        case "stop-sign":
+          stopSignEditorRef.current?.handlePointerMove(point);
+          break;
       }
     };
 
@@ -178,6 +195,9 @@ export function useWorldEditors(
               intersectionPoint,
             );
             break;
+          case "stop-sign":
+            stopSignEditorRef.current?.handleLeftClick(intersectionPoint);
+            break;
         }
       } else if (evt.button === 2) {
         switch (modeRef.current) {
@@ -191,6 +211,9 @@ export function useWorldEditors(
             sourceDestinationEditorRef.current?.handleRightClick(
               intersectionPoint,
             );
+            break;
+          case "stop-sign":
+            stopSignEditorRef.current?.handleRightClick(intersectionPoint);
             break;
         }
       }
@@ -211,6 +234,9 @@ export function useWorldEditors(
           sourceDestinationEditorRef.current?.handleClickRelease(
             intersectionPoint,
           );
+          break;
+        case "stop-sign":
+          stopSignEditorRef.current?.handleClickRelease(intersectionPoint);
           break;
       }
     };
@@ -239,6 +265,7 @@ export function useWorldEditors(
     setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
+    stopSignEditorRef,
     sourceDestinationEditorRef,
     controlsRef,
   };

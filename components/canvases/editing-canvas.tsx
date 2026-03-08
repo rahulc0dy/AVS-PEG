@@ -45,6 +45,7 @@ export default function EditorCanvas({
     setSourceDestMarkingType,
     graphEditorRef,
     trafficLightEditorRef,
+    stopSignEditorRef,
     sourceDestinationEditorRef,
     controlsRef,
   } = useWorldEditors(
@@ -62,6 +63,7 @@ export default function EditorCanvas({
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
+    stopSignEditorRef,
     worldRef,
   );
 
