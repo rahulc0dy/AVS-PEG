@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { Camera, Scene } from "three";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Camera, Scene, WebGLRenderer } from "three";
 import Button from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
@@ -10,10 +10,13 @@ import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { ControlType } from "@/lib/car/controls";
 import { Node } from "@/lib/primitives/node";
+import { useMiniCamera } from "@/components/hooks/use-mini-camera";
+import { useTrafficDetector } from "@/components/hooks/use-traffic-detector";
 
 interface SimulationCanvasProps {
   scene: Scene;
   camera: Camera;
+  renderer: WebGLRenderer;
   dom: HTMLElement;
 }
 
@@ -29,6 +32,7 @@ interface SimulationCanvasProps {
 export default function SimulationCanvas({
   scene,
   camera,
+  renderer,
   dom,
 }: SimulationCanvasProps) {
   const [hasPlayerCar, setHasPlayerCar] = useState(false);
@@ -104,6 +108,17 @@ export default function SimulationCanvas({
     const car = world?.cars[0];
     return car ? Math.abs(car.speed) : 0;
   }, [world?.cars]);
+
+  const { scanTraffic, detections } = useTrafficDetector();
+
+  useMiniCamera(renderer, scene, camera, worldRef, scanTraffic);
+
+  useEffect(() => {
+    if (detections.length > 0) {
+      console.log("Traffic Light Found!", detections[0].color);
+      // Logic to stop the car can go here
+    }
+  }, [detections]);
 
   return (
     <>
