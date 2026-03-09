@@ -1,4 +1,4 @@
-import { Group, Scene, Vector3 } from "three";
+import { Group, Scene } from "three";
 import { MarkingEditor } from "@/lib/editors/marking-editor";
 import { Marking } from "@/lib/markings/marking";
 import { StopSign } from "@/lib/markings/stop-sign";
