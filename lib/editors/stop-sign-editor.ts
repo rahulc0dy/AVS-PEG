@@ -34,6 +34,9 @@ export class StopSignEditor extends MarkingEditor {
    *
    * The preview is rendered in the editor group, then
    * moved to the commit group when finalized.
+   * @param position - World position where the stop sign preview should be created.
+   * @param direction - Orientation node used to rotate the stop sign.
+   * @returns Preview `StopSign` instance attached to the editor overlay group.
    */
   override createMarking(position: Node, direction: Node): Marking {
     return new StopSign(position, direction, this.editorGroup);
@@ -41,6 +44,8 @@ export class StopSignEditor extends MarkingEditor {
 
   /**
    * Draw preview + editor overlay.
+   *
+   * @returns `true` when the editor overlay changed and needs re-rendering.
    */
   override draw(): boolean {
     return super.draw();
