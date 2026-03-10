@@ -7,7 +7,11 @@ import { Vector3 } from "three";
  * - `traffic-lights`: place/configure traffic light markings.
  * - `source-destination`: place start/end markings for routing/simulation.
  */
-export type EditorMode = "graph" | "traffic-lights" | "source-destination";
+export type EditorMode =
+  | "graph"
+  | "traffic-lights"
+  | "source-destination"
+  | "stop-sign";
 
 /**
  * Generic editor interface for in-scene editing tools.

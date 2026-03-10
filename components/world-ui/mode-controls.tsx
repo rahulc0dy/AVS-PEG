@@ -282,6 +282,7 @@ export function ModeControls({
                 : undefined
             }
           />
+
           <ToolButton
             mode="traffic-lights"
             activeMode={activeMode}
@@ -290,6 +291,15 @@ export function ModeControls({
             alt="Traffic Lights"
             rotateIcon
           />
+
+          <ToolButton
+            mode="stop-sign"
+            activeMode={activeMode}
+            onClick={() => setMode("stop-sign")}
+            icon="/icons/stop-sign.png"
+            alt="Stop Signs"
+          />
+
           <ToolButton
             mode="source-destination"
             activeMode={activeMode}

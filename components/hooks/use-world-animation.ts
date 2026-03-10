@@ -1,5 +1,6 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
+import { StopSignEditor } from "@/lib/editors/stop-sign-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
@@ -24,6 +25,7 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
  * @param graphEditorRef - Ref to the `GraphEditor` instance; used to draw editor overlays and detect editor-driven visual changes.
  * @param trafficLightEditorRef - Ref to the `TrafficLightEditor`; updated with world edges after generation.
  * @param sourceDestinationEditorRef - Ref to the `SourceDestinationEditor`; used to draw source and destination of a vehicle path.
+ * @param stopSignEditorRef - Ref to the `StopSignEditor`; used to draw stop sign preview and updated with world edges after generation.
  * @param worldRef - Ref to the `World` instance which is generated, drawn and updated.
  */
 export function useWorldAnimation(
@@ -31,6 +33,7 @@ export function useWorldAnimation(
   graphEditorRef: RefObject<GraphEditor | null>,
   trafficLightEditorRef: RefObject<TrafficLightEditor | null>,
   sourceDestinationEditorRef: RefObject<SourceDestinationEditor | null>,
+  stopSignEditorRef: RefObject<StopSignEditor | null>,
   worldRef: RefObject<World | null>,
 ) {
   // Ref to store the active requestAnimationFrame id so we can cancel it on cleanup.
@@ -61,6 +64,7 @@ export function useWorldAnimation(
       const gEditor = graphEditorRef.current;
       const tlEditor = trafficLightEditorRef.current;
       const sdEditor = sourceDestinationEditorRef.current;
+      const ssEditor = stopSignEditorRef.current;
       const world = worldRef.current;
       const graph = world?.graph;
 
@@ -69,7 +73,8 @@ export function useWorldAnimation(
       const editorChanged =
         (gEditor?.draw() ?? false) ||
         (tlEditor?.draw() ?? false) ||
-        (sdEditor?.draw() ?? false);
+        (sdEditor?.draw() ?? false) ||
+        (ssEditor?.draw() ?? false);
 
       // If required runtime objects are missing, skip this frame's logic.
       if (!world || !graph) {
@@ -95,6 +100,11 @@ export function useWorldAnimation(
         // Update source/destination editor with any new target edges from the world.
         if (sdEditor) {
           sdEditor.targetEdges = world.roadBorders;
+        }
+
+        // Update stop sign editor with any new target edges from the world.
+        if (ssEditor) {
+          ssEditor.targetEdges = world.roadBorders;
         }
 
         return;
@@ -125,6 +135,7 @@ export function useWorldAnimation(
     graphEditorRef,
     trafficLightEditorRef,
     sourceDestinationEditorRef,
+    stopSignEditorRef,
     worldRef,
   ]);
 }
