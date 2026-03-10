@@ -2,7 +2,7 @@ import { ControlInputs, SensorConfig } from "@/types/car/shared";
 import { EdgeJson, NodeJson, PolygonJson } from "@/types/save";
 import { ControlType } from "@/lib/car/controls";
 import { NeuralNetwork } from "@/lib/ai/network";
-import { Intersection } from "@/utils/math";
+import { LabelledIntersection } from "@/types/intersection";
 
 /** Complete car state maintained within the worker thread */
 export type WorkerCarState = {
@@ -28,7 +28,7 @@ export type WorkerCarState = {
   /** Path borders for collision detection */
   pathBorders: EdgeJson[];
   network: NeuralNetwork;
-  sensorReadings: (Intersection | null)[];
+  sensorReadings: (LabelledIntersection | null)[];
 };
 
 /**
