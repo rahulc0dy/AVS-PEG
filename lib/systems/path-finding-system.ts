@@ -1,11 +1,11 @@
 import { Graph } from "@/lib/primitives/graph";
 import { Node } from "@/lib/primitives/node";
-import { angle, distance, getNearestEdge } from "@/utils/math";
+import { distance, getNearestEdge } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Polygon } from "@/lib/primitives/polygon";
 import { Envelope } from "@/lib/primitives/envelope";
 import { ROAD_WIDTH } from "@/env";
-import { BoxGeometry, Color, Group, Mesh, MeshBasicMaterial } from "three";
+import { Color, Group } from "three";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.
@@ -16,10 +16,6 @@ export class PathFindingSystem {
 
   private path: Edge[] = [];
   private pathBorders: Edge[] = [];
-
-  private needsRedraw: boolean = false;
-  private pathBorderMeshes: Mesh[] = [];
-  private roadBorderMaterial: MeshBasicMaterial | null = null;
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -55,8 +51,10 @@ export class PathFindingSystem {
       const distDestToN2 = distance(destPos, startEdge.n2);
 
       // Determine which endpoint is closer to source and which to destination
-      const sourceEnd = distSrcToN1 <= distSrcToN2 ? startEdge.n1 : startEdge.n2;
-      const destEnd = distDestToN1 <= distDestToN2 ? startEdge.n1 : startEdge.n2;
+      const sourceEnd =
+        distSrcToN1 <= distSrcToN2 ? startEdge.n1 : startEdge.n2;
+      const destEnd =
+        distDestToN1 <= distDestToN2 ? startEdge.n1 : startEdge.n2;
 
       // If source and dest are at opposite ends, orient n1->n2 from source to dest
       // If they're at the same end (edge case), just use the original orientation
@@ -119,16 +117,19 @@ export class PathFindingSystem {
 
     // Check if we need to prepend startEdge (when source and startNode are not at the same location)
     // startEdge connects source position to the graph, and may not be part of the Dijkstra path
-    if (!this.path.some(edge => edge.equals(startEdge))) {
+    if (!this.path.some((edge) => edge.equals(startEdge))) {
       // Orient startEdge from startNode toward the first node in the path
-      const firstPathNode = this.path.length > 0
-        ? this.path[0].n2  // n2 is the destination of the first edge, i.e., the node after startNode
-        : (startEdge.n1.equals(startNode) ? startEdge.n2 : startEdge.n1);
+      const firstPathNode =
+        this.path.length > 0
+          ? this.path[0].n2 // n2 is the destination of the first edge, i.e., the node after startNode
+          : startEdge.n1.equals(startNode)
+            ? startEdge.n2
+            : startEdge.n1;
 
       const orientedStartEdge = new Edge(
         startNode,
         firstPathNode,
-        startEdge.isDirected
+        startEdge.isDirected,
       );
       this.path.unshift(orientedStartEdge);
     }
@@ -155,69 +156,24 @@ export class PathFindingSystem {
   public reset() {
     this.path = [];
     this.pathBorders = [];
-    this.needsRedraw = true;
   }
 
   draw(group: Group) {
-    if (this.needsRedraw) {
-      this.dispose();
-
-      if (!this.roadBorderMaterial) {
-        this.roadBorderMaterial = new MeshBasicMaterial({
-          color: new Color(0x00ff00),
-          transparent: true,
-          opacity: 0.5,
-        });
-      }
-
-      for (const edge of this.pathBorders) {
-        const roadBorderHeight = 10;
-        const roadBorderGeometry = new BoxGeometry(
-          distance(edge.n1, edge.n2),
-          roadBorderHeight,
-          1,
-        );
-        const pathBorderMesh = new Mesh(
-          roadBorderGeometry,
-          this.roadBorderMaterial,
-        );
-
-        pathBorderMesh.position.set(
-          (edge.n1.x + edge.n2.x) / 2,
-          roadBorderHeight / 2,
-          (edge.n1.y + edge.n2.y) / 2,
-        );
-        pathBorderMesh.rotation.y = -angle(
-          new Node(edge.n2.x - edge.n1.x, edge.n2.y - edge.n1.y),
-        );
-
-        this.pathBorderMeshes.push(pathBorderMesh);
-
-        group.add(pathBorderMesh);
-      }
-
-      this.needsRedraw = false;
-    } else {
-      for (const mesh of this.pathBorderMeshes) {
-        if (!mesh.parent) {
-          group.add(mesh);
-        }
-      }
+    // Draw flat green lines using the standard Edge drawing method
+    for (const edge of this.pathBorders) {
+      edge.draw(group, { width: 8, color: new Color(0x00ff00) });
     }
   }
 
   dispose() {
-    for (const mesh of this.pathBorderMeshes) {
-      mesh.geometry.dispose();
-      if (mesh.parent) {
-        mesh.parent.remove(mesh);
+    // Clean up edge meshes if the Edge class holds internal geometries
+    for (const edge of this.pathBorders) {
+      if ("dispose" in edge && typeof edge.dispose === "function") {
+        edge.dispose();
       }
     }
 
-    this.roadBorderMaterial?.dispose();
-    this.roadBorderMaterial = null;
-
-    this.pathBorderMeshes = [];
+    this.pathBorders = [];
   }
 
   private setPath(path: Edge[]) {
@@ -234,8 +190,6 @@ export class PathFindingSystem {
     this.pathBorders = Polygon.union(
       pathEnvelopes.map((envelope) => envelope.poly),
     );
-
-    this.needsRedraw = true;
   }
 
   /**
