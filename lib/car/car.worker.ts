@@ -339,7 +339,8 @@ const castSensorRays = (): EdgeJson[] => {
  * @returns The nearest Intersection along the ray, or null if none
  */
 const getSensorReading = (ray: EdgeJson): Intersection | null => {
-  const touches: Intersection[] = [];
+  const touches: { intersection: Intersection; type: "traffic" | "border" }[] =
+    [];
 
   const rayEdge = Edge.fromJson(ray);
 
@@ -362,7 +363,10 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
           polyN2,
         );
         if (intersection) {
-          touches.push(intersection);
+          touches.push({
+            intersection,
+            type: "traffic",
+          });
         }
       }
     }
@@ -379,7 +383,10 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
       pathBorder.n2,
     );
     if (intersection) {
-      touches.push(intersection);
+      touches.push({
+        intersection,
+        type: "border",
+      });
     }
   }
 
@@ -388,6 +395,8 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
   }
 
   // Return the closest intersection (smallest offset)
-  const minOffset = Math.min(...touches.map((t) => t.offset));
-  return touches.find((t) => t.offset === minOffset) ?? null;
+  const minOffset = Math.min(...touches.map((t) => t.intersection.offset));
+  const closest = touches.find((t) => t.intersection.offset === minOffset);
+
+  return closest?.intersection ?? null;
 };

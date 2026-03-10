@@ -1,7 +1,13 @@
 import { Car } from "@/lib/car/car";
 import { Intersection } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
-import { BufferGeometry, Float32BufferAttribute, Group, Line, LineBasicMaterial } from "three";
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  Group,
+  Line,
+  LineBasicMaterial,
+} from "three";
 import { EdgeJson } from "@/types/save";
 
 /**
@@ -77,10 +83,7 @@ export class Sensor {
     for (let i = 0; i < this.rayCount; i++) {
       if (!this.rays[i]) continue;
 
-      const endPos = this.readings[i]
-        ? { x: this.readings[i]!.x, y: this.readings[i]!.y }
-        : this.rays[i].n2;
-
+      const endPos = this.rays[i].n2;
       // Map Node.y directly to Three.js Z when drawing (sensor lines sit at y=2)
       const points = [
         this.rays[i].n1.x,

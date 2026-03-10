@@ -1,4 +1,12 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -14,7 +22,7 @@ import {
   UpdateControlsPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 import { NeuralNetworkStateJson } from "@/types/car/state";
@@ -192,7 +200,7 @@ export class Car {
    * @param loader Optional `GLTFLoader` to reuse
    */
   draw(target: Group, url: string, loader?: GLTFLoader) {
-    if (this.sensor && this.controls.type == ControlType.HUMAN) {
+    if (this.sensor) {
       this.sensor.draw(target);
     }
     if (!this.model) {
