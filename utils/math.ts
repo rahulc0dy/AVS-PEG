@@ -1,6 +1,7 @@
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
+import { Intersection } from "@/types/intersection";
 
 /**
  * Euclidean distance between two nodes.
@@ -170,13 +171,6 @@ export function translate(loc: Node, angle: number, offset: number): Node {
     loc.y + Math.sin(angle) * offset,
   );
 }
-
-/**
- * Result returned by `getIntersection` when two segments intersect.
- * - `x`, `y`: intersection coordinates
- * - `offset`: parameter along the first segment (A->B) where the intersection lies (0..1)
- */
-export type Intersection = { x: number; y: number; offset: number };
 
 /**
  * Compute the intersection point (if any) between segments AB and CD.

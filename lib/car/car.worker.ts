@@ -9,18 +9,14 @@ import {
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import {
-  doPolygonsIntersect,
-  getIntersection,
-  Intersection,
-  lerp,
-} from "@/utils/math";
+import { doPolygonsIntersect, getIntersection, lerp } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { EdgeJson, PolygonJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { ControlType } from "@/lib/car/controls";
+import { LabelledIntersection } from "@/types/intersection";
 
 let carState: WorkerCarState;
 
@@ -126,7 +122,7 @@ const applyAIControls = () => {
   // Using .map instead of .filter preserves array length so inputs stay
   // aligned with the network's expected input count (rayCount + 1).
   const sensorInputs = carState.sensorReadings.map((reading) =>
-    reading ? reading.offset : 1.0,
+    reading ? reading.intersection.offset : 1.0,
   );
   // Append normalized speed as an additional input
   const normalizedSpeed =
@@ -338,8 +334,8 @@ const castSensorRays = (): EdgeJson[] => {
  * @param ray - Ray segment to test
  * @returns The nearest Intersection along the ray, or null if none
  */
-const getSensorReading = (ray: EdgeJson): Intersection | null => {
-  const touches: Intersection[] = [];
+const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
+  const touches: LabelledIntersection[] = [];
 
   const rayEdge = Edge.fromJson(ray);
 
@@ -362,7 +358,10 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
           polyN2,
         );
         if (intersection) {
-          touches.push(intersection);
+          touches.push({
+            intersection,
+            label: "traffic",
+          });
         }
       }
     }
@@ -379,7 +378,10 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
       pathBorder.n2,
     );
     if (intersection) {
-      touches.push(intersection);
+      touches.push({
+        intersection,
+        label: "border",
+      });
     }
   }
 
@@ -388,6 +390,8 @@ const getSensorReading = (ray: EdgeJson): Intersection | null => {
   }
 
   // Return the closest intersection (smallest offset)
-  const minOffset = Math.min(...touches.map((t) => t.offset));
-  return touches.find((t) => t.offset === minOffset) ?? null;
+  const minOffset = Math.min(...touches.map((t) => t.intersection.offset));
+  const closest = touches.find((t) => t.intersection.offset === minOffset);
+
+  return closest ?? null;
 };
