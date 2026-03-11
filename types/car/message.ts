@@ -1,8 +1,8 @@
 import { CarBasePayload, ControlInputs, SensorConfig } from "@/types/car/shared";
 import { EdgeJson, NeuralNetworkJson, NodeJson, PolygonJson } from "@/types/save";
-import { Intersection } from "@/utils/math";
 import { ControlType } from "@/lib/car/controls";
 import { NeuralNetworkStateJson } from "@/types/car/state";
+import { LabelledIntersection } from "@/types/intersection";
 
 /** Payload for initializing car state in worker */
 export interface CarInitPayload extends CarBasePayload {
@@ -80,7 +80,7 @@ export const WorkerOutboundMessageType = {
 
 export interface SensorUpdatePayload {
   id: number;
-  readings: (Intersection | null)[];
+  readings: (LabelledIntersection | null)[];
   rays: EdgeJson[];
 }
 

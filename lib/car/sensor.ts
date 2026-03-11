@@ -1,8 +1,9 @@
-import { Car } from "@/lib/car/car";
-import { Intersection } from "@/utils/math";
-import { Edge } from "@/lib/primitives/edge";
-import { BufferGeometry, Float32BufferAttribute, Group, Line, LineBasicMaterial } from "three";
-import { EdgeJson } from "@/types/save";
+import {Car} from "@/lib/car/car";
+import {Edge} from "@/lib/primitives/edge";
+import {BufferGeometry, Float32BufferAttribute, Group, Line, LineBasicMaterial,} from "three";
+import {EdgeJson} from "@/types/save";
+import {LabelledIntersection} from "@/types/intersection";
+import {Node} from "@/lib/primitives/node";
 
 /**
  * Sensor suite attached to a `Car` that casts multiple rays and reports the
@@ -22,7 +23,7 @@ export class Sensor {
   /** Ray segments represented as `Edge`s (start/end Nodes in world coords). */
   rays: Edge[];
   /** Cached intersection readings for each ray (null if no hit). */
-  readings: (Intersection | null | undefined)[];
+  readings: (LabelledIntersection | null)[];
   /** Toggle car detection */
   ignoreTraffic: boolean = false;
 
@@ -53,7 +54,7 @@ export class Sensor {
    * @param rays - Ray segments computed by the worker
    * @param readings - Intersection readings for each ray (null if no hit)
    */
-  update(rays: EdgeJson[], readings: (Intersection | null)[]) {
+  update(rays: EdgeJson[], readings: (LabelledIntersection | null)[]) {
     this.rays = rays.map((rayJson) => {
       return Edge.fromJson(rayJson);
     });
@@ -77,8 +78,12 @@ export class Sensor {
     for (let i = 0; i < this.rayCount; i++) {
       if (!this.rays[i]) continue;
 
-      const endPos = this.readings[i]
-        ? { x: this.readings[i]!.x, y: this.readings[i]!.y }
+      const intersection = this.readings[i]?.intersection;
+      const showIntersectionVisual =
+        this.readings[i] && this.readings[i]?.label != "border" && intersection;
+
+      const endPos = showIntersectionVisual
+        ? new Node(intersection.x, intersection.y)
         : this.rays[i].n2;
 
       // Map Node.y directly to Three.js Z when drawing (sensor lines sit at y=2)
@@ -102,7 +107,7 @@ export class Sensor {
           "position",
           new Float32BufferAttribute(points, 3),
         );
-        line.material.color.set(this.readings[i] ? 0xff0000 : 0xffff00);
+        line.material.color.set(showIntersectionVisual ? 0xff0000 : 0xffff00);
         line.geometry.computeBoundingSphere(); // Important for frustum culling
       } else {
         // Create new line if it doesn't exist
@@ -112,7 +117,7 @@ export class Sensor {
           new Float32BufferAttribute(points, 3),
         );
         const material = new LineBasicMaterial({
-          color: this.readings[i] ? 0xff0000 : 0xffff00,
+          color: showIntersectionVisual ? 0xff0000 : 0xffff00,
           linewidth: 2,
         });
         line = new Line(geometry, material);
