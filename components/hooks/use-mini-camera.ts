@@ -15,6 +15,21 @@ import { RefObject, useEffect, useRef } from "react";
 import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 /**
+ * Viewport info passed to the `onFrame` callback so consumers know the
+ * exact device-pixel rectangle the mini camera was rendered into.
+ */
+export interface MiniViewport {
+  /** X offset in device pixels (bottom-left origin). */
+  x: number;
+  /** Y offset in device pixels (bottom-left origin). */
+  y: number;
+  /** Width in device pixels. */
+  width: number;
+  /** Height in device pixels. */
+  height: number;
+}
+
+/**
  * React hook that creates and manages a small inset "mini" perspective camera
  * rendered inside the main Three.js `WebGLRenderer` as a scissored viewport.
  *
@@ -29,8 +44,8 @@ import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
  * @param camera - The primary three.js `Camera` used for the main view.
  * @param worldRef - A React ref containing the `World` instance. The hook reads
  *                   `worldRef.current` to locate the first car to follow.
- * @param onFrame - Optional callback that is called after rendering the mini camera each frame,
- *                 allowing for custom logic or effects to be applied.
+ * @param onFrame - Optional callback called after rendering the mini camera each frame.
+ *                  Receives the renderer, scene, mini camera, and the viewport rect.
  * @returns An object with two refs:
  *  - `miniCamRef`: `RefObject<PerspectiveCamera | null>` — reference to the
  *     created mini `PerspectiveCamera` instance (null before creation).
@@ -42,7 +57,12 @@ export function useMiniCamera(
   scene: Scene,
   camera: Camera,
   worldRef: RefObject<World | null>,
-  onFrame?: (renderer: WebGLRenderer, scene: Scene, camera: Camera) => void,
+  onFrame?: (
+    renderer: WebGLRenderer,
+    scene: Scene,
+    camera: Camera,
+    viewport: MiniViewport,
+  ) => void,
 ) {
   const miniCamRef = useRef<PerspectiveCamera | null>(null);
   const miniViewPortRef = useRef({
@@ -146,7 +166,8 @@ export function useMiniCamera(
         // Disable scissor test so subsequent frames start clean.
         renderer.setScissorTest(false);
 
-        if (onFrame) onFrame(renderer, scene, miniCam);
+        if (onFrame)
+          onFrame(renderer, scene, miniCam, { x, y, width: w, height: h });
       }
     };
 
