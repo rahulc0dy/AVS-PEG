@@ -18,6 +18,7 @@ export default function SimulationPage() {
         <SimulationCanvas
           scene={context.scene}
           camera={context.camera}
+          renderer={context.renderer}
           dom={context.dom}
         />
       )}

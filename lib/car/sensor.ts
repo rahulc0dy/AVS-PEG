@@ -70,6 +70,7 @@ export class Sensor {
    * @param group Parent Three.js `Group` to which the debug lines are added
    */
   draw(group: Group) {
+    return;
     // Add sensorGroup to the scene (once) and draw lines for each ray.
     if (!this.sensorGroup.parent) {
       group.add(this.sensorGroup);

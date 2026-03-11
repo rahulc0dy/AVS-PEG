@@ -8,11 +8,26 @@ import {
   MINIVIEW_HEIGHT,
   MINIVIEW_WIDTH,
   MINIVIEW_X,
-  MINIVIEW_Y,
+  MINIVIEW_Y
 } from "@/env";
 import { World } from "@/lib/world/world";
 import { RefObject, useEffect, useRef } from "react";
 import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+
+/**
+ * Viewport info passed to the `onFrame` callback so consumers know the
+ * exact device-pixel rectangle the mini camera was rendered into.
+ */
+export interface MiniViewport {
+  /** X offset in device pixels (bottom-left origin). */
+  x: number;
+  /** Y offset in device pixels (bottom-left origin). */
+  y: number;
+  /** Width in device pixels. */
+  width: number;
+  /** Height in device pixels. */
+  height: number;
+}
 
 /**
  * React hook that creates and manages a small inset "mini" perspective camera
@@ -29,6 +44,8 @@ import { Camera, PerspectiveCamera, Scene, WebGLRenderer } from "three";
  * @param camera - The primary three.js `Camera` used for the main view.
  * @param worldRef - A React ref containing the `World` instance. The hook reads
  *                   `worldRef.current` to locate the first car to follow.
+ * @param onFrame - Optional callback called after rendering the mini camera each frame.
+ *                  Receives the renderer, scene, mini camera, and the viewport rect.
  * @returns An object with two refs:
  *  - `miniCamRef`: `RefObject<PerspectiveCamera | null>` — reference to the
  *     created mini `PerspectiveCamera` instance (null before creation).
@@ -40,7 +57,12 @@ export function useMiniCamera(
   scene: Scene,
   camera: Camera,
   worldRef: RefObject<World | null>,
-  onFrame?: (renderer: WebGLRenderer, scene: Scene, camera: Camera) => void,
+  onFrame?: (
+    renderer: WebGLRenderer,
+    scene: Scene,
+    camera: Camera,
+    viewport: MiniViewport,
+  ) => void,
 ) {
   const miniCamRef = useRef<PerspectiveCamera | null>(null);
   const miniViewPortRef = useRef({
@@ -83,19 +105,21 @@ export function useMiniCamera(
         const lookAhead = MINICAM_LOOKAHEAD;
 
         // Compute camera offset behind the car using its heading (angle).
-        // `sin` and `cos` map the car's heading to world X/Z offsets.
-        const sin = Math.sin(car.angle);
+        // The car moves along (cos(angle), sin(angle)) in world X/Y,
+        // which maps to Three.js X/Z. We offset the camera *behind* the
+        // car (opposite to its forward direction).
         const cos = Math.cos(car.angle);
+        const sin = Math.sin(car.angle);
 
         // Position the mini camera a bit behind and above the car so it
         // provides an overview rather than an exact first-person view.
-        const camX = car.position.x - sin * forward;
-        const camZ = car.position.y - cos * forward;
+        const camX = car.position.x + cos * forward;
+        const camZ = car.position.y + sin * forward;
         miniCam.position.set(camX, height, camZ);
 
         // Look slightly ahead of the car so the direction of travel is visible.
-        const targetX = car.position.x - sin * lookAhead;
-        const targetZ = car.position.y - cos * lookAhead;
+        const targetX = car.position.x + cos * lookAhead;
+        const targetZ = car.position.y + sin * lookAhead;
         miniCam.lookAt(targetX, height * 0.7, targetZ);
       } else {
         // Default fallback camera pose when no car exists.
@@ -142,7 +166,8 @@ export function useMiniCamera(
         // Disable scissor test so subsequent frames start clean.
         renderer.setScissorTest(false);
 
-        if (onFrame) onFrame(renderer, scene, miniCam);
+        if (onFrame)
+          onFrame(renderer, scene, miniCam, { x, y, width: w, height: h });
       }
     };
 
