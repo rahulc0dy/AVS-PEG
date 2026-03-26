@@ -15,6 +15,7 @@ import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
 import { TrainingSystem } from "@/lib/systems/training-system";
+import { DetectionWallJson } from "@/types/car/message";
 
 /**
  * Configuration options for initializing a World instance.
@@ -130,10 +131,16 @@ export class World {
   update(deltaSeconds: number = 0) {
     this.trafficLightSystem.update(deltaSeconds);
 
+    // Extract all active detection walls from markings
+    const markingWalls = this.markings
+      .map((m) => m.getDetectionWall())
+      .filter((w): w is DetectionWallJson => w !== null);
+
     for (const car of this.cars) {
       car.update(
         this.cars.filter((c) => c !== car),
         this.pathFindingSystem.getPathBorders(),
+        markingWalls, // Pass them into the car update
       );
     }
 
@@ -243,6 +250,23 @@ export class World {
     }
 
     this.pathFindingSystem.draw(this.worldGroup);
+
+    // --- Draw Virtual Detection Walls ---
+    for (const marking of this.markings) {
+      // Cast to any to safely check if the method exists
+      // (in case some custom markings don't inherit it)
+      const wallData = marking.getDetectionWall();
+      if (wallData) {
+        // Convert the JSON edge back to a primitive Edge object
+        const wallEdge = Edge.fromJson(wallData.edge);
+        // Draw the virtual wall in bright magenta (0xff00ff)
+        wallEdge.draw(this.worldGroup, {
+          width: 4,
+          color: new Color(0xff00ff),
+        });
+      }
+    }
+    // --------------------------------------------------
 
     this.scene.add(this.worldGroup);
   }

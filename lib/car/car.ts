@@ -16,6 +16,7 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
+  DetectionWallJson,
   SetBrainPayload,
   UpdateBiasPayload,
   UpdateCollisionDataPayload,
@@ -160,8 +161,13 @@ export class Car {
    * updates sensors if present.
    * @param traffic Other cars to consider for collision/sensor readings.
    * @param pathBorders Path borders for collision detection.
+   * @param markingWalls Marking detection helper walls
    */
-  update(traffic: Car[], pathBorders: Edge[]) {
+  update(
+    traffic: Car[],
+    pathBorders: Edge[],
+    markingWalls: DetectionWallJson[],
+  ) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
       // Send control inputs to worker
@@ -185,6 +191,7 @@ export class Car {
           id: this.id,
           traffic: traffic.map((car) => car.polygon?.toJson()),
           pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
+          markingWalls, // Send to worker
         } as UpdateCollisionDataPayload,
       });
     }

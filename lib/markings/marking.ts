@@ -3,7 +3,9 @@ import { Node } from "../primitives/node";
 import { Group, Material, Mesh, Object3D } from "three";
 import { MarkingJson } from "@/types/save";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { angle } from "@/utils/math";
+import { angle, translate } from "@/utils/math";
+import { Edge } from "@/lib/primitives/edge";
+import { DetectionWallJson } from "@/types/car/message";
 
 /**
  * Generic world marking.
@@ -77,6 +79,31 @@ export class Marking {
   /** Convenience update called by the world loop; draws the marking. */
   update() {
     this.draw(this.group, this.modelUrl);
+  }
+
+  /**
+   * Generates a virtual wall perpendicular to the marking for sensor detection.
+   * Actions/Labels are cleanly encapsulated inside the respective marking.
+   */
+  getDetectionWall(width: number = 15): DetectionWallJson | null {
+    // Now returns DetectionWallJson directly
+    if (
+      this.type === "default" ||
+      this.type === "source" ||
+      this.type === "destination"
+    ) {
+      return null;
+    }
+
+    const ang = angle(this.direction);
+    const n1 = translate(this.position, ang - Math.PI / 2, width / 2);
+    const n2 = translate(this.position, ang + Math.PI / 2, width / 2);
+
+    return {
+      edge: new Edge(n1, n2).toJson(),
+      label: this.type,
+      direction: this.direction.toJson(), // Pass the direction to the worker
+    };
   }
 
   /**

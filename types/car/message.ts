@@ -1,5 +1,14 @@
-import { CarBasePayload, ControlInputs, SensorConfig } from "@/types/car/shared";
-import { EdgeJson, NeuralNetworkJson, NodeJson, PolygonJson } from "@/types/save";
+import {
+  CarBasePayload,
+  ControlInputs,
+  SensorConfig,
+} from "@/types/car/shared";
+import {
+  EdgeJson,
+  NeuralNetworkJson,
+  NodeJson,
+  PolygonJson,
+} from "@/types/save";
 import { ControlType } from "@/lib/car/controls";
 import { NeuralNetworkStateJson } from "@/types/car/state";
 import { LabelledIntersection } from "@/types/intersection";
@@ -31,6 +40,7 @@ export interface UpdateControlsPayload extends CarBasePayload {
 export interface UpdateCollisionDataPayload extends CarBasePayload {
   traffic: PolygonJson[];
   pathBorders: EdgeJson[];
+  markingWalls: DetectionWallJson[];
 }
 
 /** Payload for updating a single weight in the neural network */
@@ -82,6 +92,12 @@ export interface SensorUpdatePayload {
   id: number;
   readings: (LabelledIntersection | null)[];
   rays: EdgeJson[];
+}
+
+export interface DetectionWallJson {
+  edge: EdgeJson;
+  label: string;
+  direction: NodeJson;
 }
 
 export type CarWorkerInboundMessage =

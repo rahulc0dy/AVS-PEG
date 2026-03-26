@@ -7,16 +7,16 @@ import {
   UpdateBiasPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType,
+  WorkerOutboundMessageType
 } from "@/types/car/message";
-import { doPolygonsIntersect, getIntersection, lerp } from "@/utils/math";
+import { doPolygonsIntersect, dot, getIntersection, lerp, normalize } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { EdgeJson, PolygonJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { ControlType } from "@/lib/car/controls";
-import { LabelledIntersection } from "@/types/intersection";
+import { IntersectionLabel, LabelledIntersection } from "@/types/intersection";
 
 let carState: WorkerCarState;
 
@@ -30,8 +30,9 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         polygon: null,
         traffic: [],
         pathBorders: [],
+        markingWalls: [],
         network: new NeuralNetwork([
-          message.payload.sensor.rayCount + 1,
+          message.payload.sensor.rayCount + 3, // Rays + TL + SS + Speed
           6,
           6,
           4,
@@ -55,6 +56,7 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
       if (carState.id === message.payload.id) {
         carState.traffic = message.payload.traffic;
         carState.pathBorders = message.payload.pathBorders;
+        carState.markingWalls = message.payload.markingWalls;
       }
       break;
     }
@@ -117,17 +119,73 @@ const updateAndBroadcastState = () => {
 
 /** Apply AI-driven controls based on neural network decisions. */
 const applyAIControls = () => {
-  // Map each sensor ray to its offset (0 = obstacle at car, 1 = at ray tip).
-  // Null readings (no obstacle detected) default to 1.0 (clear ahead).
-  // Using .map instead of .filter preserves array length so inputs stay
-  // aligned with the network's expected input count (rayCount + 1).
+  // 1. Get standard physical ray distances
   const sensorInputs = carState.sensorReadings.map((reading) =>
     reading ? reading.intersection.offset : 1.0,
   );
-  // Append normalized speed as an additional input
+
+  // 2. Default states for our dedicated marking inputs (1.0 = Clear/Go)
+  let tlValue = 1.0;
+  let ssValue = 1.0;
+
+  // 3. Cast a virtual marking ray straight ahead
+  if (carState.markingWalls && carState.markingWalls.length > 0) {
+    const rayLength = carState.sensor.rayLength * 1.5; // Look slightly further for signs
+    const n1 = new Node(carState.position.x, carState.position.y);
+    const n2 = new Node(
+      n1.x + Math.cos(carState.angle) * rayLength,
+      n1.y + Math.sin(carState.angle) * rayLength,
+    );
+    const carDir = new Node(Math.cos(carState.angle), Math.sin(carState.angle));
+
+    let nearestTL: { offset: number; label: string } | null = null;
+    let nearestSS: { offset: number; label: string } | null = null;
+
+    for (const wallJson of carState.markingWalls) {
+      // Directional check: Ignore markings meant for other lanes
+      const wallDir = new Node(wallJson.direction.x, wallJson.direction.y);
+      if (dot(carDir, normalize(wallDir)) < 0.5) continue;
+
+      const wallEdge = Edge.fromJson(wallJson.edge);
+      const intersection = getIntersection(n1, n2, wallEdge.n1, wallEdge.n2);
+
+      if (intersection) {
+        if (wallJson.label.startsWith("traffic-light")) {
+          if (!nearestTL || intersection.offset < nearestTL.offset) {
+            nearestTL = { offset: intersection.offset, label: wallJson.label };
+          }
+        } else if (wallJson.label === "stop-sign") {
+          if (!nearestSS || intersection.offset < nearestSS.offset) {
+            nearestSS = { offset: intersection.offset, label: wallJson.label };
+          }
+        }
+      }
+    }
+
+    // 4. Map the nearest detected markings to their specific scalar values
+    if (nearestTL) {
+      if (nearestTL.label === "traffic-light-red") tlValue = 0.0;
+      else if (nearestTL.label === "traffic-light-yellow") tlValue = 0.5;
+      else if (nearestTL.label === "traffic-light-green") tlValue = 1.0;
+    }
+
+    if (nearestSS) {
+      ssValue = 0.0; // 0.0 means Stop Sign detected ahead
+    }
+  }
+
+  // 5. Calculate speed
   const normalizedSpeed =
     carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
-  const outputs = carState.network.decide([...sensorInputs, normalizedSpeed]);
+
+  // 6. Feed the simplified array into the Neural Network
+  const outputs = carState.network.decide([
+    ...sensorInputs,
+    tlValue,
+    ssValue,
+    normalizedSpeed,
+  ]);
+
   carState.controls.forward = outputs[0] == 1;
   carState.controls.left = outputs[1] == 1;
   carState.controls.right = outputs[2] == 1;
@@ -381,6 +439,40 @@ const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
       touches.push({
         intersection,
         label: "border",
+      });
+    }
+  }
+
+  // Test against virtual Marking walls
+  for (const wallJson of carState.markingWalls) {
+    const wallEdge = Edge.fromJson(wallJson.edge);
+
+    // 1. Calculate Car's forward directional vector
+    const carDir = new Node(Math.cos(carState.angle), Math.sin(carState.angle));
+
+    // 2. Reconstruct and normalize Marking's directional vector
+    const wallDir = new Node(wallJson.direction.x, wallJson.direction.y);
+    const normalizedWallDir = normalize(wallDir);
+
+    // 3. Dot Product check: Only detect if the car is traveling in the
+    // same general direction as the marking (within ~60 degrees alignment).
+    // If it's < 0.5, the car is going the opposite way, crossing perpendicularly, etc.
+    if (dot(carDir, normalizedWallDir) < 0.5) {
+      continue; // Ignore this wall, it's not meant for our lane/direction
+    }
+
+    // 4. Proceed with standard intersection test
+    const intersection = getIntersection(
+      rayEdge.n1,
+      rayEdge.n2,
+      wallEdge.n1,
+      wallEdge.n2,
+    );
+
+    if (intersection) {
+      touches.push({
+        intersection,
+        label: wallJson.label as IntersectionLabel,
       });
     }
   }

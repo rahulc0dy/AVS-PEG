@@ -76,9 +76,12 @@ export default function TrainingCanvas({
     const inputCount = bestCarBrain.inputs.length;
     const labels: string[] = [];
     // All inputs except the last one are sensor rays
-    for (let i = 0; i < inputCount - 1; i++) {
+    for (let i = 0; i < inputCount - 3; i++) {
       labels.push(`Ray ${i + 1}`);
     }
+    // Markings
+    labels.push("Traffic Light");
+    labels.push("Stop Sign");
     // Last input is normalized speed
     labels.push("Speed");
     return labels;
