@@ -23,6 +23,7 @@ import { EdgeJson, PolygonJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { ControlType } from "@/lib/car/controls";
 import { LabelledIntersection } from "@/types/intersection";
+import { NetworkConfig } from "@/lib/car/network-config";
 
 let carState: WorkerCarState;
 
@@ -38,10 +39,12 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         pathBorders: [],
         markingWalls: [],
         network: new NeuralNetwork([
-          message.payload.sensor.rayCount + 3, // Rays + TL + SS + Speed
+          message.payload.sensor.rayCount +
+            NetworkConfig.markings.length +
+            NetworkConfig.telemetry.length,
           6,
           6,
-          4,
+          NetworkConfig.outputs.length,
         ]),
         sensorReadings: [],
       };
@@ -184,18 +187,32 @@ const applyAIControls = () => {
   const normalizedSpeed =
     carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
 
-  // 6. Feed the simplified array into the Neural Network
-  const outputs = carState.network.decide([
-    ...sensorInputs,
-    tlValue,
-    ssValue,
-    normalizedSpeed,
-  ]);
+  // 6. Feed the dynamically built array into the Neural Network based on Config
+  const inputs: number[] = [...sensorInputs];
 
-  carState.controls.forward = outputs[0] == 1;
-  carState.controls.left = outputs[1] == 1;
-  carState.controls.right = outputs[2] == 1;
-  carState.controls.reverse = outputs[3] == 1;
+  for (const marking of NetworkConfig.markings) {
+    if (marking === "Traffic Light") inputs.push(tlValue);
+    else if (marking === "Stop Sign") inputs.push(ssValue);
+    else inputs.push(1.0); // Default/Clear
+  }
+
+  for (const telemetry of NetworkConfig.telemetry) {
+    if (telemetry === "Speed") inputs.push(normalizedSpeed);
+    else inputs.push(0.0);
+  }
+
+  const outputs = carState.network.decide(inputs);
+
+  // 7. Map outputs according to the schema
+  const controlsMap: Record<string, boolean> = {};
+  for (let i = 0; i < NetworkConfig.outputs.length; i++) {
+    controlsMap[NetworkConfig.outputs[i]] = outputs[i] == 1;
+  }
+
+  carState.controls.forward = controlsMap["Forward"] || false;
+  carState.controls.left = controlsMap["Left"] || false;
+  carState.controls.right = controlsMap["Right"] || false;
+  carState.controls.reverse = controlsMap["Reverse"] || false;
 };
 
 /** Send current state to main thread */
