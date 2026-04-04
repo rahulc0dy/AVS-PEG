@@ -5,7 +5,8 @@ import { MarkingJson } from "@/types/save";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { angle, translate } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
-import { DetectionWallJson } from "@/types/car/message";
+import { ROAD_WIDTH } from "@/env";
+import { MarkingWallJson } from "@/types/car/message";
 
 /**
  * Generic world marking.
@@ -85,24 +86,24 @@ export class Marking {
    * Generates a virtual wall perpendicular to the marking for sensor detection.
    * Actions/Labels are cleanly encapsulated inside the respective marking.
    */
-  getDetectionWall(width: number = 15): DetectionWallJson | null {
-    // Now returns DetectionWallJson directly
+  getMarkingWall(width: number = ROAD_WIDTH / 2): MarkingWallJson | null {
     if (
       this.type === "default" ||
       this.type === "source" ||
       this.type === "destination"
     ) {
+      // No wall for these markings, as they don't require sensor detection.
       return null;
     }
 
     const ang = angle(this.direction);
-    const n1 = translate(this.position, ang - Math.PI / 2, width / 2);
-    const n2 = translate(this.position, ang + Math.PI / 2, width / 2);
+    const n1 = translate(this.position, 0, 0);
+    const n2 = translate(this.position, ang + Math.PI / 2, width);
 
     return {
       edge: new Edge(n1, n2).toJson(),
       label: this.type,
-      direction: this.direction.toJson(), // Pass the direction to the worker
+      direction: this.direction.toJson(),
     };
   }
 

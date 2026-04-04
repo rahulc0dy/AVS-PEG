@@ -15,7 +15,7 @@ import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
 import { TrainingSystem } from "@/lib/systems/training-system";
-import { DetectionWallJson } from "@/types/car/message";
+import { MarkingWallJson } from "@/types/car/message";
 
 /**
  * Configuration options for initializing a World instance.
@@ -133,8 +133,8 @@ export class World {
 
     // Extract all active detection walls from markings
     const markingWalls = this.markings
-      .map((m) => m.getDetectionWall())
-      .filter((w): w is DetectionWallJson => w !== null);
+      .map((m) => m.getMarkingWall())
+      .filter((w): w is MarkingWallJson => w !== null);
 
     for (const car of this.cars) {
       car.update(
@@ -255,7 +255,7 @@ export class World {
     for (const marking of this.markings) {
       // Cast to any to safely check if the method exists
       // (in case some custom markings don't inherit it)
-      const wallData = marking.getDetectionWall();
+      const wallData = marking.getMarkingWall();
       if (wallData) {
         // Convert the JSON edge back to a primitive Edge object
         const wallEdge = Edge.fromJson(wallData.edge);

@@ -1,12 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
+import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -16,14 +8,14 @@ import { Edge } from "@/lib/primitives/edge";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
-  DetectionWallJson,
+  MarkingWallJson,
   SetBrainPayload,
   UpdateBiasPayload,
   UpdateCollisionDataPayload,
   UpdateControlsPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType,
+  WorkerOutboundMessageType
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 import { NeuralNetworkStateJson } from "@/types/car/state";
@@ -163,11 +155,7 @@ export class Car {
    * @param pathBorders Path borders for collision detection.
    * @param markingWalls Marking detection helper walls
    */
-  update(
-    traffic: Car[],
-    pathBorders: Edge[],
-    markingWalls: DetectionWallJson[],
-  ) {
+  update(traffic: Car[], pathBorders: Edge[], markingWalls: MarkingWallJson[]) {
     this.draw(this.group, this.modelUrl);
     if (!this.damaged) {
       // Send control inputs to worker
@@ -191,7 +179,7 @@ export class Car {
           id: this.id,
           traffic: traffic.map((car) => car.polygon?.toJson()),
           pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
-          markingWalls, // Send to worker
+          markingWalls,
         } as UpdateCollisionDataPayload,
       });
     }
