@@ -7,16 +7,22 @@ import {
   UpdateBiasPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
-import { doPolygonsIntersect, dot, getIntersection, lerp, normalize } from "@/utils/math";
+import {
+  doPolygonsIntersect,
+  dot,
+  getIntersection,
+  lerp,
+  normalize,
+} from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
 import { Polygon } from "@/lib/primitives/polygon";
 import { EdgeJson, PolygonJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { ControlType } from "@/lib/car/controls";
-import { IntersectionLabel, LabelledIntersection } from "@/types/intersection";
+import { LabelledIntersection } from "@/types/intersection";
 
 let carState: WorkerCarState;
 
@@ -439,40 +445,6 @@ const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
       touches.push({
         intersection,
         label: "border",
-      });
-    }
-  }
-
-  // Test against virtual Marking walls
-  for (const wallJson of carState.markingWalls) {
-    const wallEdge = Edge.fromJson(wallJson.edge);
-
-    // 1. Calculate Car's forward directional vector
-    const carDir = new Node(Math.cos(carState.angle), Math.sin(carState.angle));
-
-    // 2. Reconstruct and normalize Marking's directional vector
-    const wallDir = new Node(wallJson.direction.x, wallJson.direction.y);
-    const normalizedWallDir = normalize(wallDir);
-
-    // 3. Dot Product check: Only detect if the car is traveling in the
-    // same general direction as the marking (within ~60 degrees alignment).
-    // If it's < 0.5, the car is going the opposite way, crossing perpendicularly, etc.
-    if (dot(carDir, normalizedWallDir) < 0.5) {
-      continue; // Ignore this wall, it's not meant for our lane/direction
-    }
-
-    // 4. Proceed with standard intersection test
-    const intersection = getIntersection(
-      rayEdge.n1,
-      rayEdge.n2,
-      wallEdge.n1,
-      wallEdge.n2,
-    );
-
-    if (intersection) {
-      touches.push({
-        intersection,
-        label: wallJson.label as IntersectionLabel,
       });
     }
   }
