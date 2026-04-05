@@ -251,23 +251,6 @@ export class World {
 
     this.pathFindingSystem.draw(this.worldGroup);
 
-    // --- Draw Virtual Detection Walls ---
-    for (const marking of this.markings) {
-      // Cast to any to safely check if the method exists
-      // (in case some custom markings don't inherit it)
-      const wallData = marking.getMarkingWall();
-      if (wallData) {
-        // Convert the JSON edge back to a primitive Edge object
-        const wallEdge = Edge.fromJson(wallData.edge);
-        // Draw the virtual wall in bright magenta (0xff00ff)
-        wallEdge.draw(this.worldGroup, {
-          width: 4,
-          color: new Color(0xff00ff),
-        });
-      }
-    }
-    // --------------------------------------------------
-
     this.scene.add(this.worldGroup);
   }
 
