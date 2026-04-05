@@ -1,11 +1,5 @@
-import {
-  AmbientLight,
-  Color,
-  DirectionalLight,
-  PerspectiveCamera,
-  Scene,
-  WebGLRenderer,
-} from "three";
+import { AmbientLight, DirectionalLight, MathUtils, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ORBIT_CAM_FAR, ORBIT_CAM_FOV, ORBIT_CAM_NEAR } from "@/env";
 
 /** Partial camera configuration used by `setupScene`. All fields are optional. */
@@ -58,11 +52,7 @@ export const setupScene = (
   renderer: WebGLRenderer;
   resizeHandler: () => void;
 } => {
-  const {
-    cameraConfig = {},
-    cameraPosition = {},
-    bgColor = 0x0b0b0f,
-  } = options;
+  const { cameraConfig = {}, cameraPosition = {} } = options;
 
   const {
     fov = ORBIT_CAM_FOV,
@@ -75,7 +65,28 @@ export const setupScene = (
 
   // Scene + background
   const scene = new Scene();
-  scene.background = new Color(bgColor);
+
+  // Add Sky
+  const sky = new Sky();
+  sky.scale.setScalar(450000);
+  scene.add(sky);
+
+  const sun = new Vector3();
+
+  const skyUniforms = sky.material.uniforms;
+  skyUniforms["turbidity"].value = 2;
+  skyUniforms["rayleigh"].value = 1;
+  skyUniforms["mieCoefficient"].value = 0.005;
+  skyUniforms["mieDirectionalG"].value = 0.8;
+
+  const elevation = 1500;
+  const azimuth = 180;
+
+  const phi = MathUtils.degToRad(90 - elevation);
+  const theta = MathUtils.degToRad(azimuth);
+  sun.setFromSphericalCoords(1, phi, theta);
+
+  sky.material.uniforms["sunPosition"].value.copy(sun);
 
   // Camera setup using mount dimensions when available
   const camera = new PerspectiveCamera(
