@@ -17,6 +17,11 @@ import { NeuralNetworkStateJson } from "@/types/car/state";
 import { NeuralNetworkJson } from "@/types/save";
 import { Car } from "@/lib/car/car";
 import { NeuralNetwork } from "@/lib/ai/network";
+import {
+  NetworkConfig,
+  getNetworkInputLabels,
+  getNetworkOutputLabels,
+} from "@/lib/car/network-config";
 
 /** Local storage key for saved brain */
 const BRAIN_STORAGE_KEY = "avs-peg-saved-brain";
@@ -67,21 +72,17 @@ export default function TrainingCanvas({
     useState<NeuralNetworkStateJson | null>(null);
   const [bestCar, setBestCar] = useState<Car | null>(null);
 
-  /** Output labels corresponding to the 4 car control outputs. */
-  const OUTPUT_LABELS = ["Forward", "Left", "Right", "Reverse"];
+  /** Output labels derived from network config */
+  const OUTPUT_LABELS = useMemo(() => getNetworkOutputLabels(), []);
 
-  /** Input labels derived from the current network input count. */
+  /** Input labels derived from the current network input count and network config. */
   const inputLabels = useMemo(() => {
     if (!bestCarBrain) return undefined;
-    const inputCount = bestCarBrain.inputs.length;
-    const labels: string[] = [];
-    // All inputs except the last one are sensor rays
-    for (let i = 0; i < inputCount - 1; i++) {
-      labels.push(`Ray ${i + 1}`);
-    }
-    // Last input is normalized speed
-    labels.push("Speed");
-    return labels;
+    const rayCount =
+      bestCarBrain.inputs.length -
+      NetworkConfig.markings.length -
+      NetworkConfig.telemetry.length;
+    return getNetworkInputLabels(rayCount);
   }, [bestCarBrain]);
 
   // Initialize the World instance (no initial cars)

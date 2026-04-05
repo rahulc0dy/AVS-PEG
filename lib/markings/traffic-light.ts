@@ -97,6 +97,17 @@ export class TrafficLight extends Marking {
     this.setLightPosition();
   }
 
+  /**
+   * Override to include the light state in the detection label.
+   */
+  override getMarkingWall() {
+    const markingWall = super.getMarkingWall();
+    if (markingWall) {
+      markingWall.label = `traffic-light-${this.lightState}`;
+    }
+    return markingWall;
+  }
+
   /** Convenience update called by the world loop. */
   update() {
     this.draw(this.group, this.modelUrl);

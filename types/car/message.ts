@@ -31,6 +31,7 @@ export interface UpdateControlsPayload extends CarBasePayload {
 export interface UpdateCollisionDataPayload extends CarBasePayload {
   traffic: PolygonJson[];
   pathBorders: EdgeJson[];
+  markingWalls: MarkingWallJson[];
 }
 
 /** Payload for updating a single weight in the neural network */
@@ -82,6 +83,12 @@ export interface SensorUpdatePayload {
   id: number;
   readings: (LabelledIntersection | null)[];
   rays: EdgeJson[];
+}
+
+export interface MarkingWallJson {
+  edge: EdgeJson;
+  label: string;
+  direction: NodeJson;
 }
 
 export type CarWorkerInboundMessage =
