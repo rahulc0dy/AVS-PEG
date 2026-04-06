@@ -8,8 +8,6 @@ import { Camera, Scene, WebGLRenderer } from "three";
 export interface ThreeSceneConfig {
   /** Initial camera position */
   cameraPosition?: { x?: number; y?: number; z?: number };
-  /** Background color as hex number */
-  bgColor?: number;
 }
 
 /**
@@ -58,10 +56,16 @@ export function useThreeScene(
     const mount = mountRef.current;
     const currentConfig = configRef.current;
 
-    const { scene, camera, renderer, resizeHandler } = setupScene(mount, {
-      cameraPosition: currentConfig?.cameraPosition ?? { x: 0, y: 2000, z: 0 },
-      bgColor: currentConfig?.bgColor,
-    });
+    const { scene, camera, renderer, resizeHandler, disposeScene } = setupScene(
+      mount,
+      {
+        cameraPosition: currentConfig?.cameraPosition ?? {
+          x: 0,
+          y: 2000,
+          z: 0,
+        },
+      },
+    );
 
     // Expose the scene/camera/dom for use by child components
     setRenderContext({ scene, camera, renderer, dom: renderer.domElement });
@@ -70,6 +74,7 @@ export function useThreeScene(
       setRenderContext(null);
       // Tear down the renderer and remove event listeners when unmounting.
       renderer.setAnimationLoop(null);
+      disposeScene();
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
