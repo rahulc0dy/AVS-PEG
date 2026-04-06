@@ -1,12 +1,104 @@
 import {
   AmbientLight,
-  Color,
   DirectionalLight,
+  Material,
+  MathUtils,
   PerspectiveCamera,
   Scene,
+  Texture,
+  Vector3,
   WebGLRenderer,
 } from "three";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ORBIT_CAM_FAR, ORBIT_CAM_FOV, ORBIT_CAM_NEAR } from "@/env";
+
+/** Minimal disposable contract used for GPU resources. */
+interface Disposable {
+  dispose: () => void;
+}
+
+/**
+ * Type guard for objects that implement `dispose()`.
+ *
+ * @param value - Value to inspect for disposal support.
+ * @returns True when `value` has a callable `dispose` method.
+ */
+const isDisposable = (value: unknown): value is Disposable => {
+  if (typeof value !== "object" || value === null) return false;
+  return "dispose" in value && typeof value.dispose === "function";
+};
+
+/**
+ * Dispose textures assigned to shader uniforms when present.
+ *
+ * @param material - Material to inspect for custom uniforms.
+ */
+const disposeMaterialUniformTextures = (material: Material): void => {
+  if (!("uniforms" in material)) return;
+
+  const shaderMaterial = material as Material & {
+    uniforms?: Record<string, { value?: unknown }>;
+  };
+  const uniforms = shaderMaterial.uniforms;
+  if (!uniforms) return;
+
+  for (const uniform of Object.values(uniforms)) {
+    const value = uniform?.value;
+
+    if (value instanceof Texture) {
+      value.dispose();
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item instanceof Texture) {
+          item.dispose();
+        }
+      }
+    }
+  }
+};
+
+/**
+ * Dispose one or many materials and any texture uniforms they own.
+ *
+ * @param material - Material value from a renderable object.
+ */
+const disposeMaterial = (material: Material | Material[]): void => {
+  const materials = Array.isArray(material) ? material : [material];
+
+  for (const currentMaterial of materials) {
+    disposeMaterialUniformTextures(currentMaterial);
+    currentMaterial.dispose();
+  }
+};
+
+/**
+ * Dispose all GPU-backed resources owned by scene children.
+ *
+ * @param scene - Scene whose descendants should be disposed.
+ */
+const disposeSceneChildren = (scene: Scene): void => {
+  scene.traverse((object) => {
+    const renderable = object as {
+      geometry?: unknown;
+      material?: Material | Material[];
+    };
+
+    if (isDisposable(renderable.geometry)) {
+      renderable.geometry.dispose();
+    }
+
+    if (renderable.material) {
+      disposeMaterial(renderable.material);
+    }
+  });
+
+  while (scene.children.length > 0) {
+    scene.remove(scene.children[0]);
+  }
+};
 
 /** Partial camera configuration used by `setupScene`. All fields are optional. */
 interface CameraConfig {
@@ -31,8 +123,6 @@ interface CameraPosition {
 interface SceneOptions {
   cameraConfig?: CameraConfig;
   cameraPosition?: CameraPosition;
-  /** Background color as a hex number (e.g. 0x0b0b0f). */
-  bgColor?: number;
 }
 
 /**
@@ -44,10 +134,9 @@ interface SceneOptions {
  * `resize` handler that keeps the camera and renderer sized to the mount.
  *
  * @param mount - Container element to which the renderer canvas will be appended
- * @param options - Optional configuration for camera, initial position, and background
+ * @param options - Optional configuration for camera and initial position
  * @returns An object containing the `scene`, `camera`, `renderer`, and
- * a `resizeHandler` function (so the caller can remove the event listener
- * if needed).
+ * a `resizeHandler` and `disposeScene` function for deterministic cleanup.
  */
 export const setupScene = (
   mount: HTMLDivElement | null,
@@ -57,12 +146,9 @@ export const setupScene = (
   camera: PerspectiveCamera;
   renderer: WebGLRenderer;
   resizeHandler: () => void;
+  disposeScene: () => void;
 } => {
-  const {
-    cameraConfig = {},
-    cameraPosition = {},
-    bgColor = 0x0b0b0f,
-  } = options;
+  const { cameraConfig = {}, cameraPosition = {} } = options;
 
   const {
     fov = ORBIT_CAM_FOV,
@@ -75,7 +161,28 @@ export const setupScene = (
 
   // Scene + background
   const scene = new Scene();
-  scene.background = new Color(bgColor);
+
+  // Add Sky
+  const sky = new Sky();
+  sky.scale.setScalar(450000);
+  scene.add(sky);
+
+  const sun = new Vector3();
+
+  const skyUniforms = sky.material.uniforms;
+  skyUniforms["turbidity"].value = 2;
+  skyUniforms["rayleigh"].value = 1;
+  skyUniforms["mieCoefficient"].value = 0.005;
+  skyUniforms["mieDirectionalG"].value = 0.8;
+
+  const elevation = 60;
+  const azimuth = 180;
+
+  const phi = MathUtils.degToRad(90 - elevation);
+  const theta = MathUtils.degToRad(azimuth);
+  sun.setFromSphericalCoords(1, phi, theta);
+
+  sky.material.uniforms["sunPosition"].value.copy(sun);
 
   // Camera setup using mount dimensions when available
   const camera = new PerspectiveCamera(
@@ -121,5 +228,9 @@ export const setupScene = (
 
   window.addEventListener("resize", resizeHandler);
 
-  return { scene, camera, renderer, resizeHandler };
+  const disposeScene = () => {
+    disposeSceneChildren(scene);
+  };
+
+  return { scene, camera, renderer, resizeHandler, disposeScene };
 };

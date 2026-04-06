@@ -1,6 +1,7 @@
 import { World, WorldConfig } from "@/lib/world/world";
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { GridHelper, Scene } from "three";
+import { Color, Scene } from "three";
+import { InfiniteGridHelper } from "@/utils/infinite-grid-helper";
 
 /**
  * Options for the useWorld hook.
@@ -55,15 +56,10 @@ export function useWorld(
   options?: UseWorldOptions,
 ): UseWorldResult {
   const worldRef = useRef<World | null>(null);
-  const gridRef = useRef<GridHelper | null>(null);
+  const gridRef = useRef<InfiniteGridHelper | null>(null);
   const subscribersRef = useRef<Set<() => void>>(new Set());
 
-  const {
-    worldConfig,
-    showGrid = true,
-    gridSize = 1000,
-    gridDivisions = 40,
-  } = options ?? {};
+  const { worldConfig, showGrid = true } = options ?? {};
 
   // Use useSyncExternalStore to avoid setState in effect
   const world = useSyncExternalStore(
@@ -77,20 +73,20 @@ export function useWorld(
 
   useEffect(() => {
     // Create the World instance
-    const newWorld = new World(scene, worldConfig);
-    worldRef.current = newWorld;
+    worldRef.current = new World(scene, worldConfig);
     // Notify subscribers that world has changed
     subscribersRef.current.forEach((cb) => cb());
 
     // Add grid helper if enabled
     if (showGrid) {
-      const grid = new GridHelper(gridSize, gridDivisions, 0x666666, 0x333333);
+      const grid = new InfiniteGridHelper(10, 100, new Color(0x666666), 8000);
       grid.position.set(0, 0, 0);
       scene.add(grid);
       gridRef.current = grid;
     }
 
     // Cleanup
+    const currentSubscribers = subscribersRef.current;
     return () => {
       if (worldRef.current) {
         worldRef.current.dispose();
@@ -98,12 +94,21 @@ export function useWorld(
       }
       if (gridRef.current) {
         scene.remove(gridRef.current);
-        gridRef.current.dispose();
+        if (gridRef.current.geometry) {
+          gridRef.current.geometry.dispose();
+        }
+        if (gridRef.current.material) {
+          if (Array.isArray(gridRef.current.material)) {
+            gridRef.current.material.forEach((mat) => mat.dispose());
+          } else {
+            gridRef.current.material.dispose();
+          }
+        }
         gridRef.current = null;
       }
-      subscribersRef.current.forEach((cb) => cb());
+      currentSubscribers.forEach((cb) => cb());
     };
-  }, [scene, worldConfig, showGrid, gridSize, gridDivisions]);
+  }, [scene, worldConfig, showGrid]);
 
   return { worldRef, world };
 }
