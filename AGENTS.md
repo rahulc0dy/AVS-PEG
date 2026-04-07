@@ -2,6 +2,61 @@
 
 Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Next.js 16, React 19, Three.js, and TypeScript.
 
+## Project Structure
+
+```
+AVS-PEG/
+├── app/                      # Next.js App Router pages
+│   ├── layout.tsx            # Root layout with metadata
+│   ├── page.tsx              # Landing page (/)
+│   ├── manifest.ts           # PWA manifest
+│   ├── edit/                 # Graph/marking editor (/edit)
+│   ├── simulate/             # Manual driving mode (/simulate)
+│   └── train/                # AI training mode (/train)
+├── components/
+│   ├── canvases/             # Page-level canvas components (render prop pattern)
+│   ├── hooks/                # React hooks bridging simulation and UI
+│   ├── ui/                   # Reusable UI primitives (Button, Modal, etc.)
+│   └── world-ui/             # World interaction UI (toolbars, overlays)
+├── lib/                      # Pure simulation logic (no React)
+│   ├── ai/                   # NeuralNetwork, Level
+│   ├── car/                  # Car, Sensor, Controls, car.worker.ts
+│   ├── editors/              # BaseEditor, GraphEditor, MarkingEditor subclasses
+│   ├── markings/             # Marking base class and subtypes
+│   ├── primitives/           # Node, Edge, Graph, Polygon, Envelope
+│   ├── systems/              # TrafficLightSystem, PathFindingSystem, etc.
+│   └── world/                # World, Road
+├── public/
+│   ├── icons/                # App icons
+│   ├── models/               # GLTF models (car, traffic-light, source, destination, stop-sign)
+│   └── site-icons/           # Site favicon assets
+├── services/                 # External API integrations
+│   └── osm-service.ts        # Overpass API for OSM data
+├── styles/
+│   └── globals.css           # Global styles and Tailwind imports
+├── types/                    # Shared TypeScript definitions
+│   ├── car/                  # Worker thread communication types
+│   │   ├── message.ts        # Message payloads and type constants
+│   │   ├── shared.ts         # Types shared between main/worker threads
+│   │   └── state.ts          # Worker state and network visualization types
+│   ├── editor.ts             # EditorMode, Editor interface
+│   ├── intersection.ts       # Intersection geometry types
+│   ├── marking.ts            # MarkingType, GraphEdgeType
+│   ├── osm.ts                # OpenStreetMap data types
+│   └── save.ts               # Serialization interfaces (WorldJson, etc.)
+├── utils/                    # Pure utility functions
+│   ├── browser.ts            # Browser detection
+│   ├── infinite-grid-helper.ts # Three.js infinite grid
+│   ├── math.ts               # Mathematical helpers
+│   ├── osm.ts                # OSM parsing and coordinate conversion
+│   ├── rendering.ts          # Three.js rendering utilities
+│   └── road-surface-texture.ts # Procedural road textures
+├── env.ts                    # Environment variables (t3-oss/env-nextjs)
+├── AGENTS.md                 # This file - agent instructions
+├── INFERENCE_RULES.md        # Neural network architecture for obstacle avoidance
+└── README.md                 # Project documentation
+```
+
 ## Architecture Overview
 
 ### Core Layers
@@ -56,6 +111,7 @@ Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Nex
 
 - **`utils/`** - Pure utility functions
   - `browser.ts` - Browser detection and capabilities
+  - `infinite-grid-helper.ts` - Three.js infinite grid helper class
   - `math.ts` - Mathematical helpers (lerp, clamp, angle calculations, `Intersection` type)
   - `osm.ts` - OSM data parsing and coordinate conversion
   - `rendering.ts` - Three.js rendering utilities
@@ -97,6 +153,7 @@ abstract draw(): boolean; // return true if scene needs re-render
 ```
 
 **Editor hierarchy:**
+
 - `BaseEditor` (abstract) → `GraphEditor` (graph nodes/edges)
 - `BaseEditor` → `MarkingEditor` (abstract, adds intent preview + edge snapping) → `TrafficLightEditor`, `SourceDestinationEditor`
 
@@ -124,6 +181,7 @@ Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main
 5. Main thread updates `Car` properties from worker state
 
 **Additional inbound messages:**
+
 - `UPDATE_WEIGHT` / `UPDATE_BIAS` - Live-edit individual network parameters from the UI
 - `SET_BRAIN` - Replace the entire neural network (e.g. loading a saved brain)
 
@@ -152,6 +210,66 @@ import { ROAD_WIDTH, TRAFFIC_LIGHT_THRESHOLD } from "@/env";
 - **Comments**:
   - Do NOT write meta-comments like "New feature", "Changes here", or "Existing things remain the same".
   - Use comments to explain the "why" of complex logic, not to track changes.
+- **Avoid deprecated APIs**: Use modern JavaScript/TypeScript methods. For example:
+  - Use `.substring()` instead of `.substr()` (deprecated)
+  - Use `.at()` instead of bracket notation for negative indices when needed
+- **Imports**: Use the `@/` path alias for all imports from the project root.
+- **Type Safety**: Prefer strict typing over `any`. Use discriminated unions for message types.
+- **Separation of Concerns**:
+  - Keep React code in `components/`
+  - Keep pure simulation logic in `lib/` (no React imports)
+  - Keep shared types in `types/`
+  - Keep utilities stateless and side-effect free in `utils/`
+
+## Rules
+
+### General Rules
+
+1. **No React in `lib/`**: The `lib/` folder contains pure simulation logic. Never import React or React hooks here.
+2. **Dispose Resources**: All classes with Three.js resources must implement `dispose()`. Call it before dereferencing.
+3. **Worker Serialization**: Data crossing the worker boundary must be plain objects (use `*Json` types from `types/save.ts`).
+4. **Coordinate System**: 2D `Node(x, y)` maps to Three.js as `(node.x, 0, node.y)`. Y is always 0 for ground-level objects.
+5. **Change Detection**: Use `getChanges()` counters to detect when to rebuild derived state.
+
+### File Naming Rules
+
+- React components: `kebab-case.ts`
+- Hooks: `use-kebab-case.ts` in `components/hooks/`
+- Simulation classes: `PascalCase.ts` in `lib/`
+- Type definitions: `kebab-case.ts` in `types/`
+- Utilities: `kebab-case.ts` in `utils/`
+- Workers: `*.worker.ts`
+
+### Adding New Features
+
+#### New Marking Type
+
+1. Add type to `MarkingType` in `types/marking.ts`
+2. Create class extending `Marking` in `lib/markings/`
+3. Place GLTF model at `public/models/{type}.gltf` (auto-loaded by `Marking.draw()`)
+4. Update `WorldJson` in `types/save.ts` if serialization needed
+5. Update `World.fromJson()` to deserialize the new marking type
+
+#### New Editor Mode
+
+1. Add mode to `EditorMode` in `types/editor.ts`
+2. Create editor class extending `BaseEditor` (or `MarkingEditor`) in `lib/editors/`
+3. Wire up in `useWorldEditors` hook - create instance, handle mode switching
+4. Add UI toggle in `ModeControls` component
+
+#### New System
+
+1. Create class in `lib/systems/` with `update(deltaSeconds)` method
+2. Instantiate in `World` constructor
+3. Call `system.update()` in `World.update()`
+4. Implement `dispose()` if the system holds resources
+
+#### New Worker Message Type
+
+1. Add payload type to `types/car/message.ts`
+2. Add type constant to `WorkerInboundMessageType` or `WorkerOutboundMessageType`
+3. Add to discriminated union (`CarWorkerInboundMessage` or `CarWorkerOutboundMessage`)
+4. Handle in worker's `onmessage` or main thread's message handler
 
 ## Commands
 
@@ -162,28 +280,6 @@ bun run build      # Production build
 bun run lint       # Run ESLint
 ```
 
-## Adding Features
-
-### New Marking Type
-
-1. Add type to `MarkingType` in `types/marking.ts`
-2. Create class extending `Marking` in `lib/markings/`
-3. Place GLTF model at `public/models/{type}.gltf` (auto-loaded by `Marking.draw()`)
-4. Update `WorldJson` if serialization needed
-
-### New Editor Mode
-
-1. Add mode to `EditorMode` in `types/editor.ts`
-2. Create editor class extending `BaseEditor` in `lib/editors/`
-3. Wire up in `useWorldEditors` hook - create instance, handle mode switching
-4. Add UI toggle in `ModeControls` component
-
-### New System
-
-1. Create class in `lib/systems/` with `update(deltaSeconds)` method
-2. Instantiate in `World` constructor
-3. Call `system.update()` in `World.update()`
-
 ## File Conventions
 
 - Path alias: `@/` maps to project root
@@ -191,3 +287,5 @@ bun run lint       # Run ESLint
 - Hooks: `use-*.ts` in `components/hooks/`
 - Simulation classes: PascalCase `.ts` in `lib/`
 - Types: interfaces in `types/` folder
+- GLTF models: `public/models/{name}.gltf`
+- Environment variables: `env.ts` using `@t3-oss/env-nextjs`
