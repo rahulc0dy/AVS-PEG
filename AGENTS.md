@@ -4,7 +4,7 @@ Autonomous Vehicle Simulation - Pathfinding Environment Generator built with Nex
 
 ## Project Structure
 
-```
+```text
 AVS-PEG/
 ├── app/                      # Next.js App Router pages
 │   ├── layout.tsx            # Root layout with metadata
@@ -231,14 +231,17 @@ import { ROAD_WIDTH, TRAFFIC_LIGHT_THRESHOLD } from "@/env";
 4. **Coordinate System**: 2D `Node(x, y)` maps to Three.js as `(node.x, 0, node.y)`. Y is always 0 for ground-level objects.
 5. **Change Detection**: Use `getChanges()` counters to detect when to rebuild derived state.
 
-### File Naming Rules
+### File Conventions
 
+- Path alias: `@/` maps to project root
 - React components: `kebab-case.ts`
 - Hooks: `use-kebab-case.ts` in `components/hooks/`
-- Simulation classes: `PascalCase.ts` in `lib/`
+- Simulation classes: `kebab-case.ts` in `lib/`
 - Type definitions: `kebab-case.ts` in `types/`
 - Utilities: `kebab-case.ts` in `utils/`
 - Workers: `*.worker.ts`
+- GLTF models: `public/models/{name}.gltf`
+- Environment variables: `env.ts` using `@t3-oss/env-nextjs`
 
 ### Adding New Features
 
@@ -279,13 +282,3 @@ bun run dev        # Start dev server at localhost:3000
 bun run build      # Production build
 bun run lint       # Run ESLint
 ```
-
-## File Conventions
-
-- Path alias: `@/` maps to project root
-- React components: PascalCase `.tsx` files
-- Hooks: `use-*.ts` in `components/hooks/`
-- Simulation classes: PascalCase `.ts` in `lib/`
-- Types: interfaces in `types/` folder
-- GLTF models: `public/models/{name}.gltf`
-- Environment variables: `env.ts` using `@t3-oss/env-nextjs`
