@@ -42,8 +42,7 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
           message.payload.sensor.rayCount +
             NetworkConfig.markings.length +
             NetworkConfig.telemetry.length,
-          6,
-          6,
+          ...NetworkConfig.hiddenLayers,
           NetworkConfig.outputs.length,
         ]),
         sensorReadings: [],
@@ -139,7 +138,7 @@ const applyAIControls = () => {
 
   // 3. Cast a virtual marking ray straight ahead
   if (carState.markingWalls && carState.markingWalls.length > 0) {
-    const rayLength = carState.sensor.rayLength * 1.5; // Look slightly further for signs
+    const rayLength = carState.sensor.rayLength * 0.3; // Stop as close as possible to the marking
     const n1 = new Node(carState.position.x, carState.position.y);
     const n2 = new Node(
       n1.x + Math.cos(carState.angle) * rayLength,

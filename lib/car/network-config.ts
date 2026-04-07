@@ -2,6 +2,7 @@ export const NetworkConfig = {
   markings: ["Traffic Light", "Stop Sign"],
   telemetry: ["Speed"],
   outputs: ["Forward", "Left", "Right", "Reverse"],
+  hiddenLayers: [7, 6],
 };
 
 /**
