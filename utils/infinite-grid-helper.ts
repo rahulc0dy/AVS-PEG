@@ -8,7 +8,7 @@ export class InfiniteGridHelper extends Mesh {
     distance: number = 8000,
     axes: string = "xzy",
   ) {
-    const planeAxes = axes.substr(0, 2);
+    const planeAxes = axes.substring(0, 2);
 
     const geometry = new PlaneGeometry(2, 2, 1, 1);
 
