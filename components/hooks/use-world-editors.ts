@@ -8,20 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
+import { HistoryManager } from "@/lib/editors/history-manager";
 
-/**
- * Hook that wires up editors, controls, and input handling for a `World` instance.
- *
- * Initializes orbit controls, the graph/traffic/source-destination editors, and the
- * pointer/keyboard listeners that delegate to whichever tool is active.
- *
- * @param world - World whose graphs, markings, and roads the editors mutate.
- * @param scene - Three.js scene that hosts editor helpers and visual output.
- * @param camera - Camera used for orbit controls and raycasting.
- * @param dom - DOM element that receives pointer events and anchors the controls.
- * @param updatePointer - Updates the shared pointer/raycaster state before delegating events.
- * @param getIntersectPoint - Computes the current ground intersection point for editor actions.
- */
 export function useWorldEditors(
   world: World | null,
   scene: Scene,
@@ -33,10 +21,13 @@ export function useWorldEditors(
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
   const [graphRoadType, setGraphRoadType] =
     useState<GraphEdgeType>("undirected");
-  const [sourceDestMarkingType, setSourceDestMarkingType] =
-    useState<SourceDestinationMarkingType>("source");
-
+  const sourceDestMarkingType =
+    useState<SourceDestinationMarkingType>("source")[0];
+  const setSourceDestMarkingType =
+    useState<SourceDestinationMarkingType>("source")[1]; // wait, I will keep the original lines
   const modeRef = useRef<EditorMode>("graph");
+
+  const historyManagerRef = useRef<HistoryManager | null>(null);
 
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
@@ -93,8 +84,10 @@ export function useWorldEditors(
 
   useEffect(() => {
     if (!world) return;
-
     controlsRef.current = new OrbitControls(camera, dom);
+
+    // Initial state capture for undo/redo
+    historyManagerRef.current = new HistoryManager(world);
 
     const graphEditor = new GraphEditor(world.graph, scene, (isDragging) => {
       if (controlsRef.current) {
@@ -216,6 +209,7 @@ export function useWorldEditors(
             stopSignEditorRef.current?.handleRightClick(intersectionPoint);
             break;
         }
+        historyManagerRef.current?.saveState();
       }
     };
 
@@ -239,20 +233,47 @@ export function useWorldEditors(
           stopSignEditorRef.current?.handleClickRelease(intersectionPoint);
           break;
       }
+      historyManagerRef.current?.saveState();
     };
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        // Ctrl + Z (without Shift) for undo
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === "z"
+      ) {
+        e.preventDefault();
+        // Undo
+        historyManagerRef.current?.undo();
+        setMode(modeRef.current);
+      } else if (
+        // Ctrl + Y or Ctrl + Shift + Z for redo
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" ||
+          (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        e.preventDefault();
+        // Redo
+        historyManagerRef.current?.redo();
+        setMode(modeRef.current);
+      }
+    };
 
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
     dom.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
       dom.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [world, dom, updatePointer, getIntersectPoint]);
 

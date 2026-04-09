@@ -25,6 +25,15 @@ export class MarkingEditor extends BaseEditor {
   /** Internal flag indicating a pending commit on click release. */
   protected addMarkingOnRelease: boolean = false;
 
+  override disable() {
+    super.disable();
+    if (this.intent) {
+      this.intent.dispose();
+      this.intent = null;
+    }
+    this.addMarkingOnRelease = false;
+  }
+
   /**
    * Create a new MarkingEditor.
    * @param scene Three.js scene to attach editor visuals to.

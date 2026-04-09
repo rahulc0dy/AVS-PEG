@@ -33,6 +33,13 @@ export class TrafficLightEditor extends MarkingEditor {
   private static readonly edgeColor = new Color(0x6cf0ff);
   private static readonly hoverThreshold = 10;
 
+  override disable() {
+    super.disable();
+    this.selectedTrafficLight = null;
+    this.hoveredTrafficLight = null;
+    this.needsRedraw = true;
+  }
+
   /**
    * Create a new `TrafficLightEditor`.
    * @param scene Three.js scene to draw the editor overlay into.
