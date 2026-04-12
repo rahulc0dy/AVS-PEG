@@ -89,9 +89,8 @@ export class GraphEditor extends BaseEditor {
    * Handle left mouse (or primary) click. If clicking a hovered node, select
    * it and start dragging. Otherwise mark that a node should be added on
    * pointer release (enables click-to-add behavior).
-   * @param _pointer - 3D pointer position (x, z used as node coords)
    */
-  override handleLeftClick(_pointer: Vector3) {
+  override handleLeftClick(): void {
     if (this.hoveredNode) {
       this.selectNode(this.hoveredNode);
       this.isDragging = true;
@@ -104,9 +103,8 @@ export class GraphEditor extends BaseEditor {
   /**
    * Handle right mouse (or secondary) click. Clears selection when present,
    * or removes the hovered node when none is selected.
-   * @param _pointer - 3D pointer position
    */
-  override handleRightClick(_pointer: Vector3) {
+  override handleRightClick(): void {
     if (this.selectedNode) {
       this.selectedNode = null;
       this.needsRedraw = true;
@@ -118,7 +116,6 @@ export class GraphEditor extends BaseEditor {
   /**
    * Handle pointer movement: update hovered node and support dragging a
    * selected node (updates node coordinates and marks graph/visuals dirty).
-   * @param pointer - 3D pointer position (x, z used as node coords)
    */
   override handlePointerMove(pointer: Vector3) {
     this.hoverNode(
@@ -147,9 +144,8 @@ export class GraphEditor extends BaseEditor {
   /**
    * Handle pointer release events: finish dragging and optionally add a new
    * node at the release position when `addNodeOnRelease` is set.
-   * @param pointer - 3D pointer position
    */
-  override handleClickRelease(pointer: Vector3) {
+  override handleClickRelease(): void {
     this.isDragging = false;
     this.onDragStateChanged(false);
     if (this.addNodeOnRelease) {

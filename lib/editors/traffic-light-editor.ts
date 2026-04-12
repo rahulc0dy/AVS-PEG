@@ -94,14 +94,14 @@ export class TrafficLightEditor extends MarkingEditor {
    * - if hovering an existing traffic light, select it
    * - otherwise delegate to the base `MarkingEditor` for placement
    */
-  override handleLeftClick(pointer: Vector3) {
+  override handleLeftClick() {
     if (this.hoveredTrafficLight) {
       this.selectTrafficLight(this.hoveredTrafficLight);
       this.addMarkingOnRelease = false;
       return;
     }
 
-    super.handleLeftClick(pointer);
+    super.handleLeftClick();
   }
 
   /**
@@ -109,7 +109,7 @@ export class TrafficLightEditor extends MarkingEditor {
    * - clears current selection, otherwise
    * - deletes the hovered traffic light node/marking.
    */
-  override handleRightClick(_pointer: Vector3) {
+  override handleRightClick(): void {
     if (this.selectedTrafficLight) {
       this.selectedTrafficLight = null;
       this.needsRedraw = true;
@@ -124,7 +124,7 @@ export class TrafficLightEditor extends MarkingEditor {
    * Commit placement on click release (when `MarkingEditor` indicates a commit).
    * Also syncs the traffic light graph and updates selection/hover state.
    */
-  override handleClickRelease(pointer: Vector3) {
+  override handleClickRelease(): void {
     const intentTrafficLight = this.intent as TrafficLight | null;
     if (this.addMarkingOnRelease && intentTrafficLight) {
       const addedNode = intentTrafficLight.position;
@@ -137,7 +137,7 @@ export class TrafficLightEditor extends MarkingEditor {
       }
     }
 
-    super.handleClickRelease(pointer);
+    super.handleClickRelease();
   }
 
   /**
