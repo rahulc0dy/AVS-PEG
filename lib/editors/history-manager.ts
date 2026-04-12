@@ -1,22 +1,42 @@
 import { applyPatch, compare, Operation } from "fast-json-patch";
 import { World } from "@/lib/world/world";
+import { WorldJson } from "@/types/save";
 
+/**
+ * Represents a set of operations to transition between two states.
+ */
 interface DiffAction {
+  /** The operations required to revert the state. */
   undo: Operation[];
+  /** The operations required to reapply the state. */
   redo: Operation[];
 }
 
+/**
+ * Manages the undo and redo history for the World state.
+ */
 export class HistoryManager {
+  /** Stack of actions that can be undone. */
   private undoStack: DiffAction[] = [];
+  /** Stack of actions that can be redone. */
   private redoStack: DiffAction[] = [];
-  private currentState: Record<string, unknown> | null = null;
+  /** The current state of the world as a JSON object. */
+  private currentState: WorldJson | null = null;
+  /** The world instance being managed. */
   private world: World;
 
+  /**
+   * Initializes a new HistoryManager for the given world.
+   * @param world The world instance to track.
+   */
   constructor(world: World) {
     this.world = world;
     this.currentState = world.toJson();
   }
 
+  /**
+   * Saves the current world state to the history if there are significant changes.
+   */
   public saveState(): void {
     const newState = this.world.toJson();
     if (!this.currentState) {
@@ -35,6 +55,9 @@ export class HistoryManager {
     }
   }
 
+  /**
+   * Reverts the world state to the previous step in history.
+   */
   public undo(): void {
     if (this.undoStack.length > 0 && this.currentState) {
       const action = this.undoStack.pop()!;
@@ -45,7 +68,7 @@ export class HistoryManager {
         action.undo,
         false,
         false,
-      ).newDocument;
+      ).newDocument as WorldJson;
 
       this.currentState = nextState;
       this.world.fromJson(nextState);
@@ -53,6 +76,9 @@ export class HistoryManager {
     }
   }
 
+  /**
+   * Reapplies the next world state in history.
+   */
   public redo(): void {
     if (this.redoStack.length > 0 && this.currentState) {
       const action = this.redoStack.pop()!;
@@ -63,7 +89,7 @@ export class HistoryManager {
         action.redo,
         false,
         false,
-      ).newDocument;
+      ).newDocument as WorldJson;
 
       this.currentState = nextState;
       this.world.fromJson(nextState);
@@ -71,19 +97,22 @@ export class HistoryManager {
     }
   }
 
-  private hasSignificantChanges(
-    stateA: Record<string, unknown>,
-    stateB: Record<string, unknown>,
-  ): boolean {
-    const clean = (state: Record<string, unknown>) => {
-      const copy = structuredClone(state) as Record<string, unknown>;
+  /**
+   * Determines if two states have significant differences in properties that matter.
+   * @param stateA The first state to compare.
+   * @param stateB The second state to compare.
+   * @returns True if the states differ significantly, false otherwise.
+   */
+  private hasSignificantChanges(stateA: WorldJson, stateB: WorldJson): boolean {
+    const clean = (state: WorldJson) => {
+      const copy = structuredClone(state) as Partial<WorldJson>;
       // Ignore purely derived entities
       delete copy.roadBorders;
       delete copy.roads;
 
       // Ignore simulation state such as traffic light changes
       if (Array.isArray(copy.markings)) {
-        copy.markings.forEach((m: Record<string, unknown>) => {
+        copy.markings.forEach((m: any) => {
           delete m.lightState;
         });
       }

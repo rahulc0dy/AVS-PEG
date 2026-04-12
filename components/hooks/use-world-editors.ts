@@ -10,6 +10,19 @@ import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 import { HistoryManager } from "@/lib/editors/history-manager";
 
+/**
+ * Hook that wires up editors, controls, and input handling for a `World` instance.
+ *
+ * Initializes orbit controls, the graph/traffic/source-destination editors, and the
+ * pointer/keyboard listeners that delegate to whichever tool is active.
+ *
+ * @param world - World whose graphs, markings, and roads the editors mutate.
+ * @param scene - Three.js scene that hosts editor helpers and visual output.
+ * @param camera - Camera used for orbit controls and raycasting.
+ * @param dom - DOM element that receives pointer events and anchors the controls.
+ * @param updatePointer - Updates the shared pointer/raycaster state before delegating events.
+ * @param getIntersectPoint - Computes the current ground intersection point for editor actions.
+ */
 export function useWorldEditors(
   world: World | null,
   scene: Scene,
@@ -21,10 +34,8 @@ export function useWorldEditors(
   const [activeMode, setActiveMode] = useState<EditorMode>("graph");
   const [graphRoadType, setGraphRoadType] =
     useState<GraphEdgeType>("undirected");
-  const sourceDestMarkingType =
-    useState<SourceDestinationMarkingType>("source")[0];
-  const setSourceDestMarkingType =
-    useState<SourceDestinationMarkingType>("source")[1]; // wait, I will keep the original lines
+  const [sourceDestMarkingType, setSourceDestMarkingType] =
+    useState<SourceDestinationMarkingType>("source");
   const modeRef = useRef<EditorMode>("graph");
 
   const historyManagerRef = useRef<HistoryManager | null>(null);
@@ -140,7 +151,7 @@ export function useWorldEditors(
       stopSignEditorRef.current = null;
       sourceDestinationEditorRef.current = null;
     };
-  }, [world, scene, camera, dom]);
+  }, [world, scene, camera, dom, graphRoadType]);
 
   useEffect(() => {
     // Don't set up event listeners until world and editors are ready
@@ -275,7 +286,7 @@ export function useWorldEditors(
       dom.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [world, dom, updatePointer, getIntersectPoint]);
+  }, [world, dom, updatePointer, getIntersectPoint, setMode]);
 
   return {
     activeMode,

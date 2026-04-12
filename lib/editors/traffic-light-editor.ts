@@ -1,11 +1,11 @@
-import { Color, Group, Scene, Vector3 } from "three";
-import { MarkingEditor } from "@/lib/editors/marking-editor";
-import { Marking } from "@/lib/markings/marking";
-import { TrafficLight } from "@/lib/markings/traffic-light";
-import { Node } from "@/lib/primitives/node";
-import { Edge } from "@/lib/primitives/edge";
-import { Graph } from "@/lib/primitives/graph";
-import { getNearestNode } from "@/utils/math";
+import {Color, Group, Scene, Vector3} from "three";
+import {MarkingEditor} from "@/lib/editors/marking-editor";
+import {Marking} from "@/lib/markings/marking";
+import {TrafficLight} from "@/lib/markings/traffic-light";
+import {Node} from "@/lib/primitives/node";
+import {Edge} from "@/lib/primitives/edge";
+import {Graph} from "@/lib/primitives/graph";
+import {getNearestNode} from "@/utils/math";
 
 /**
  * Specialized editor for placing `TrafficLight` markings.
@@ -14,31 +14,22 @@ import { getNearestNode } from "@/utils/math";
  * `TrafficLight` instances for preview and commit.
  */
 export class TrafficLightEditor extends MarkingEditor {
-  /** Graph storing traffic light nodes and connecting edges (phase groups). */
-  trafficLightGraph: Graph;
-  /** Currently selected traffic light node (used to create edges). */
-  selectedTrafficLight: Node | null;
-  /** Traffic light node currently under the pointer (hover). */
-  hoveredTrafficLight: Node | null;
-
-  /** Whether a redraw is required on next `draw()` call. */
-  private needsRedraw: boolean;
-  /** Last observed graph change counter to skip redundant draws. */
-  private lastGraphChanges: number;
-
   /** Colors + thresholds for visual feedback. */
   private static readonly baseColor = new Color(0xffffff);
   private static readonly hoveredColor = new Color(0xfff23b);
   private static readonly selectedColor = new Color(0xff2b59);
   private static readonly edgeColor = new Color(0x6cf0ff);
   private static readonly hoverThreshold = 10;
-
-  override disable() {
-    super.disable();
-    this.selectedTrafficLight = null;
-    this.hoveredTrafficLight = null;
-    this.needsRedraw = true;
-  }
+  /** Graph storing traffic light nodes and connecting edges (phase groups). */
+  trafficLightGraph: Graph;
+  /** Currently selected traffic light node (used to create edges). */
+  selectedTrafficLight: Node | null;
+  /** Traffic light node currently under the pointer (hover). */
+  hoveredTrafficLight: Node | null;
+  /** Whether a redraw is required on next `draw()` call. */
+  private needsRedraw: boolean;
+  /** Last observed graph change counter to skip redundant draws. */
+  private lastGraphChanges: number;
 
   /**
    * Create a new `TrafficLightEditor`.
@@ -65,67 +56,12 @@ export class TrafficLightEditor extends MarkingEditor {
   }
 
   /**
-   * Select a traffic light node.
-   *
-   * If a previous node was selected, the editor attempts to connect them
-   * by adding an edge in `trafficLightGraph`.
-   * @param trafficLight Node to select.
+   * Disable editor visuals and clear transient interaction state.
    */
-  private selectTrafficLight(trafficLight: Node | null) {
-    if (!trafficLight) return;
-
-    const previousSelection = this.selectedTrafficLight;
-    let edgeCreated = false;
-    if (previousSelection) {
-      edgeCreated = this.trafficLightGraph.tryAddEdge(
-        new Edge(previousSelection, trafficLight),
-      );
-    }
-
-    if (edgeCreated) {
-      this.trafficLightGraph.makeComponentsComplete();
-    }
-
-    if (previousSelection === trafficLight) return;
-
-    this.selectedTrafficLight = trafficLight;
-    this.needsRedraw = true;
-  }
-
-  /**
-   * Update which traffic light node is considered hovered.
-   * @param trafficLight Hovered node, or `null` when none.
-   */
-  private hoverTrafficLight(trafficLight: Node | null) {
-    if (this.hoveredTrafficLight !== trafficLight) {
-      this.hoveredTrafficLight = trafficLight;
-      this.needsRedraw = true;
-    }
-  }
-
-  /**
-   * Remove a traffic light node and its associated marking (if present).
-   * @param node Traffic light node to remove.
-   */
-  private removeTrafficLight(node: Node) {
-    const index = this.markings.findIndex(
-      (marking): marking is TrafficLight =>
-        marking instanceof TrafficLight && marking.position === node,
-    );
-    if (index !== -1) {
-      const [marking] = this.markings.splice(index, 1);
-      marking.dispose();
-    }
-
-    this.trafficLightGraph.removeNode(node);
-    this.trafficLightGraph.makeComponentsComplete();
-    if (this.hoveredTrafficLight === node) {
-      this.hoverTrafficLight(null);
-    }
-    if (this.selectedTrafficLight === node) {
-      this.selectedTrafficLight = null;
-    }
-    this.addMarkingOnRelease = false;
+  override disable() {
+    super.disable();
+    this.selectedTrafficLight = null;
+    this.hoveredTrafficLight = null;
     this.needsRedraw = true;
   }
 
@@ -252,5 +188,70 @@ export class TrafficLightEditor extends MarkingEditor {
 
     const previewChanged = super.draw();
     return redrewGraph || previewChanged;
+  }
+
+  /**
+   * Select a traffic light node.
+   *
+   * If a previous node was selected, the editor attempts to connect them
+   * by adding an edge in `trafficLightGraph`.
+   * @param trafficLight Node to select.
+   */
+  private selectTrafficLight(trafficLight: Node | null) {
+    if (!trafficLight) return;
+
+    const previousSelection = this.selectedTrafficLight;
+    let edgeCreated = false;
+    if (previousSelection) {
+      edgeCreated = this.trafficLightGraph.tryAddEdge(
+        new Edge(previousSelection, trafficLight),
+      );
+    }
+
+    if (edgeCreated) {
+      this.trafficLightGraph.makeComponentsComplete();
+    }
+
+    if (previousSelection === trafficLight) return;
+
+    this.selectedTrafficLight = trafficLight;
+    this.needsRedraw = true;
+  }
+
+  /**
+   * Update which traffic light node is considered hovered.
+   * @param trafficLight Hovered node, or `null` when none.
+   */
+  private hoverTrafficLight(trafficLight: Node | null) {
+    if (this.hoveredTrafficLight !== trafficLight) {
+      this.hoveredTrafficLight = trafficLight;
+      this.needsRedraw = true;
+    }
+  }
+
+  /**
+   * Remove a traffic light node and its associated marking (if present).
+   * @param node Traffic light node to remove.
+   */
+  private removeTrafficLight(node: Node) {
+    const index = this.markings.findIndex(
+      (marking): marking is TrafficLight =>
+        marking instanceof TrafficLight && marking.position === node,
+    );
+    if (index !== -1) {
+      const [marking] = this.markings.splice(index, 1);
+      marking.dispose();
+    }
+
+    this.trafficLightGraph.removeNode(node);
+    this.trafficLightGraph.makeComponentsComplete();
+    if (this.hoveredTrafficLight === node) {
+      this.hoverTrafficLight(null);
+    }
+    if (this.selectedTrafficLight === node) {
+      this.selectedTrafficLight = null;
+    }
+    this.addMarkingOnRelease = false;
+    this.needsRedraw = true;
   }
 }

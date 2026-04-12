@@ -1,9 +1,9 @@
-import { Group, Scene, Vector3 } from "three";
-import { BaseEditor } from "@/lib/editors/base-editor";
-import { Marking } from "@/lib/markings/marking";
-import { Edge } from "@/lib/primitives/edge";
-import { Node } from "@/lib/primitives/node";
-import { getNearestEdge } from "@/utils/math";
+import {Group, Scene, Vector3} from "three";
+import {BaseEditor} from "@/lib/editors/base-editor";
+import {Marking} from "@/lib/markings/marking";
+import {Edge} from "@/lib/primitives/edge";
+import {Node} from "@/lib/primitives/node";
+import {getNearestEdge} from "@/utils/math";
 
 /**
  * Editor for placing and previewing markings in the world.
@@ -24,15 +24,6 @@ export class MarkingEditor extends BaseEditor {
 
   /** Internal flag indicating a pending commit on click release. */
   protected addMarkingOnRelease: boolean = false;
-
-  override disable() {
-    super.disable();
-    if (this.intent) {
-      this.intent.dispose();
-      this.intent = null;
-    }
-    this.addMarkingOnRelease = false;
-  }
 
   /**
    * Create a new MarkingEditor.
@@ -55,6 +46,18 @@ export class MarkingEditor extends BaseEditor {
     // Default commit group to the editor group if not provided (backward compat),
     // but ideally the World.worldGroup should be passed in.
     this.commitGroup = commitGroup ?? this.editorGroup;
+  }
+
+  /**
+   * Disable editor visuals and clear transient interaction state.
+   */
+  override disable() {
+    super.disable();
+    if (this.intent) {
+      this.intent.dispose();
+      this.intent = null;
+    }
+    this.addMarkingOnRelease = false;
   }
 
   /**
