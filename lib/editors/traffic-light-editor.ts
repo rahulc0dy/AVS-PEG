@@ -1,11 +1,11 @@
-import {Color, Group, Scene, Vector3} from "three";
-import {MarkingEditor} from "@/lib/editors/marking-editor";
-import {Marking} from "@/lib/markings/marking";
-import {TrafficLight} from "@/lib/markings/traffic-light";
-import {Node} from "@/lib/primitives/node";
-import {Edge} from "@/lib/primitives/edge";
-import {Graph} from "@/lib/primitives/graph";
-import {getNearestNode} from "@/utils/math";
+import { Color, Group, Scene, Vector3 } from "three";
+import { MarkingEditor } from "@/lib/editors/marking-editor";
+import { Marking } from "@/lib/markings/marking";
+import { TrafficLight } from "@/lib/markings/traffic-light";
+import { Node } from "@/lib/primitives/node";
+import { Edge } from "@/lib/primitives/edge";
+import { Graph } from "@/lib/primitives/graph";
+import { getNearestNode } from "@/utils/math";
 
 /**
  * Specialized editor for placing `TrafficLight` markings.

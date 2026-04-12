@@ -1,9 +1,9 @@
-import {Group, Scene, Vector3} from "three";
-import {BaseEditor} from "@/lib/editors/base-editor";
-import {Marking} from "@/lib/markings/marking";
-import {Edge} from "@/lib/primitives/edge";
-import {Node} from "@/lib/primitives/node";
-import {getNearestEdge} from "@/utils/math";
+import { Group, Scene, Vector3 } from "three";
+import { BaseEditor } from "@/lib/editors/base-editor";
+import { Marking } from "@/lib/markings/marking";
+import { Edge } from "@/lib/primitives/edge";
+import { Node } from "@/lib/primitives/node";
+import { getNearestEdge } from "@/utils/math";
 
 /**
  * Editor for placing and previewing markings in the world.
