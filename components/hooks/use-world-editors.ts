@@ -4,7 +4,7 @@ import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { StopSignEditor } from "@/lib/editors/stop-sign-editor";
 import { World } from "@/lib/world/world";
 import { EditorMode } from "@/types/editor";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
@@ -51,18 +51,18 @@ export function useWorldEditors(
   /**
    * Disables all editor instances.
    */
-  const disableEditors = () => {
+  const disableEditors = useCallback(() => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
     stopSignEditorRef.current?.disable();
-  };
+  }, []);
 
   /**
    * Sets the active editor mode and enables the corresponding editor.
    * @param mode - The editor mode to activate.
    */
-  const setMode = (mode: EditorMode) => {
+  const setMode = useCallback((mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;
     setActiveMode(mode);
@@ -81,7 +81,7 @@ export function useWorldEditors(
         stopSignEditorRef.current?.enable();
         break;
     }
-  };
+  }, [disableEditors]);
 
   // Sync state with the editor instance
   useEffect(() => {

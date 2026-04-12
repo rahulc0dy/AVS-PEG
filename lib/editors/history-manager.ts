@@ -1,6 +1,6 @@
 import { applyPatch, compare, Operation } from "fast-json-patch";
 import { World } from "@/lib/world/world";
-import { WorldJson } from "@/types/save";
+import { MarkingJson, TrafficLightJson, WorldJson } from "@/types/save";
 
 /**
  * Represents a set of operations to transition between two states.
@@ -104,18 +104,25 @@ export class HistoryManager {
    * @returns True if the states differ significantly, false otherwise.
    */
   private hasSignificantChanges(stateA: WorldJson, stateB: WorldJson): boolean {
-    const clean = (state: WorldJson) => {
+    const clean = (state: WorldJson): Partial<WorldJson> => {
       const copy = structuredClone(state) as Partial<WorldJson>;
-      // Ignore purely derived entities
-      delete copy.roadBorders;
-      delete copy.roads;
 
-      // Ignore simulation state such as traffic light changes
+      // roadBorders are fully derived from road envelopes — not user-authored.
+      // roads themselves ARE user-authored and must be retained.
+      delete copy.roadBorders;
+
+      // Strip transient simulation state (traffic-light phase) from markings
+      // so that phase changes don't pollute the undo history.
       if (Array.isArray(copy.markings)) {
-        copy.markings.forEach((m: any) => {
-          delete m.lightState;
+        copy.markings = copy.markings.map((m: MarkingJson) => {
+          if ("lightState" in m) {
+            const { lightState: _, ...rest } = m as TrafficLightJson;
+            return rest as MarkingJson;
+          }
+          return m;
         });
       }
+
       return copy;
     };
 
