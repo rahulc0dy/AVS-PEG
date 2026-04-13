@@ -15,6 +15,7 @@ export interface WorldJson {
   roadBorders: EdgeJson[];
   /** Road envelopes (polygons) generated from edges. */
   roads: RoadJson[];
+  paths: PathJson[];
 }
 
 /**
@@ -91,6 +92,12 @@ export interface MarkingJson {
   modelUrl?: string;
 }
 
+export interface PathJson {
+  nodes: NodeJson[];
+  isLoop: boolean;
+  edges: EdgeJson[];
+  pathBorders: EdgeJson[];
+}
 /**
  * Serialized representation of a {@link Level}.
  */
