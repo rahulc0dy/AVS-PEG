@@ -15,6 +15,7 @@ import { Destination } from "@/lib/markings/destination";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
 import { TrainingSystem } from "@/lib/systems/training-system";
+import { EnvironmentSystem } from "@/lib/systems/environment-system";
 import { MarkingWallJson } from "@/types/car/message";
 
 /**
@@ -65,6 +66,8 @@ export class World {
 
   /** Spawner system for managing car spawning. */
   spawnerSystem!: SpawnerSystem;
+  /** Procedural scenery generation system (trees, buildings, stones). */
+  environmentSystem!: EnvironmentSystem;
 
   /**
    * Construct a World which generates visual road geometry from a `Graph`.
@@ -120,6 +123,8 @@ export class World {
       this.worldGroup,
       this.roads,
     );
+
+    this.environmentSystem = new EnvironmentSystem(this.worldGroup, this.roads);
 
     this.generate();
   }
@@ -204,9 +209,14 @@ export class World {
 
     // Update spawner system with new roads reference
     this.spawnerSystem.setRoads(this.roads);
+    this.environmentSystem.setRoads(this.roads);
 
     // Update path finding after regenerating roads
     this.updatePath();
+
+    void this.environmentSystem.regenerate().catch((error: unknown) => {
+      console.error("Failed to regenerate procedural environment:", error);
+    });
   }
 
   /**
@@ -250,6 +260,7 @@ export class World {
     }
 
     this.pathFindingSystem.draw(this.worldGroup);
+    this.environmentSystem.draw();
 
     this.scene.add(this.worldGroup);
   }
@@ -268,6 +279,7 @@ export class World {
       road.dispose();
     }
     this.pathFindingSystem.dispose();
+    this.environmentSystem.dispose();
     this.worldGroup.clear();
     if (this.worldGroup.parent) {
       this.worldGroup.parent.remove(this.worldGroup);
@@ -347,8 +359,13 @@ export class World {
     // Update spawner system with new references after loading
     this.spawnerSystem.setCars(this.cars);
     this.spawnerSystem.setRoads(this.roads);
+    this.environmentSystem.setRoads(this.roads);
 
     // Update path finding after loading markings
     this.updatePath();
+
+    void this.environmentSystem.regenerate().catch((error: unknown) => {
+      console.error("Failed to regenerate procedural environment:", error);
+    });
   }
 }
