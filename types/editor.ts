@@ -11,7 +11,8 @@ export type EditorMode =
   | "graph"
   | "traffic-lights"
   | "source-destination"
-  | "stop-sign";
+  | "stop-sign"
+  | "path";
 
 /**
  * Generic editor interface for in-scene editing tools.

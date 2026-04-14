@@ -6,6 +6,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Envelope } from "@/lib/primitives/envelope";
 import { ROAD_WIDTH } from "@/env";
 import { Color, Group } from "three";
+import { Path } from "../markings/path";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.
@@ -16,6 +17,8 @@ export class PathFindingSystem {
 
   private path: Edge[] = [];
   private pathBorders: Edge[] = [];
+
+  private paths: Path[] = [];
 
   constructor(graph: Graph) {
     this.graph = graph;
@@ -144,6 +147,10 @@ export class PathFindingSystem {
    */
   public getPath(): Edge[] {
     return this.path;
+  }
+
+  public getPaths(): Path[] {
+    return this.paths;
   }
 
   public getPathBorders(): Edge[] {

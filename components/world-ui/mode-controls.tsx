@@ -265,8 +265,8 @@ export function ModeControls({
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-1 px-2 py-2 bg-zinc-800 border border-zinc-700 rounded-xl shadow-lg">
+      <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
+        <div className="flex items-center gap-1 rounded-xl border border-zinc-700 bg-zinc-800 px-2 py-2 shadow-lg">
           <ToolButton
             mode="graph"
             activeMode={activeMode}
@@ -314,6 +314,14 @@ export function ModeControls({
                   : "D"
                 : undefined
             }
+          />
+
+          <ToolButton
+            mode="path"
+            activeMode={activeMode}
+            onClick={() => setMode("path")}
+            icon="/icons/path.png"
+            alt="Path Editor"
           />
         </div>
       </div>

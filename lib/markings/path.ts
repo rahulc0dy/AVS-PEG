@@ -1,9 +1,5 @@
-import { exp } from "@tensorflow/tfjs";
-import { Destination } from "./destination";
-import { Source } from "./source";
-
 import { Node } from "@/lib/primitives/node";
-import { Edge } from "../primitives/edge";
+import { Edge } from "@/lib/primitives/edge";
 
 export class Path {
   nodes: Node[];

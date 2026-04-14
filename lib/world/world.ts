@@ -290,6 +290,7 @@ export class World {
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
       roads: this.roads.map((r) => r.toJson()),
       markings: this.markings.map((m) => m.toJson()),
+      paths: [],
     };
   }
 

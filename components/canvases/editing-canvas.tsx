@@ -47,6 +47,7 @@ export default function EditorCanvas({
     trafficLightEditorRef,
     stopSignEditorRef,
     sourceDestinationEditorRef,
+    pathEditorRef,
     controlsRef,
   } = useWorldEditors(
     world,
@@ -64,6 +65,7 @@ export default function EditorCanvas({
     trafficLightEditorRef,
     sourceDestinationEditorRef,
     stopSignEditorRef,
+    pathEditorRef,
     worldRef,
   );
 
