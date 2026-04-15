@@ -195,10 +195,12 @@ export const setupScene = (
   camera.lookAt(0, 0, 0);
 
   // Simple lighting for basic visibility
-  const ambient = new AmbientLight(0xffffff, 0.6);
+  const ambient = new AmbientLight(0xffffff, 0.7);
   scene.add(ambient);
-  const dir = new DirectionalLight(0xffffff, 0.6);
-  dir.position.set(10, 10, 10);
+
+  const dir = new DirectionalLight(0xffffff, 2.5);
+  // Match directional light to sun position
+  dir.position.copy(sun).multiplyScalar(1000);
   scene.add(dir);
 
   // Renderer + DOM attachment
