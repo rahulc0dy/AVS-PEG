@@ -73,7 +73,7 @@ export class GraphEditor extends BaseEditor {
   /**
    * Disable editor visuals and clear transient interaction state.
    */
-  disable() {
+  override disable() {
     super.disable();
     if (this.isDragging) {
       this.onDragStateChanged(false);
