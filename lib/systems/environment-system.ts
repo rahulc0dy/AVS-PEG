@@ -255,12 +255,17 @@ export class EnvironmentSystem {
 
     for (const asset of ENVIRONMENT_ASSETS) {
       const assetCount = this.resolveAssetCount(asset, totalRoadLength);
-      const placements = this.generatePlacements(
+      const placements = await this.generatePlacements(
         asset,
         assetCount,
         worldBounds,
         occupiedAreas,
+        generationToken,
       );
+
+      if (generationToken !== this.generationToken) {
+        return;
+      }
 
       if (placements.length === 0) {
         continue;
@@ -372,18 +377,32 @@ export class EnvironmentSystem {
   /**
    * Generate placements for one asset while respecting roads and occupancy.
    */
-  private generatePlacements(
+  private async generatePlacements(
     asset: EnvironmentAssetConfig,
     count: number,
     bounds: WorldBounds,
     occupiedAreas: OccupiedArea[],
-  ): EnvironmentPlacement[] {
+    generationToken: number,
+  ): Promise<EnvironmentPlacement[]> {
     const placements: EnvironmentPlacement[] = [];
     let attempts = 0;
     const maxAttempts = count * 30;
+    let iterationsSinceYield = 0;
 
     while (placements.length < count && attempts < maxAttempts) {
       attempts += 1;
+      iterationsSinceYield += 1;
+
+      // Yield the thread every 50 attempts to avoid freezing the UI on large maps
+      if (iterationsSinceYield > 50) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        iterationsSinceYield = 0;
+
+        // Cancel if token has changed during yield
+        if (generationToken !== this.generationToken) {
+          return [];
+        }
+      }
 
       const placement = this.samplePlacementNearRoad(asset, bounds);
       if (!placement) {
