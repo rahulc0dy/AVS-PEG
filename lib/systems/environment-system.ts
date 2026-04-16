@@ -195,7 +195,7 @@ export class EnvironmentSystem {
 
   private readonly environmentGroup: Group = new Group();
   private readonly loader: GLTFLoader = new GLTFLoader();
-  private readonly modelCache = new Map<string, ModelPart[]>();
+  private readonly modelCache = new Map<string, Promise<ModelPart[]>>();
   private readonly activeMeshes: InstancedMesh<BufferGeometry, Material>[] = [];
 
   private readonly dummy: Object3D = new Object3D();
@@ -204,6 +204,8 @@ export class EnvironmentSystem {
   private groundMesh: Mesh | null = null;
 
   private generationToken = 0;
+  private totalRoadLength = 0;
+  private roadCumulativeLengths: number[] = [];
 
   /**
    * Create a new environment system.
@@ -240,10 +242,13 @@ export class EnvironmentSystem {
       return;
     }
 
-    const totalRoadLength = this.roads.reduce(
-      (sum, road) => sum + road.length(),
-      0,
-    );
+    this.totalRoadLength = 0;
+    this.roadCumulativeLengths = [];
+    for (const road of this.roads) {
+      this.totalRoadLength += road.length();
+      this.roadCumulativeLengths.push(this.totalRoadLength);
+    }
+
     const maxRoadDistance = Math.max(
       ...ENVIRONMENT_ASSETS.map((asset) => asset.maxRoadDistance),
     );
@@ -254,7 +259,7 @@ export class EnvironmentSystem {
     const occupiedAreas: OccupiedArea[] = [];
 
     for (const asset of ENVIRONMENT_ASSETS) {
-      const assetCount = this.resolveAssetCount(asset, totalRoadLength);
+      const assetCount = this.resolveAssetCount(asset, this.totalRoadLength);
       const placements = await this.generatePlacements(
         asset,
         assetCount,
@@ -317,11 +322,15 @@ export class EnvironmentSystem {
       this.environmentGroup.parent.remove(this.environmentGroup);
     }
 
-    for (const modelParts of this.modelCache.values()) {
-      for (const part of modelParts) {
-        part.geometry.dispose();
-        part.material.dispose();
-      }
+    for (const promise of this.modelCache.values()) {
+      promise
+        .then((modelParts) => {
+          for (const part of modelParts) {
+            part.geometry.dispose();
+            part.material.dispose();
+          }
+        })
+        .catch(() => {});
     }
     this.modelCache.clear();
   }
@@ -445,6 +454,32 @@ export class EnvironmentSystem {
   }
 
   /**
+   * Ensure road-derived sampling data is available and in sync with the current roads.
+   */
+  private ensureRoadSamplingData(): void {
+    if (
+      this.roadCumulativeLengths.length === this.roads.length &&
+      (this.roads.length === 0 ||
+        this.totalRoadLength ===
+          this.roadCumulativeLengths[this.roadCumulativeLengths.length - 1])
+    ) {
+      return;
+    }
+
+    this.roadCumulativeLengths = [];
+    this.totalRoadLength = 0;
+
+    for (const road of this.roads) {
+      const roadLength = Math.hypot(
+        road.n2.x - road.n1.x,
+        road.n2.y - road.n1.y,
+      );
+      this.totalRoadLength += roadLength;
+      this.roadCumulativeLengths.push(this.totalRoadLength);
+    }
+  }
+
+  /**
    * Sample one candidate placement by offsetting from a random road segment.
    */
   private samplePlacementNearRoad(
@@ -455,7 +490,19 @@ export class EnvironmentSystem {
       return null;
     }
 
-    const roadIndex = Math.floor(getRandomNumberBetween(0, this.roads.length));
+    this.ensureRoadSamplingData();
+
+    if (this.totalRoadLength === 0) {
+      return null;
+    }
+    const randomLength = getRandomNumberBetween(0, this.totalRoadLength);
+    let roadIndex = 0;
+    for (let i = 0; i < this.roadCumulativeLengths.length; i++) {
+      if (randomLength <= this.roadCumulativeLengths[i]) {
+        roadIndex = i;
+        break;
+      }
+    }
     const road = this.roads[roadIndex];
     const roadDX = road.n2.x - road.n1.x;
     const roadDY = road.n2.y - road.n1.y;
@@ -551,48 +598,56 @@ export class EnvironmentSystem {
   /**
    * Load and cache model mesh parts for instancing.
    */
-  private async getModelParts(modelUrl: string): Promise<ModelPart[]> {
+  private getModelParts(modelUrl: string): Promise<ModelPart[]> {
     const cached = this.modelCache.get(modelUrl);
     if (cached) {
       return cached;
     }
 
-    const gltf = await this.loader.loadAsync(modelUrl);
-    gltf.scene.updateMatrixWorld(true);
-    const rootInverseMatrix = gltf.scene.matrixWorld.clone().invert();
-    const modelParts: ModelPart[] = [];
+    const loadPromise = (async () => {
+      const gltf = await this.loader.loadAsync(modelUrl);
+      gltf.scene.updateMatrixWorld(true);
+      const rootInverseMatrix = gltf.scene.matrixWorld.clone().invert();
+      const modelParts: ModelPart[] = [];
 
-    gltf.scene.traverse((child: Object3D) => {
-      const mesh = child as Mesh;
-      if (!mesh.isMesh) {
-        return;
-      }
+      gltf.scene.traverse((child: Object3D) => {
+        const mesh = child as Mesh;
+        if (!mesh.isMesh) {
+          return;
+        }
 
-      const material = Array.isArray(mesh.material)
-        ? mesh.material[0]
-        : mesh.material;
-      if (!material) {
-        return;
-      }
+        const material = Array.isArray(mesh.material)
+          ? mesh.material[0]
+          : mesh.material;
+        if (!material) {
+          return;
+        }
 
-      mesh.updateMatrixWorld(true);
-      const localMatrix = rootInverseMatrix.clone().multiply(mesh.matrixWorld);
+        mesh.updateMatrixWorld(true);
+        const localMatrix = rootInverseMatrix
+          .clone()
+          .multiply(mesh.matrixWorld);
 
-      modelParts.push({
-        geometry: mesh.geometry.clone(),
-        material: material.clone(),
-        localMatrix,
+        modelParts.push({
+          geometry: mesh.geometry.clone(),
+          material: material.clone(),
+          localMatrix,
+        });
       });
-    });
 
-    this.disposeLoadedScene(gltf.scene);
+      this.disposeLoadedScene(gltf.scene);
 
-    if (modelParts.length === 0) {
-      throw new Error(`Environment model "${modelUrl}" has no mesh geometry.`);
-    }
+      if (modelParts.length === 0) {
+        throw new Error(
+          `Environment model "${modelUrl}" has no mesh geometry.`,
+        );
+      }
 
-    this.modelCache.set(modelUrl, modelParts);
-    return modelParts;
+      return modelParts;
+    })();
+
+    this.modelCache.set(modelUrl, loadPromise);
+    return loadPromise;
   }
 
   /**
