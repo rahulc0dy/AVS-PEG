@@ -1,37 +1,50 @@
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
+import { PathJson, NodeJson, EdgeJson } from "@/types/save";
 
 export class Path {
-  nodes: Node[];
+  waypoints: Node[];
   isLoop: boolean;
   edges: Edge[] = [];
-  pathBorders: Edge[] = [];
+  borders: Edge[] = [];
+  color: string;
   constructor(
-    nodes: Node[],
+    waypoints: Node[],
     isLoop: boolean,
     edges: Edge[] = [],
-    pathBorders: Edge[] = [],
+    borders: Edge[] = [],
+    color?: string,
   ) {
-    this.nodes = nodes;
+    this.waypoints = waypoints;
     this.isLoop = isLoop;
     this.edges = edges;
-    this.pathBorders = pathBorders;
-  }
-  toJson() {
-    return {
-      nodes: this.nodes.map((n) => n.toJson()),
-      isLoop: this.isLoop,
-      edges: this.edges.map((e) => e.toJson()),
-      pathBorders: this.pathBorders.map((e) => e.toJson()),
-    };
+    this.borders = borders;
+    // Generate a random color hex string if not provided
+    this.color =
+      color ||
+      "#" +
+        Math.floor(Math.random() * 16777215)
+          .toString(16)
+          .padStart(6, "0");
   }
 
-  static fromJson(json: any): Path {
+  static fromJson(json: PathJson): Path {
     return new Path(
-      json.nodes.map((n: any) => Node.fromJson(n)),
+      json.waypoints.map((n: NodeJson) => Node.fromJson(n)),
       json.isLoop,
-      json.edges.map((e: any) => Edge.fromJson(e)),
-      json.pathBorders.map((e: any) => Edge.fromJson(e)),
+      json.edges.map((e: EdgeJson) => Edge.fromJson(e)),
+      json.borders.map((e: EdgeJson) => Edge.fromJson(e)),
+      json.color,
     );
+  }
+
+  toJson(): PathJson {
+    return {
+      waypoints: this.waypoints.map((n) => n.toJson()),
+      isLoop: this.isLoop,
+      edges: this.edges.map((e) => e.toJson()),
+      borders: this.borders.map((e) => e.toJson()),
+      color: this.color,
+    };
   }
 }

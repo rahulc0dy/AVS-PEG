@@ -9,6 +9,7 @@ import { useWorldAnimation } from "@/components/hooks/use-world-animation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
+import { PathPanel } from "@/components/world-ui/path-panel";
 import { useWorld } from "@/components/hooks/use-world";
 
 interface EditorCanvasProps {
@@ -81,6 +82,14 @@ export default function EditorCanvas({
         sourceDestinationMarkingType={sourceDestMarkingType}
         onSourceDestinationTypeChange={setSourceDestMarkingType}
       />
+
+      {activeMode === "path" && (
+        <PathPanel
+          isVisible={activeMode === "path"}
+          editorRef={pathEditorRef}
+        />
+      )}
+
       <FileToolbar
         onImportOsm={() => setIsOsmModalOpen(true)}
         onLoadJson={loadFromJson}

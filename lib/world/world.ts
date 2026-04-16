@@ -12,6 +12,7 @@ import { Marking } from "@/lib/markings/marking";
 import { TrafficLightSystem } from "@/lib/systems/traffic-light-system";
 import { Source } from "@/lib/markings/source";
 import { Destination } from "@/lib/markings/destination";
+import { Path } from "@/lib/markings/path";
 import { PathFindingSystem } from "@/lib/systems/path-finding-system";
 import { SpawnerSystem } from "@/lib/systems/spawner-system";
 import { TrainingSystem } from "@/lib/systems/training-system";
@@ -290,7 +291,7 @@ export class World {
       roadBorders: this.roadBorders.map((rb) => rb.toJson()),
       roads: this.roads.map((r) => r.toJson()),
       markings: this.markings.map((m) => m.toJson()),
-      paths: [],
+      paths: this.pathFindingSystem.getPaths().map((p) => p.toJson()),
     };
   }
 
@@ -343,6 +344,10 @@ export class World {
           break;
         }
       }
+    }
+
+    if (json.paths) {
+      this.pathFindingSystem.setPaths(json.paths.map((p) => Path.fromJson(p)));
     }
 
     // Update spawner system with new references after loading

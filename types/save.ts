@@ -93,10 +93,11 @@ export interface MarkingJson {
 }
 
 export interface PathJson {
-  nodes: NodeJson[];
+  waypoints: NodeJson[];
   isLoop: boolean;
   edges: EdgeJson[];
-  pathBorders: EdgeJson[];
+  borders: EdgeJson[];
+  color?: string;
 }
 /**
  * Serialized representation of a {@link Level}.

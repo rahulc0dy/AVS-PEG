@@ -24,6 +24,10 @@ export class PathFindingSystem {
     this.graph = graph;
   }
 
+  public setPaths(paths: Path[]) {
+    this.paths = paths;
+  }
+
   /**
    * Compute a path between two positions.
    *
@@ -140,6 +144,13 @@ export class PathFindingSystem {
     this.updatePathPolygon();
 
     return;
+  }
+
+  public calculatePaths() {
+    this.paths.forEach((_path) => {
+      // For each path, we can calculate the path edges and borders based on the waypoints.
+      // Update {this.paths} itself with the new edges and borders for each path.
+    });
   }
 
   /**

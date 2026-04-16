@@ -6,12 +6,14 @@ import { Node } from "../primitives/node";
 export class PathEditor extends BaseEditor {
   targetNodes: Node[];
   paths: Path[];
+  selectedPathIdx: number;
 
   constructor(scene: Scene, targetNodes: Node[], paths: Path[]) {
     super(scene);
 
     this.targetNodes = targetNodes;
     this.paths = paths;
+    this.selectedPathIdx = this.paths.length > 0 ? 0 : -1; // Select the first path if available.
   }
 
   override draw(): boolean {
