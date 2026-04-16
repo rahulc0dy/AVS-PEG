@@ -229,6 +229,8 @@ export class World {
       this.pathFindingSystem.reset();
     }
 
+    this.pathFindingSystem.calculatePaths();
+
     // Sync path with training system
     this.trainingSystem.setPath(this.pathFindingSystem.getPath());
   }
@@ -347,7 +349,9 @@ export class World {
     }
 
     if (json.paths) {
-      this.pathFindingSystem.setPaths(json.paths.map((p) => Path.fromJson(p)));
+      this.pathFindingSystem.setPaths(
+        json.paths.map((p) => Path.fromJson(p, this.graph)),
+      );
     }
 
     // Update spawner system with new references after loading

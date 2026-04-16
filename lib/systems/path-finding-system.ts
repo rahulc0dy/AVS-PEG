@@ -25,7 +25,8 @@ export class PathFindingSystem {
   }
 
   public setPaths(paths: Path[]) {
-    this.paths = paths;
+    this.paths.length = 0;
+    this.paths.push(...paths);
   }
 
   /**
@@ -147,9 +148,64 @@ export class PathFindingSystem {
   }
 
   public calculatePaths() {
-    this.paths.forEach((_path) => {
-      // For each path, we can calculate the path edges and borders based on the waypoints.
-      // Update {this.paths} itself with the new edges and borders for each path.
+    const nodes = this.graph.getNodes();
+    const edges = this.graph.getEdges();
+
+    if (nodes.length === 0 || edges.length === 0) return;
+
+    const adjacency = this.buildAdjacency(nodes, edges);
+
+    this.paths.forEach((path) => {
+      path.edges = [];
+      path.borders = [];
+      const waypoints = path.waypoints;
+
+      if (waypoints.length < 2) return;
+
+      const allEdges: Edge[] = [];
+
+      for (let i = 0; i < waypoints.length; i++) {
+        if (i === waypoints.length - 1 && !path.isLoop) break;
+
+        const startNode = waypoints[i];
+        const endNode = waypoints[(i + 1) % waypoints.length];
+
+        if (startNode.equals(endNode)) continue;
+
+        const { dist, prevEdge, prevNode } = this.runDijkstra(
+          adjacency,
+          nodes,
+          startNode,
+          endNode,
+        );
+
+        if ((dist.get(endNode) ?? Infinity) === Infinity) continue;
+
+        const localEdges: Edge[] = [];
+        let cursor: Node | null = endNode;
+        while (cursor && !cursor.equals(startNode)) {
+          const e: Edge | null = prevEdge.get(cursor as Node) ?? null;
+          const p: Node | null = prevNode.get(cursor as Node) ?? null;
+          if (!e || !p) break;
+
+          const orientedEdge = new Edge(p, cursor, e.isDirected);
+          localEdges.unshift(orientedEdge);
+          cursor = p;
+        }
+
+        allEdges.push(...localEdges);
+      }
+
+      path.edges = allEdges;
+
+      const pathEnvelopes: Envelope[] = [];
+      for (const edge of path.edges) {
+        pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));
+      }
+
+      path.borders = Polygon.union(
+        pathEnvelopes.map((envelope) => envelope.poly),
+      );
     });
   }
 

@@ -8,6 +8,9 @@ import {
   Texture,
   Vector3,
   WebGLRenderer,
+  CanvasTexture,
+  SpriteMaterial,
+  Sprite,
 } from "three";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ORBIT_CAM_FAR, ORBIT_CAM_FOV, ORBIT_CAM_NEAR } from "@/env";
@@ -27,6 +30,67 @@ const isDisposable = (value: unknown): value is Disposable => {
   if (typeof value !== "object" || value === null) return false;
   return "dispose" in value && typeof value.dispose === "function";
 };
+
+export function createTextSprite(
+  text: string,
+  color: string = "#ffffff",
+): Sprite {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return new Sprite();
+
+  // Set initial font to precisely measure text width
+  const fontSize = 80;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+
+  const textWidth = ctx.measureText(text).width;
+  ctx.canvas.width = Math.max(128, textWidth + 60);
+  ctx.canvas.height = 128;
+
+  // Draw background circle or pill
+  ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+  ctx.beginPath();
+  const radius = ctx.canvas.height / 2;
+  ctx.arc(radius, radius, radius, Math.PI / 2, (Math.PI * 3) / 2);
+  ctx.arc(
+    ctx.canvas.width - radius,
+    radius,
+    radius,
+    (Math.PI * 3) / 2,
+    Math.PI / 2,
+  );
+  ctx.closePath();
+  ctx.fill();
+
+  // Render text at center
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = color;
+  ctx.fillText(text, ctx.canvas.width / 2, ctx.canvas.height / 2 + 5);
+
+  const texture = new CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const spriteMaterial = new SpriteMaterial({
+    map: texture,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new Sprite(spriteMaterial);
+
+  // Set the sprite's size and center
+  const scaleRatio = 12; // Adjustment to convert canvas size to Three.js units appropriately
+  sprite.scale.set(
+    ctx.canvas.width / scaleRatio,
+    ctx.canvas.height / scaleRatio,
+    1,
+  );
+  sprite.renderOrder = 999;
+
+  return sprite;
+}
 
 /**
  * Dispose textures assigned to shader uniforms when present.

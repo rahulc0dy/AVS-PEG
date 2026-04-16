@@ -135,6 +135,7 @@ export function useWorldEditors(
       scene,
       world.graph.getNodes(),
       world.pathFindingSystem.getPaths(),
+      () => world.updatePath(),
     );
 
     modeRef.current = "graph";
@@ -145,14 +146,19 @@ export function useWorldEditors(
         controlsRef.current.dispose();
         controlsRef.current = null;
       }
+
       graphEditorRef.current?.disable();
       trafficLightEditorRef.current?.disable();
       stopSignEditorRef.current?.disable();
       sourceDestinationEditorRef.current?.disable();
+      pathEditorRef.current?.disable();
+
       graphEditorRef.current?.dispose();
       trafficLightEditorRef.current?.dispose();
       stopSignEditorRef.current?.dispose();
       sourceDestinationEditorRef.current?.dispose();
+      pathEditorRef.current?.dispose();
+
       graphEditorRef.current = null;
       trafficLightEditorRef.current = null;
       stopSignEditorRef.current = null;
