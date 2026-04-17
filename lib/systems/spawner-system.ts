@@ -4,7 +4,7 @@ import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { angle, average, clamp } from "@/utils/math";
+import { angle, average, clamp, normalize } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { Path } from "@/lib/markings/path";
@@ -158,18 +158,23 @@ export class SpawnerSystem {
 
       const firstWaypoint = path.waypoints[0];
       const firstEdge = path.edges[0];
-      const spawnNode =
-        firstEdge.projectNode(firstWaypoint).point || firstWaypoint;
+      const dir = firstEdge.directionVector();
+
+      const offset = this.length + 20;
+      const spawnNode = new Node(
+        firstWaypoint.x + dir.x * offset,
+        firstWaypoint.y + dir.y * offset,
+      );
 
       const car = new Car(
         this.cars.length,
-        new Node(spawnNode.x, spawnNode.y),
+        spawnNode,
         this.breadth,
         this.length,
         this.height,
         controlType,
         this.worldGroup,
-        angle(firstEdge.directionVector()),
+        angle(dir),
         false,
       );
 
