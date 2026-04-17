@@ -21,13 +21,10 @@ export class Path {
     this.isLoop = isLoop;
     this.edges = edges;
     this.borders = borders;
-    // Generate a random color hex string if not provided
+    // Generate a prominent, bright color shifting only the hue
     this.color =
       color ||
-      "#" +
-        Math.floor(Math.random() * 16777215)
-          .toString(16)
-          .padStart(6, "0");
+      `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
   }
 
   static fromJson(json: PathJson, graph: Graph): Path {

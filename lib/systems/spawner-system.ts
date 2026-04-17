@@ -4,7 +4,7 @@ import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { angle, average, clamp, normalize } from "@/utils/math";
+import { angle, average, clamp } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { Path } from "@/lib/markings/path";
