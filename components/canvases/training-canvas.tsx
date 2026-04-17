@@ -44,10 +44,11 @@ export default function TrainingCanvas({
   dom,
 }: TrainingCanvasProps) {
   const [carCount, setCarCount] = useState(10);
-  const [mutationAmount, setMutationAmount] = useState(0.1);
+  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(true);
+  const [spawnOnePerPath, setSpawnOnePerPath] = useState(false);
+  const [mutationAmount, setMutationAmount] = useState(0.0);
   const [isTraining, setIsTraining] = useState(false);
   const [currentCarCount, setCurrentCarCount] = useState(0);
-  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(false);
   const [generation, setGeneration] = useState(1);
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
@@ -275,7 +276,20 @@ export default function TrainingCanvas({
       console.warn("Could not load saved brain for spawning", e);
     }
 
-    if (stackSpawnAtSource) {
+    if (spawnOnePerPath) {
+      const paths = world.pathFindingSystem.getPaths();
+      if (paths.length === 0) {
+        toast("No valid paths found.", "error");
+        return;
+      }
+
+      world.spawnerSystem.spawnCarsAtPaths(
+        paths,
+        ControlType.AI,
+        baseBrain,
+        mutationAmount,
+      );
+    } else if (stackSpawnAtSource) {
       const source = world.markings.find((m) => m.type === "source");
       const sourcePos = source ? source.position : undefined;
 
@@ -323,7 +337,14 @@ export default function TrainingCanvas({
     setCurrentCarCount(spawnedCount);
     setIsTraining(true);
     setCarsReachedDestination(0);
-  }, [worldRef, carCount, stackSpawnAtSource, mutationAmount, toast]);
+  }, [
+    worldRef,
+    carCount,
+    stackSpawnAtSource,
+    spawnOnePerPath,
+    mutationAmount,
+    toast,
+  ]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;
@@ -389,8 +410,9 @@ export default function TrainingCanvas({
               min={1}
               max={500}
               value={carCount}
+              disabled={spawnOnePerPath}
               onChange={(e) => setCarCount(Number(e.target.value))}
-              className="w-20 h-8 border-zinc-700 bg-zinc-800 text-zinc-50 text-center"
+              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50 disabled:opacity-50"
             />
           </div>
 
@@ -406,7 +428,7 @@ export default function TrainingCanvas({
               step={0.05}
               value={mutationAmount}
               onChange={(e) => setMutationAmount(Number(e.target.value))}
-              className="w-20 h-8 border-zinc-700 bg-zinc-800 text-zinc-50 text-center"
+              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50"
             />
           </div>
 
@@ -422,13 +444,24 @@ export default function TrainingCanvas({
             </Button>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-zinc-400">Stack spawn at Source</Label>
-            <Checkbox
-              checked={stackSpawnAtSource}
-              onChange={(e) => setStackSpawnAtSource(e.target.checked)}
-              aria-label="Stack spawn cars at source"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-zinc-400">Stack spawn at Source</Label>
+              <Checkbox
+                checked={stackSpawnAtSource}
+                disabled={spawnOnePerPath}
+                onChange={(e) => setStackSpawnAtSource(e.target.checked)}
+                aria-label="Stack spawn cars at source"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-zinc-400">Spawn one car per path</Label>
+              <Checkbox
+                checked={spawnOnePerPath}
+                onChange={(e) => setSpawnOnePerPath(e.target.checked)}
+                aria-label="Spawn one car per path"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
@@ -449,7 +482,7 @@ export default function TrainingCanvas({
             </Button>
           </div>
 
-          <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3 space-y-1">
+          <div className="space-y-1 border-t border-zinc-700 pt-3 text-sm text-zinc-400">
             <p>Status: {isTraining ? "Training..." : "Ready"}</p>
             <p>Generation: {generation}</p>
             <p>Cars: {currentCarCount}</p>

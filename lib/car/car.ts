@@ -77,6 +77,8 @@ export class Car {
   ignoreCarDamage: boolean = false;
   /** Latest neural network state snapshot received from the worker (or `null` if unavailable). */
   network: NeuralNetworkStateJson | null = null;
+  /** Path borders specific to this car's path, if any. Used to constrain the car. */
+  pathBorders: Edge[] | null = null;
   /** Web Worker handling physics, collisions, and neural network updates for this car. */
   private worker: Worker | null = null;
 
@@ -178,7 +180,9 @@ export class Car {
         payload: {
           id: this.id,
           traffic: traffic.map((car) => car.polygon?.toJson()),
-          pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
+          pathBorders: (this.pathBorders ?? pathBorders).map((pathBorder) =>
+            pathBorder.toJson(),
+          ),
           markingWalls,
         } as UpdateCollisionDataPayload,
       });
