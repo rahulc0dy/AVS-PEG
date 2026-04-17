@@ -4,11 +4,12 @@ import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
 import { StopSignEditor } from "@/lib/editors/stop-sign-editor";
 import { World } from "@/lib/world/world";
 import { EditorMode } from "@/types/editor";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Scene, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 import { PathEditor } from "@/lib/editors/path-editor";
+import { HistoryManager } from "@/lib/editors/history-manager";
 
 /**
  * Hook that wires up editors, controls, and input handling for a `World` instance.
@@ -36,8 +37,9 @@ export function useWorldEditors(
     useState<GraphEdgeType>("undirected");
   const [sourceDestMarkingType, setSourceDestMarkingType] =
     useState<SourceDestinationMarkingType>("source");
-
   const modeRef = useRef<EditorMode>("graph");
+
+  const historyManagerRef = useRef<HistoryManager | null>(null);
 
   const graphEditorRef = useRef<GraphEditor | null>(null);
   const trafficLightEditorRef = useRef<TrafficLightEditor | null>(null);
@@ -51,19 +53,19 @@ export function useWorldEditors(
   /**
    * Disables all editor instances.
    */
-  const disableEditors = () => {
+  const disableEditors = useCallback(() => {
     graphEditorRef.current?.disable();
     trafficLightEditorRef.current?.disable();
     sourceDestinationEditorRef.current?.disable();
     stopSignEditorRef.current?.disable();
     pathEditorRef.current?.disable();
-  };
+  }, []);
 
   /**
    * Sets the active editor mode and enables the corresponding editor.
    * @param mode - The editor mode to activate.
    */
-  const setMode = (mode: EditorMode) => {
+  const setMode = useCallback((mode: EditorMode) => {
     disableEditors();
     modeRef.current = mode;
     setActiveMode(mode);
@@ -85,7 +87,7 @@ export function useWorldEditors(
         pathEditorRef.current?.enable();
         break;
     }
-  };
+  }, [disableEditors]);
 
   // Sync state with the editor instance
   useEffect(() => {
@@ -99,8 +101,10 @@ export function useWorldEditors(
 
   useEffect(() => {
     if (!world) return;
-
     controlsRef.current = new OrbitControls(camera, dom);
+
+    // Initial state capture for undo/redo
+    historyManagerRef.current = new HistoryManager(world);
 
     const graphEditor = new GraphEditor(world.graph, scene, (isDragging) => {
       if (controlsRef.current) {
@@ -165,7 +169,7 @@ export function useWorldEditors(
       sourceDestinationEditorRef.current = null;
       pathEditorRef.current = null;
     };
-  }, [world, scene, camera, dom]);
+  }, [world, scene, camera, dom, graphRoadType]);
 
   useEffect(() => {
     // Don't set up event listeners until world and editors are ready
@@ -243,6 +247,7 @@ export function useWorldEditors(
             pathEditorRef.current?.handleRightClick(intersectionPoint);
             break;
         }
+        historyManagerRef.current?.saveState();
       }
     };
 
@@ -269,22 +274,49 @@ export function useWorldEditors(
           pathEditorRef.current?.handleClickRelease(intersectionPoint);
           break;
       }
+      historyManagerRef.current?.saveState();
     };
 
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        // Ctrl + Z (without Shift) for undo
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === "z"
+      ) {
+        e.preventDefault();
+        // Undo
+        historyManagerRef.current?.undo();
+        setMode(modeRef.current);
+      } else if (
+        // Ctrl + Y or Ctrl + Shift + Z for redo
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" ||
+          (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        e.preventDefault();
+        // Redo
+        historyManagerRef.current?.redo();
+        setMode(modeRef.current);
+      }
+    };
 
     dom.addEventListener("pointermove", handlePointerMove);
     dom.addEventListener("pointerdown", handlePointerDown);
     dom.addEventListener("pointerup", handlePointerUp);
     dom.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       dom.removeEventListener("pointermove", handlePointerMove);
       dom.removeEventListener("pointerdown", handlePointerDown);
       dom.removeEventListener("pointerup", handlePointerUp);
       dom.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [world, dom, updatePointer, getIntersectPoint]);
+  }, [world, dom, updatePointer, getIntersectPoint, setMode]);
 
   return {
     activeMode,

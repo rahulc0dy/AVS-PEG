@@ -49,6 +49,18 @@ export class MarkingEditor extends BaseEditor {
   }
 
   /**
+   * Disable editor visuals and clear transient interaction state.
+   */
+  override disable() {
+    super.disable();
+    if (this.intent) {
+      this.intent.dispose();
+      this.intent = null;
+    }
+    this.addMarkingOnRelease = false;
+  }
+
+  /**
    * Create a new marking instance used for preview. Subclasses may override
    * to construct specific marking types (e.g. `TrafficLight`).
    */
