@@ -1,6 +1,6 @@
 import { Node } from "@/lib/primitives/node";
 import { Road } from "@/lib/world/road";
-import { distance, getRandomNumberBetween, lerp } from "@/utils/math";
+import { distance, getRandomNumberBetween } from "@/utils/math";
 import {
   BufferGeometry,
   Color,
@@ -128,53 +128,53 @@ const ENVIRONMENT_ASSETS: EnvironmentAssetConfig[] = [
   },
   {
     modelUrl: "/models/house_1.gltf",
-    densityPerRoadUnit: 0.02,
-    minCount: 2,
-    maxCount: 100,
-    minRoadDistance: 30,
-    maxRoadDistance: 50,
+    densityPerRoadUnit: 0.005,
+    minCount: 5,
+    maxCount: 30,
+    minRoadDistance: 55,
+    maxRoadDistance: 180,
     minScale: 1.05,
     maxScale: 1.65,
-    minSpacing: 25,
+    minSpacing: 45,
     alongRoadJitter: 10,
     yOffset: 0,
   },
   {
     modelUrl: "/models/house_2.gltf",
-    densityPerRoadUnit: 0.02,
-    minCount: 2,
-    maxCount: 100,
-    minRoadDistance: 30,
-    maxRoadDistance: 50,
+    densityPerRoadUnit: 0.005,
+    minCount: 5,
+    maxCount: 30,
+    minRoadDistance: 55,
+    maxRoadDistance: 180,
     minScale: 1.0,
     maxScale: 1.6,
-    minSpacing: 25,
+    minSpacing: 45,
     alongRoadJitter: 10,
     yOffset: 0,
   },
   {
     modelUrl: "/models/building_residential.gltf",
-    densityPerRoadUnit: 0.1,
-    minCount: 10,
-    maxCount: 500,
-    minRoadDistance: 35,
-    maxRoadDistance: 55,
+    densityPerRoadUnit: 0.15,
+    minCount: 20,
+    maxCount: 900,
+    minRoadDistance: 60,
+    maxRoadDistance: 200,
     minScale: 1.15,
     maxScale: 1.8,
-    minSpacing: 30,
+    minSpacing: 50,
     alongRoadJitter: 10,
     yOffset: 0,
   },
   {
     modelUrl: "/models/big_building.gltf",
-    densityPerRoadUnit: 0.06,
-    minCount: 6,
-    maxCount: 300,
-    minRoadDistance: 45,
-    maxRoadDistance: 65,
+    densityPerRoadUnit: 0.1,
+    minCount: 20,
+    maxCount: 600,
+    minRoadDistance: 65,
+    maxRoadDistance: 220,
     minScale: 0.95,
     maxScale: 1.35,
-    minSpacing: 40,
+    minSpacing: 55,
     alongRoadJitter: 10,
     yOffset: 0,
   },
@@ -205,7 +205,6 @@ export class EnvironmentSystem {
 
   private generationToken = 0;
   private totalRoadLength = 0;
-  private roadCumulativeLengths: number[] = [];
 
   /**
    * Create a new environment system.
@@ -243,10 +242,8 @@ export class EnvironmentSystem {
     }
 
     this.totalRoadLength = 0;
-    this.roadCumulativeLengths = [];
     for (const road of this.roads) {
       this.totalRoadLength += road.length();
-      this.roadCumulativeLengths.push(this.totalRoadLength);
     }
 
     const maxRoadDistance = Math.max(
@@ -257,8 +254,9 @@ export class EnvironmentSystem {
     this.createGround(worldBounds);
 
     const occupiedAreas: OccupiedArea[] = [];
+    const sortedAssets = [...ENVIRONMENT_ASSETS].reverse();
 
-    for (const asset of ENVIRONMENT_ASSETS) {
+    for (const asset of sortedAssets) {
       const assetCount = this.resolveAssetCount(asset, this.totalRoadLength);
       const placements = await this.generatePlacements(
         asset,
@@ -394,168 +392,94 @@ export class EnvironmentSystem {
     generationToken: number,
   ): Promise<EnvironmentPlacement[]> {
     const placements: EnvironmentPlacement[] = [];
-    let attempts = 0;
-    const maxAttempts = count * 30;
     let iterationsSinceYield = 0;
 
-    while (placements.length < count && attempts < maxAttempts) {
-      attempts += 1;
-      iterationsSinceYield += 1;
+    const spacing = asset.minSpacing;
+    const roadDistance = asset.minRoadDistance;
 
-      // Yield the thread every 50 attempts to avoid freezing the UI on large maps
-      if (iterationsSinceYield > 50) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        iterationsSinceYield = 0;
+    for (const road of this.roads) {
+      if (placements.length >= count) break;
 
-        // Cancel if token has changed during yield
-        if (generationToken !== this.generationToken) {
-          return [];
+      const dx = road.n2.x - road.n1.x;
+      const dy = road.n2.y - road.n1.y;
+      const len = Math.hypot(dx, dy);
+      if (len === 0) continue;
+
+      const dirX = dx / len;
+      const dirY = dy / len;
+      const perpX = -dirY;
+
+      // Step along the road length
+      for (let d = spacing / 2; d < len; d += spacing) {
+        if (placements.length >= count) break;
+
+        iterationsSinceYield++;
+        if (iterationsSinceYield > 50) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          iterationsSinceYield = 0;
+
+          if (generationToken !== this.generationToken) {
+            return [];
+          }
+        }
+
+        const baseX = road.n1.x + dirX * d;
+        const baseY = road.n1.y + dirY * d;
+
+        // Try both sides of the road
+        for (const side of [-1, 1]) {
+          if (placements.length >= count) break;
+
+          const alongOffset = getRandomNumberBetween(
+            -asset.alongRoadJitter,
+            asset.alongRoadJitter,
+          );
+          const distanceOffset = getRandomNumberBetween(
+            0,
+            (asset.maxRoadDistance - asset.minRoadDistance) * 0.3,
+          );
+          const actualDist = roadDistance + distanceOffset;
+
+          const pos = new Node(
+            baseX + perpX * actualDist * side + dirX * alongOffset,
+            baseY + dirX * actualDist * side + dirY * alongOffset,
+          );
+
+          if (!this.isInsideBounds(pos, bounds)) continue;
+          if (this.isOnRoad(pos)) continue;
+          if (this.getNearestRoadDistance(pos) < asset.minRoadDistance)
+            continue;
+
+          const scale = getRandomNumberBetween(asset.minScale, asset.maxScale);
+          const occupiedRadius = asset.minSpacing * scale;
+
+          const intersectsOccupied = occupiedAreas.some(
+            (occupiedArea) =>
+              distance(occupiedArea.position, pos) <
+              occupiedArea.radius + occupiedRadius,
+          );
+
+          if (intersectsOccupied) continue;
+
+          let rotationY = getRandomNumberBetween(0, Math.PI * 2);
+          if (
+            asset.modelUrl.includes("house") ||
+            asset.modelUrl.includes("building")
+          ) {
+            const roadAngle = Math.atan2(dirX, dirY);
+            rotationY = roadAngle + (side === 1 ? -Math.PI / 2 : Math.PI / 2);
+          }
+
+          placements.push({ position: pos, rotationY, scale });
+          occupiedAreas.push({
+            position: pos,
+            radius: occupiedRadius,
+          });
         }
       }
-
-      const placement = this.samplePlacementNearRoad(asset, bounds);
-      if (!placement) {
-        continue;
-      }
-
-      if (this.isOnRoad(placement.position)) {
-        continue;
-      }
-
-      const nearestRoadDistance = this.getNearestRoadDistance(
-        placement.position,
-      );
-      if (
-        nearestRoadDistance < asset.minRoadDistance ||
-        nearestRoadDistance > asset.maxRoadDistance
-      ) {
-        continue;
-      }
-
-      const occupiedRadius = asset.minSpacing * placement.scale;
-      const intersectsOccupied = occupiedAreas.some(
-        (occupiedArea) =>
-          distance(occupiedArea.position, placement.position) <
-          occupiedArea.radius + occupiedRadius,
-      );
-
-      if (intersectsOccupied) {
-        continue;
-      }
-
-      placements.push(placement);
-      occupiedAreas.push({
-        position: placement.position,
-        radius: occupiedRadius,
-      });
     }
 
     return placements;
-  }
-
-  /**
-   * Ensure road-derived sampling data is available and in sync with the current roads.
-   */
-  private ensureRoadSamplingData(): void {
-    if (
-      this.roadCumulativeLengths.length === this.roads.length &&
-      (this.roads.length === 0 ||
-        this.totalRoadLength ===
-          this.roadCumulativeLengths[this.roadCumulativeLengths.length - 1])
-    ) {
-      return;
-    }
-
-    this.roadCumulativeLengths = [];
-    this.totalRoadLength = 0;
-
-    for (const road of this.roads) {
-      const roadLength = Math.hypot(
-        road.n2.x - road.n1.x,
-        road.n2.y - road.n1.y,
-      );
-      this.totalRoadLength += roadLength;
-      this.roadCumulativeLengths.push(this.totalRoadLength);
-    }
-  }
-
-  /**
-   * Sample one candidate placement by offsetting from a random road segment.
-   */
-  private samplePlacementNearRoad(
-    asset: EnvironmentAssetConfig,
-    bounds: WorldBounds,
-  ): EnvironmentPlacement | null {
-    if (this.roads.length === 0) {
-      return null;
-    }
-
-    this.ensureRoadSamplingData();
-
-    if (this.totalRoadLength === 0) {
-      return null;
-    }
-    const randomLength = getRandomNumberBetween(0, this.totalRoadLength);
-    let roadIndex = 0;
-    for (let i = 0; i < this.roadCumulativeLengths.length; i++) {
-      if (randomLength <= this.roadCumulativeLengths[i]) {
-        roadIndex = i;
-        break;
-      }
-    }
-    const road = this.roads[roadIndex];
-    const roadDX = road.n2.x - road.n1.x;
-    const roadDY = road.n2.y - road.n1.y;
-    const roadLength = Math.hypot(roadDX, roadDY);
-
-    if (roadLength === 0) {
-      return null;
-    }
-
-    const directionX = roadDX / roadLength;
-    const directionY = roadDY / roadLength;
-    const perpendicularX = -directionY;
-    const perpendicularY = directionX;
-
-    const t = getRandomNumberBetween(0, 1);
-    const baseX = lerp(road.n1.x, road.n2.x, t);
-    const baseY = lerp(road.n1.y, road.n2.y, t);
-
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const sideDistance = getRandomNumberBetween(
-      asset.minRoadDistance,
-      asset.maxRoadDistance,
-    );
-    const alongOffset = getRandomNumberBetween(
-      -asset.alongRoadJitter,
-      asset.alongRoadJitter,
-    );
-
-    const candidate = new Node(
-      baseX + perpendicularX * sideDistance * side + directionX * alongOffset,
-      baseY + perpendicularY * sideDistance * side + directionY * alongOffset,
-    );
-
-    if (!this.isInsideBounds(candidate, bounds)) {
-      return null;
-    }
-
-    // Determine an appropriate rotation based on the road direction
-    // Models with "building" or "house" generally look better when aligned to the road
-    let rotationY = getRandomNumberBetween(0, Math.PI * 2);
-    if (
-      asset.modelUrl.includes("house") ||
-      asset.modelUrl.includes("building")
-    ) {
-      const roadAngle = Math.atan2(directionX, directionY);
-      rotationY = roadAngle + (side === 1 ? -Math.PI / 2 : Math.PI / 2);
-    }
-
-    return {
-      position: candidate,
-      rotationY,
-      scale: getRandomNumberBetween(asset.minScale, asset.maxScale),
-    };
   }
 
   /**
