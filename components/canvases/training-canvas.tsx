@@ -23,6 +23,9 @@ import {
   getNetworkOutputLabels,
 } from "@/lib/car/network-config";
 
+import { useWorldInput } from "@/components/hooks/use-world-input";
+import { Node } from "@/lib/primitives/node";
+
 /** Local storage key for saved brain */
 const BRAIN_STORAGE_KEY = "avs-peg-saved-brain";
 
@@ -53,6 +56,7 @@ export default function TrainingCanvas({
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
+  const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(() => {
     // Check for saved brain on initial render
     if (typeof window === "undefined") return false;
@@ -95,6 +99,46 @@ export default function TrainingCanvas({
   useWorldSimulation(worldRef, camera, dom);
 
   const { loadFromJson } = useWorldPersistence(worldRef);
+  const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
+
+  useEffect(() => {
+    const handlePointerDown = (evt: PointerEvent) => {
+      // Only process primary (left) clicks
+      // 0 = left, 1 = middle, 2 = right
+      if (evt.button !== 0) return;
+
+      const world = worldRef.current;
+      if (!world) return;
+
+      updatePointer(evt);
+      const intersectPoint = getIntersectPoint();
+      const pointerNode = new Node(intersectPoint.x, intersectPoint.z);
+
+      let clickedCar: Car | null = null;
+
+      // Reverse iteration so we pick top-most overlapping car if needed
+      for (let i = world.cars.length - 1; i >= 0; i--) {
+        const car = world.cars[i];
+        if (car.polygon && car.polygon.containsNode(pointerNode)) {
+          clickedCar = car;
+          break;
+        }
+      }
+
+      if (clickedCar) {
+        setSelectedCarId(clickedCar.id);
+        toast(`Selected Car ${clickedCar.id}`, "info");
+      } else {
+        // Deselect if click doesn't hit a car
+        setSelectedCarId(null);
+      }
+    };
+
+    dom.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      dom.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [dom, camera, worldRef, updatePointer, getIntersectPoint, toast]);
 
   /**
    * Track the best car and update fitness statistics.
@@ -114,12 +158,24 @@ export default function TrainingCanvas({
       setCarsReachedDestination(stats.numOfCarsReachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
-      const currentBestCar =
-        stats.bestCarId === null
+
+      const targetCarId = selectedCarId ?? stats.bestCarId;
+
+      const currentTargetCar =
+        targetCarId === null
           ? null
-          : (cars.find((car) => car.id === stats.bestCarId) ?? null);
-      setBestCar(currentBestCar);
-      setBestCarBrain(currentBestCar?.network ?? null);
+          : (cars.find((car) => car.id === targetCarId) ?? null);
+
+      setBestCar(currentTargetCar);
+      setBestCarBrain(currentTargetCar?.network ?? null);
+
+      // Deselect if car is gone
+      if (
+        selectedCarId !== null &&
+        !cars.some((car) => car.id === selectedCarId)
+      ) {
+        setSelectedCarId(null);
+      }
 
       if (stats.isGenerationComplete) {
         // May do something in future
@@ -127,7 +183,7 @@ export default function TrainingCanvas({
     }, 100);
 
     return () => clearInterval(intervalId);
-  }, [isTraining, world]);
+  }, [isTraining, world, selectedCarId]);
 
   const handleSaveBrain = useCallback(async () => {
     if (!bestCarBrain) {
@@ -148,7 +204,7 @@ export default function TrainingCanvas({
 
       localStorage.setItem(BRAIN_STORAGE_KEY, JSON.stringify(brainJson));
       setHasLoadedBrain(true);
-      toast("Best brain saved to local storage.", "success");
+      toast(`Brain saved to local storage.`, "success");
     } catch (e) {
       console.error("Could not save brain to localStorage", e);
       toast("Failed to save brain. Storage may be full.", "error");
@@ -354,6 +410,7 @@ export default function TrainingCanvas({
     world.trainingSystem.stopTraining();
     world.trainingSystem.clearProgress();
     setBestCarId(null);
+    setSelectedCarId(null);
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
@@ -385,6 +442,7 @@ export default function TrainingCanvas({
         world.trainingSystem.reset();
       }
       setBestCarId(null);
+      setSelectedCarId(null);
       setBestFitness(0);
       setGeneration(0);
       setCurrentCarCount(0);
@@ -466,7 +524,7 @@ export default function TrainingCanvas({
 
           <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
             <Button variant="outline" onClick={handleSaveBrain}>
-              Save Best Brain
+              Save Current Brain
             </Button>
             <Button variant="outline" onClick={handleExportBrain}>
               Export Brain (JSON)
@@ -488,6 +546,7 @@ export default function TrainingCanvas({
             <p>Cars: {currentCarCount}</p>
             <p>Best Fitness: {(bestFitness ?? 0).toFixed(4)}</p>
             <p>Best Car: {bestCarId ?? "—"}</p>
+            {selectedCarId !== null && <p>Selected Car: {selectedCarId}</p>}
             <p>Reached Destination: {carsReachedDestination}</p>
             <p>Brain: {hasLoadedBrain ? "Loaded ✓" : "None (random start)"}</p>
           </div>
