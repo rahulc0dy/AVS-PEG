@@ -58,7 +58,7 @@ export function useWorldPersistence(worldRef: RefObject<World | null>) {
           world.draw();
           toast("World loaded successfully.", "success");
 
-          if (onLoad) onLoad();
+          if (typeof onLoad === "function") onLoad();
         } catch (err) {
           console.error("Failed to load world JSON:", err);
           toast("Failed to load world file.", "error");

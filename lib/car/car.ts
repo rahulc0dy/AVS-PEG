@@ -1,4 +1,12 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
@@ -15,7 +23,7 @@ import {
   UpdateControlsPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 import { NeuralNetworkStateJson } from "@/types/car/state";
@@ -43,7 +51,7 @@ export class Car {
   /** Default collider opacity. */
   private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
   /** Highlight collider opacity (more visible). */
-  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
+  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.4;
 
   /** Unique identifier for this car. */
   id: number;

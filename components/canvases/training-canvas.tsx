@@ -102,10 +102,23 @@ export default function TrainingCanvas({
   const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
 
   useEffect(() => {
+    let isClicking = false;
+
     const handlePointerDown = (evt: PointerEvent) => {
+      if (evt.button !== 0) return;
+      isClicking = true;
+    };
+
+    const handlePointerMove = () => {
+      isClicking = false;
+    };
+
+    const handlePointerUp = (evt: PointerEvent) => {
       // Only process primary (left) clicks
       // 0 = left, 1 = middle, 2 = right
       if (evt.button !== 0) return;
+
+      if (!isClicking) return;
 
       const world = worldRef.current;
       if (!world) return;
@@ -135,10 +148,22 @@ export default function TrainingCanvas({
     };
 
     dom.addEventListener("pointerdown", handlePointerDown);
+    dom.addEventListener("pointermove", handlePointerMove);
+    dom.addEventListener("pointerup", handlePointerUp);
     return () => {
       dom.removeEventListener("pointerdown", handlePointerDown);
+      dom.removeEventListener("pointermove", handlePointerMove);
+      dom.removeEventListener("pointerup", handlePointerUp);
     };
   }, [dom, camera, worldRef, updatePointer, getIntersectPoint, toast]);
+
+  useEffect(() => {
+    if (!world) return;
+
+    world.cars.forEach((car) => {
+      car.setHighlighted(car.id === selectedCarId);
+    });
+  }, [world, selectedCarId, world?.cars.length]);
 
   /**
    * Track the best car and update fitness statistics.
@@ -186,8 +211,13 @@ export default function TrainingCanvas({
   }, [isTraining, world, selectedCarId]);
 
   const handleSaveBrain = useCallback(async () => {
+    if (selectedCarId === null) {
+      toast("No car selected. Please select a car to save its brain.", "error");
+      return;
+    }
+
     if (!bestCarBrain) {
-      toast("No best car brain to save. Spawn cars first.", "error");
+      toast("No brain to save for the selected car.", "error");
       return;
     }
 
@@ -209,7 +239,7 @@ export default function TrainingCanvas({
       console.error("Could not save brain to localStorage", e);
       toast("Failed to save brain. Storage may be full.", "error");
     }
-  }, [bestCarBrain, toast]);
+  }, [bestCarBrain, toast, selectedCarId]);
 
   const handleExportBrain = useCallback(async () => {
     try {
