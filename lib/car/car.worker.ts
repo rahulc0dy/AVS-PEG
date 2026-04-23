@@ -208,10 +208,10 @@ const applyAIControls = () => {
     controlsMap[NetworkConfig.outputs[i]] = outputs[i] == 1;
   }
 
-  carState.controls.forward = controlsMap["Forward"] || false;
+  carState.controls.forward = controlsMap["Accelerate"] || false;
   carState.controls.left = controlsMap["Left"] || false;
   carState.controls.right = controlsMap["Right"] || false;
-  carState.controls.reverse = controlsMap["Reverse"] || false;
+  carState.controls.reverse = controlsMap["Decelerate"] || false;
 };
 
 /** Send current state to main thread */
