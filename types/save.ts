@@ -15,7 +15,8 @@ export interface WorldJson {
   roadBorders: EdgeJson[];
   /** Road envelopes (polygons) generated from edges. */
   roads: RoadJson[];
-  paths: PathJson[];
+  /** Optional editable paths stored in older and newer world saves. */
+  paths?: PathJson[];
 }
 
 /**
@@ -92,11 +93,19 @@ export interface MarkingJson {
   modelUrl?: string;
 }
 
+/**
+ * Serialized editable path.
+ */
 export interface PathJson {
+  /** Ordered waypoint nodes that define the path. */
   waypoints: NodeJson[];
+  /** Whether the path closes into a loop. */
   isLoop: boolean;
+  /** Derived centerline edges. */
   edges: EdgeJson[];
+  /** Derived border edges. */
   borders: EdgeJson[];
+  /** Optional display color. */
   color?: string;
 }
 /**

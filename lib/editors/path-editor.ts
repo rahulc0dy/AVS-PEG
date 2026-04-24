@@ -5,11 +5,21 @@ import { Node } from "../primitives/node";
 import { getNearestNode } from "@/utils/math";
 import { createTextSprite } from "@/utils/rendering";
 
+/**
+ * Editor that lets the user assign target nodes to the currently selected path.
+ *
+ * The editor renders selectable nodes, highlights the active path's waypoints,
+ * and mutates the selected path in response to pointer input.
+ */
 export class PathEditor extends BaseEditor {
+  /** Nodes that may be chosen as waypoints for paths. */
   targetNodes: Node[];
+  /** Mutable list of editable paths owned by the surrounding world/editor state. */
   paths: Path[];
+  /** Index of the currently selected path, or `-1` when no path is selected. */
   selectedPathIdx: number;
 
+  /** Optional callback invoked after the editor mutates path state. */
   onUpdate?: () => void;
 
   private hoveredNode: Node | null = null;
@@ -17,6 +27,14 @@ export class PathEditor extends BaseEditor {
   private lastSelectedIdx: number = -1;
   private lastPathsLength: number = -1;
 
+  /**
+   * Create a path editor bound to a scene, a set of target nodes, and a path list.
+   *
+   * @param scene - Three.js scene used to render the editor overlay.
+   * @param targetNodes - Nodes that can be picked as waypoints.
+   * @param paths - Mutable path collection edited in place.
+   * @param onUpdate - Optional callback fired after path mutations.
+   */
   constructor(
     scene: Scene,
     targetNodes: Node[],
@@ -31,6 +49,11 @@ export class PathEditor extends BaseEditor {
     this.onUpdate = onUpdate;
   }
 
+  /**
+   * Redraw the editor overlay when the selected path or path count changes.
+   *
+   * @returns `true` when a redraw was performed, otherwise `false`.
+   */
   override draw(): boolean {
     // Check if external state changes require a redraw
     if (
@@ -104,8 +127,23 @@ export class PathEditor extends BaseEditor {
     return true;
   }
 
+  /**
+   * Handle a click release event.
+   *
+   * Path editing does not use click-release interactions, so this is a no-op.
+   *
+   * @param _pointer - World-space pointer position.
+   */
   override handleClickRelease(_pointer: Vector3): void {}
 
+  /**
+   * Append the hovered node to the selected path if it is not already the last waypoint.
+   *
+   * Consecutive duplicates are skipped so repeated clicks on the same hovered node do
+   * not create redundant waypoints.
+   *
+   * @param _pointer - World-space pointer position.
+   */
   override handleLeftClick(_pointer: Vector3): void {
     if (!this.hoveredNode) return;
 
@@ -122,6 +160,11 @@ export class PathEditor extends BaseEditor {
     }
   }
 
+  /**
+   * Update the hovered node by snapping the pointer to the nearest valid target node.
+   *
+   * @param pointer - World-space pointer position.
+   */
   override handlePointerMove(pointer: Vector3): void {
     const nearest = getNearestNode(
       new Node(pointer.x, pointer.z),
@@ -135,6 +178,14 @@ export class PathEditor extends BaseEditor {
     }
   }
 
+  /**
+   * Remove every occurrence of the hovered node from the selected path.
+   *
+   * This intentionally removes all matching waypoint references, not just the first
+   * one, so repeated waypoints are fully cleared from the current path.
+   *
+   * @param _pointer - World-space pointer position.
+   */
   override handleRightClick(_pointer: Vector3): void {
     if (this.selectedPathIdx >= 0 && this.selectedPathIdx < this.paths.length) {
       const currentPath = this.paths[this.selectedPathIdx];
@@ -154,6 +205,9 @@ export class PathEditor extends BaseEditor {
     }
   }
 
+  /**
+   * Reset hover state when the editor is disabled.
+   */
   override disable(): void {
     super.disable();
     this.hoveredNode = null;

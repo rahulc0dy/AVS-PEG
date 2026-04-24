@@ -24,7 +24,15 @@ export class PathFindingSystem {
     this.graph = graph;
   }
 
-  public setPaths(paths: Path[]) {
+  /**
+   * Replace the internal editable path list while preserving the backing array reference.
+   *
+   * The method clears the current contents and pushes the supplied paths into the
+   * existing array so any external references to the array remain valid.
+   *
+   * @param paths - New path collection to expose to the system.
+   */
+  public setPaths(paths: Path[]): void {
     this.paths.length = 0;
     this.paths.push(...paths);
   }
@@ -39,7 +47,7 @@ export class PathFindingSystem {
    * @param srcPos - starting position (Node-like object with coordinates)
    * @param destPos - destination position (Node-like object with coordinates)
    */
-  public findPath(srcPos: Node, destPos: Node) {
+  public findPath(srcPos: Node, destPos: Node): void {
     const edges = this.graph.getEdges();
     const startEdge = getNearestEdge(srcPos, edges);
     const endEdge = getNearestEdge(destPos, edges);
@@ -147,7 +155,13 @@ export class PathFindingSystem {
     return;
   }
 
-  public calculatePaths() {
+  /**
+   * Recompute derived edge and border geometry for every stored path.
+   *
+   * This mutates each {@link Path} in place by replacing its `edges` and `borders`
+   * arrays with freshly calculated geometry derived from the current graph.
+   */
+  public calculatePaths(): void {
     const nodes = this.graph.getNodes();
     const edges = this.graph.getEdges();
 
@@ -211,35 +225,60 @@ export class PathFindingSystem {
 
   /**
    * Return the most recently computed path (edge list).
+   *
+   * @returns The current path edge list.
    */
   public getPath(): Edge[] {
     return this.path;
   }
 
+  /**
+   * Return the editable path collection currently tracked by the system.
+   *
+   * @returns The internal path array.
+   */
   public getPaths(): Path[] {
     return this.paths;
   }
 
+  /**
+   * Return the border geometry for the most recently computed path.
+   *
+   * @returns The current path border edge list.
+   */
   public getPathBorders(): Edge[] {
     return this.pathBorders;
   }
 
   /**
    * Clears the current path.
+   *
+   * @returns Nothing.
    */
-  public reset() {
+  public reset(): void {
     this.path = [];
     this.pathBorders = [];
   }
 
-  draw(group: Group) {
+  /**
+   * Draw the latest computed path borders into a Three.js group.
+   *
+   * @param group - Group that receives the visual path geometry.
+   * @returns Nothing.
+   */
+  draw(group: Group): void {
     // Draw flat green lines using the standard Edge drawing method
     for (const edge of this.pathBorders) {
       edge.draw(group, { width: 8, color: new Color(0x00ff00) });
     }
   }
 
-  dispose() {
+  /**
+   * Dispose of any drawable resources owned by the system.
+   *
+   * @returns Nothing.
+   */
+  dispose(): void {
     // Clean up edge meshes if the Edge class holds internal geometries
     for (const edge of this.pathBorders) {
       if ("dispose" in edge && typeof edge.dispose === "function") {
@@ -250,12 +289,12 @@ export class PathFindingSystem {
     this.pathBorders = [];
   }
 
-  private setPath(path: Edge[]) {
+  private setPath(path: Edge[]): void {
     this.path = path;
     this.updatePathPolygon();
   }
 
-  private updatePathPolygon() {
+  private updatePathPolygon(): void {
     const pathEnvelopes: Envelope[] = [];
     for (const edge of this.path) {
       pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));

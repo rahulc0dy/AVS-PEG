@@ -3,13 +3,33 @@ import { Edge } from "@/lib/primitives/edge";
 import { PathJson, NodeJson, EdgeJson } from "@/types/save";
 import { Graph } from "../primitives/graph";
 
+/**
+ * Represents a user-defined route made of ordered waypoint nodes.
+ *
+ * A `Path` stores the raw waypoint list along with the derived edge and border
+ * geometry used by the path-finding overlay and serialization layer.
+ */
 export class Path {
+  /** Ordered waypoint nodes that define the path. */
   waypoints: Node[];
+  /** Whether the final waypoint connects back to the first waypoint. */
   isLoop: boolean;
+  /** Derived centerline edges generated from the waypoint sequence. */
   edges: Edge[] = [];
+  /** Derived border geometry generated from the centerline edges. */
   borders: Edge[] = [];
+  /** Display color used when rendering the path in the editor. */
   color: string;
 
+  /**
+   * Create a path from pre-existing waypoint and derived geometry arrays.
+   *
+   * @param waypoints - Ordered waypoint nodes defining the path.
+   * @param isLoop - Whether the path should connect the last waypoint back to the first.
+   * @param edges - Optional precomputed centerline edges.
+   * @param borders - Optional precomputed border edges.
+   * @param color - Optional display color. A bright random HSL color is generated when omitted.
+   */
   constructor(
     waypoints: Node[],
     isLoop: boolean,
@@ -27,6 +47,17 @@ export class Path {
       `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
   }
 
+  /**
+   * Reconstruct a path from serialized JSON.
+   *
+   * Waypoint and edge references are resolved against the provided graph when
+   * matching nodes or edges already exist there. This preserves shared object
+   * identity with the graph instead of creating duplicate Node or Edge instances.
+   *
+   * @param json - Serialized path payload.
+   * @param graph - Graph used to resolve matching nodes and edges.
+   * @returns A hydrated `Path` instance.
+   */
   static fromJson(json: PathJson, graph: Graph): Path {
     const graphNodes = graph.getNodes();
     const graphEdges = graph.getEdges();
@@ -75,6 +106,14 @@ export class Path {
     );
   }
 
+  /**
+   * Serialize this path to plain JSON data.
+   *
+   * The output contains only serializable node and edge payloads and can be
+   * persisted directly or passed back into {@link Path.fromJson}.
+   *
+   * @returns A serialized representation of this path.
+   */
   toJson(): PathJson {
     return {
       waypoints: this.waypoints.map((n) => n.toJson()),

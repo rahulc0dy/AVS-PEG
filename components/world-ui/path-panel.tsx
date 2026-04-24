@@ -1,14 +1,29 @@
 import { Path } from "@/lib/markings/path";
 import { SlideablePanel } from "@/components/ui/slideable-panel";
 import { PathEditor } from "@/lib/editors/path-editor";
-import { useEffect, useState } from "react";
+import { useEffect, useState, RefObject } from "react";
 import Checkbox from "@/components/ui/checkbox";
 
+/**
+ * Props for the PathPanel component.
+ */
 interface PathPanelProps {
+  /**
+   * Whether the panel is currently open and visible.
+   */
   isVisible: boolean;
-  editorRef: React.MutableRefObject<PathEditor | null>;
+  /**
+   * Reference to the PathEditor instance controlling the paths.
+   * PathPanel actively mutates the editor's path data and triggers updates manually.
+   */
+  editorRef: RefObject<PathEditor | null>;
 }
 
+/**
+ * PathPanel provides an interface to manage paths in the PathEditor.
+ * It allows tracking created paths, adding new ones, toggling loop status, and deleting them.
+ * State updates are forwarded to the editor to reflect in the visual simulation.
+ */
 export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
   // We use local state to mirror the path editor's state so we can re-render
   const [paths, setPaths] = useState<Path[]>([]);
@@ -35,9 +50,9 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
       defaultExpanded={true}
       panelClassName="bg-zinc-900 border-l border-white/10"
     >
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-medium text-white text-sm">Paths</h3>
+      <div className="flex h-full flex-col overflow-hidden">
+        <div className="flex items-center justify-between border-b border-white/10 p-4">
+          <h3 className="text-sm font-medium text-white">Paths</h3>
           <button
             onClick={() => {
               const editor = editorRef.current;
@@ -46,34 +61,32 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                 const newPath = new Path([], false); // Empty path
                 editor.paths.push(newPath);
                 editor.selectedPathIdx = editor.paths.length - 1;
+                editor.onUpdate?.();
                 setPaths([...editor.paths]);
                 setSelectedIdx(editor.selectedPathIdx);
               }
             }}
-            className="w-6 h-6 rounded bg-blue-500 hover:bg-blue-600 flex items-center justify-center text-white text-lg leading-none pb-0.5"
+            className="flex h-6 w-6 items-center justify-center rounded bg-blue-500 pb-0.5 text-lg leading-none text-white hover:bg-blue-600"
             title="Create new path"
           >
             +
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 space-y-1 overflow-y-auto p-2">
           {paths.length === 0 ? (
-            <div className="text-center text-xs text-zinc-500 mt-4">
+            <div className="mt-4 text-center text-xs text-zinc-500">
               No paths created yet.
             </div>
           ) : (
             paths.map((path, idx) => (
               <div
                 key={idx}
-                className={`
-                  flex items-center justify-between p-2 rounded cursor-pointer transition-colors
-                  ${
-                    idx === selectedIdx
-                      ? "bg-blue-500/20 border border-blue-500/50"
-                      : "bg-white/5 border border-transparent hover:bg-white/10"
-                  }
-                `}
+                className={`flex cursor-pointer items-center justify-between rounded p-2 transition-colors ${
+                  idx === selectedIdx
+                    ? "border border-blue-500/50 bg-blue-500/20"
+                    : "border border-transparent bg-white/5 hover:bg-white/10"
+                } `}
                 onClick={() => {
                   const editor = editorRef.current;
                   if (editor) {
@@ -84,7 +97,7 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
               >
                 <div className="flex items-center space-x-3">
                   <div
-                    className="w-4 h-4 rounded-full border border-white/20"
+                    className="h-4 w-4 rounded-full border border-white/20"
                     style={{ backgroundColor: path.color }}
                   />
                   <span className="text-sm text-zinc-300">Path {idx + 1}</span>
@@ -102,6 +115,7 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                         path.isLoop = e.target.checked;
                         const editor = editorRef.current;
                         if (editor) {
+                          editor.onUpdate?.();
                           setPaths([...editor.paths]);
                         }
                       }}
@@ -117,17 +131,21 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                       if (editor) {
                         // Placeholder core logic call: e.g. editor.removePath(idx)
                         editor.paths.splice(idx, 1);
+                        if (idx < editor.selectedPathIdx) {
+                          editor.selectedPathIdx--;
+                        }
                         if (editor.selectedPathIdx >= editor.paths.length) {
                           editor.selectedPathIdx = Math.max(
                             -1,
                             editor.paths.length - 1,
                           );
                         }
+                        editor.onUpdate?.();
                         setPaths([...editor.paths]);
                         setSelectedIdx(editor.selectedPathIdx);
                       }
                     }}
-                    className="w-6 h-6 rounded hover:bg-red-500/20 flex items-center justify-center text-zinc-400 hover:text-red-400"
+                    className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-red-500/20 hover:text-red-400"
                     title="Delete path"
                   >
                     ×
