@@ -320,7 +320,7 @@ export function ModeControls({
             mode="path"
             activeMode={activeMode}
             onClick={() => setMode("path")}
-            icon="/icons/path.png"
+            icon="/icons/route.png"
             alt="Path Editor"
           />
         </div>

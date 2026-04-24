@@ -1,6 +1,6 @@
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
-import { PathJson, NodeJson, EdgeJson } from "@/types/save";
+import { EdgeJson, NodeJson, PathJson } from "@/types/save";
 import { Graph } from "@/lib/primitives/graph";
 
 /**
@@ -42,9 +42,7 @@ export class Path {
     this.edges = edges;
     this.borders = borders;
     // Generate a prominent, bright color shifting only the hue
-    this.color =
-      color ||
-      `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+    this.color = color || `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
   }
 
   /**
@@ -74,7 +72,8 @@ export class Path {
       if (graphEdges) {
         const match = graphEdges.find(
           (ge) =>
-            (ge.n1.x === e.n1.x &&
+            (ge.isDirected === e.isDirected &&
+              ge.n1.x === e.n1.x &&
               ge.n1.y === e.n1.y &&
               ge.n2.x === e.n2.x &&
               ge.n2.y === e.n2.y) ||
