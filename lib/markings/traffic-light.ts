@@ -1,5 +1,5 @@
 import { Group, PointLight, PointLightHelper } from "three";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { TrafficLightJson } from "@/types/save";
 import { Marking } from "./marking";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";

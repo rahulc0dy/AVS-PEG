@@ -10,7 +10,7 @@ import {
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
 import {

@@ -1,7 +1,7 @@
 import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
 import { PathJson, NodeJson, EdgeJson } from "@/types/save";
-import { Graph } from "../primitives/graph";
+import { Graph } from "@/lib/primitives/graph";
 
 /**
  * Represents a user-defined route made of ordered waypoint nodes.

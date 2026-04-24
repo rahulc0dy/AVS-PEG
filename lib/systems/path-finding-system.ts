@@ -6,7 +6,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Envelope } from "@/lib/primitives/envelope";
 import { ROAD_WIDTH } from "@/env";
 import { Color, Group } from "three";
-import { Path } from "../markings/path";
+import { Path } from "@/lib/markings/path";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.

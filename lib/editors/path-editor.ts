@@ -1,7 +1,7 @@
 import { BaseEditor } from "@/lib/editors/base-editor";
 import { Color, Scene, Vector3 } from "three";
 import { Path } from "@/lib/markings/path";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
 import { createTextSprite } from "@/utils/rendering";
 
