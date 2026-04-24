@@ -31,6 +31,20 @@ const isDisposable = (value: unknown): value is Disposable => {
   return "dispose" in value && typeof value.dispose === "function";
 };
 
+/**
+ * Create a billboarded text label rendered via an offscreen canvas texture.
+ *
+ * Text is drawn in bold `sans-serif` on a semi-transparent pill background.
+ * The returned sprite has `depthTest`/`depthWrite` disabled and a high
+ * `renderOrder` so it draws on top of scene geometry. Dispose with
+ * {`@link` disposeTextSprite} to free the underlying `CanvasTexture` and
+ * `SpriteMaterial`.
+ *
+ * `@param` text - Label text to render.
+ * `@param` color - CSS color for the text fill. Defaults to `"#ffffff"`.
+ * `@returns` A configured `Sprite`, or an empty `Sprite` when a 2D context
+ *          cannot be obtained.
+ */
 export function createTextSprite(
   text: string,
   color: string = "#ffffff",
