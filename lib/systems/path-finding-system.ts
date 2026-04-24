@@ -6,6 +6,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Envelope } from "@/lib/primitives/envelope";
 import { ROAD_WIDTH } from "@/env";
 import { Color, Group } from "three";
+import { Path } from "@/lib/markings/path";
 
 /**
  * Finds the shortest sequence of Edge objects connecting two positions on a Graph.
@@ -17,8 +18,23 @@ export class PathFindingSystem {
   private path: Edge[] = [];
   private pathBorders: Edge[] = [];
 
+  private paths: Path[] = [];
+
   constructor(graph: Graph) {
     this.graph = graph;
+  }
+
+  /**
+   * Replace the internal editable path list while preserving the backing array reference.
+   *
+   * The method clears the current contents and pushes the supplied paths into the
+   * existing array so any external references to the array remain valid.
+   *
+   * @param paths - New path collection to expose to the system.
+   */
+  public setPaths(paths: Path[]): void {
+    this.paths.length = 0;
+    this.paths.push(...paths);
   }
 
   /**
@@ -31,7 +47,7 @@ export class PathFindingSystem {
    * @param srcPos - starting position (Node-like object with coordinates)
    * @param destPos - destination position (Node-like object with coordinates)
    */
-  public findPath(srcPos: Node, destPos: Node) {
+  public findPath(srcPos: Node, destPos: Node): void {
     const edges = this.graph.getEdges();
     const startEdge = getNearestEdge(srcPos, edges);
     const endEdge = getNearestEdge(destPos, edges);
@@ -140,32 +156,129 @@ export class PathFindingSystem {
   }
 
   /**
+   * Recompute derived edge and border geometry for every stored path.
+   *
+   * This mutates each {@link Path} in place by replacing its `edges` and `borders`
+   * arrays with freshly calculated geometry derived from the current graph.
+   */
+  public calculatePaths(): void {
+    const nodes = this.graph.getNodes();
+    const edges = this.graph.getEdges();
+
+    if (nodes.length === 0 || edges.length === 0) return;
+
+    const adjacency = this.buildAdjacency(nodes, edges);
+
+    this.paths.forEach((path) => {
+      path.edges = [];
+      path.borders = [];
+      const waypoints = path.waypoints;
+
+      if (waypoints.length < 2) return;
+
+      const allEdges: Edge[] = [];
+
+      for (let i = 0; i < waypoints.length; i++) {
+        if (i === waypoints.length - 1 && !path.isLoop) break;
+
+        const startNode = waypoints[i];
+        const endNode = waypoints[(i + 1) % waypoints.length];
+
+        if (startNode.equals(endNode)) continue;
+
+        const { dist, prevEdge, prevNode } = this.runDijkstra(
+          adjacency,
+          nodes,
+          startNode,
+          endNode,
+        );
+
+        if ((dist.get(endNode) ?? Infinity) === Infinity) continue;
+
+        const localEdges: Edge[] = [];
+        let cursor: Node | null = endNode;
+        while (cursor && !cursor.equals(startNode)) {
+          const e: Edge | null = prevEdge.get(cursor as Node) ?? null;
+          const p: Node | null = prevNode.get(cursor as Node) ?? null;
+          if (!e || !p) break;
+
+          const orientedEdge = new Edge(p, cursor, e.isDirected);
+          localEdges.unshift(orientedEdge);
+          cursor = p;
+        }
+
+        allEdges.push(...localEdges);
+      }
+
+      path.edges = allEdges;
+
+      const pathEnvelopes: Envelope[] = [];
+      for (const edge of path.edges) {
+        pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));
+      }
+
+      path.borders = Polygon.union(
+        pathEnvelopes.map((envelope) => envelope.poly),
+      );
+    });
+  }
+
+  /**
    * Return the most recently computed path (edge list).
+   *
+   * @returns The current path edge list.
    */
   public getPath(): Edge[] {
     return this.path;
   }
 
+  /**
+   * Return the editable path collection currently tracked by the system.
+   *
+   * @returns The internal path array.
+   */
+  public getPaths(): Path[] {
+    return this.paths;
+  }
+
+  /**
+   * Return the border geometry for the most recently computed path.
+   *
+   * @returns The current path border edge list.
+   */
   public getPathBorders(): Edge[] {
     return this.pathBorders;
   }
 
   /**
    * Clears the current path.
+   *
+   * @returns Nothing.
    */
-  public reset() {
+  public reset(): void {
     this.path = [];
     this.pathBorders = [];
   }
 
-  draw(group: Group) {
+  /**
+   * Draw the latest computed path borders into a Three.js group.
+   *
+   * @param group - Group that receives the visual path geometry.
+   * @returns Nothing.
+   */
+  draw(group: Group): void {
     // Draw flat green lines using the standard Edge drawing method
     for (const edge of this.pathBorders) {
       edge.draw(group, { width: 8, color: new Color(0x00ff00) });
     }
   }
 
-  dispose() {
+  /**
+   * Dispose of any drawable resources owned by the system.
+   *
+   * @returns Nothing.
+   */
+  dispose(): void {
     // Clean up edge meshes if the Edge class holds internal geometries
     for (const edge of this.pathBorders) {
       if ("dispose" in edge && typeof edge.dispose === "function") {
@@ -176,12 +289,12 @@ export class PathFindingSystem {
     this.pathBorders = [];
   }
 
-  private setPath(path: Edge[]) {
+  private setPath(path: Edge[]): void {
     this.path = path;
     this.updatePathPolygon();
   }
 
-  private updatePathPolygon() {
+  private updatePathPolygon(): void {
     const pathEnvelopes: Envelope[] = [];
     for (const edge of this.path) {
       pathEnvelopes.push(new Envelope(edge, ROAD_WIDTH, 8));

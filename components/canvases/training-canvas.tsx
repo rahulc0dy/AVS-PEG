@@ -23,6 +23,9 @@ import {
   getNetworkOutputLabels,
 } from "@/lib/car/network-config";
 
+import { useWorldInput } from "@/components/hooks/use-world-input";
+import { Node } from "@/lib/primitives/node";
+
 /** Local storage key for saved brain */
 const BRAIN_STORAGE_KEY = "avs-peg-saved-brain";
 
@@ -44,14 +47,16 @@ export default function TrainingCanvas({
   dom,
 }: TrainingCanvasProps) {
   const [carCount, setCarCount] = useState(10);
-  const [mutationAmount, setMutationAmount] = useState(0.1);
+  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(true);
+  const [spawnOnePerPath, setSpawnOnePerPath] = useState(false);
+  const [mutationAmount, setMutationAmount] = useState(0.0);
   const [isTraining, setIsTraining] = useState(false);
   const [currentCarCount, setCurrentCarCount] = useState(0);
-  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(false);
   const [generation, setGeneration] = useState(1);
   const [bestFitness, setBestFitness] = useState(0);
   const [carsReachedDestination, setCarsReachedDestination] = useState(0);
   const [bestCarId, setBestCarId] = useState<string | null>(null);
+  const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(() => {
     // Check for saved brain on initial render
     if (typeof window === "undefined") return false;
@@ -94,6 +99,71 @@ export default function TrainingCanvas({
   useWorldSimulation(worldRef, camera, dom);
 
   const { loadFromJson } = useWorldPersistence(worldRef);
+  const { updatePointer, getIntersectPoint } = useWorldInput(camera, dom);
+
+  useEffect(() => {
+    let isClicking = false;
+
+    const handlePointerDown = (evt: PointerEvent) => {
+      if (evt.button !== 0) return;
+      isClicking = true;
+    };
+
+    const handlePointerMove = () => {
+      isClicking = false;
+    };
+
+    const handlePointerUp = (evt: PointerEvent) => {
+      // Only process primary (left) clicks
+      // 0 = left, 1 = middle, 2 = right
+      if (evt.button !== 0) return;
+
+      if (!isClicking) return;
+
+      const world = worldRef.current;
+      if (!world) return;
+
+      updatePointer(evt);
+      const intersectPoint = getIntersectPoint();
+      const pointerNode = new Node(intersectPoint.x, intersectPoint.z);
+
+      let clickedCar: Car | null = null;
+
+      // Reverse iteration so we pick top-most overlapping car if needed
+      for (let i = world.cars.length - 1; i >= 0; i--) {
+        const car = world.cars[i];
+        if (car.polygon && car.polygon.containsNode(pointerNode)) {
+          clickedCar = car;
+          break;
+        }
+      }
+
+      if (clickedCar) {
+        setSelectedCarId(clickedCar.id);
+        toast(`Selected Car ${clickedCar.id}`, "info");
+      } else {
+        // Deselect if click doesn't hit a car
+        setSelectedCarId(null);
+      }
+    };
+
+    dom.addEventListener("pointerdown", handlePointerDown);
+    dom.addEventListener("pointermove", handlePointerMove);
+    dom.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      dom.removeEventListener("pointerdown", handlePointerDown);
+      dom.removeEventListener("pointermove", handlePointerMove);
+      dom.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dom, camera, worldRef, updatePointer, getIntersectPoint, toast]);
+
+  useEffect(() => {
+    if (!world) return;
+
+    world.cars.forEach((car) => {
+      car.setHighlighted(car.id === selectedCarId);
+    });
+  }, [world, selectedCarId, world?.cars.length]);
 
   /**
    * Track the best car and update fitness statistics.
@@ -113,12 +183,24 @@ export default function TrainingCanvas({
       setCarsReachedDestination(stats.numOfCarsReachedDestination);
       setBestFitness(stats.bestFitness);
       setBestCarId(stats.bestCarId?.toString() ?? null);
-      const currentBestCar =
-        stats.bestCarId === null
+
+      const targetCarId = selectedCarId ?? stats.bestCarId;
+
+      const currentTargetCar =
+        targetCarId === null
           ? null
-          : (cars.find((car) => car.id === stats.bestCarId) ?? null);
-      setBestCar(currentBestCar);
-      setBestCarBrain(currentBestCar?.network ?? null);
+          : (cars.find((car) => car.id === targetCarId) ?? null);
+
+      setBestCar(currentTargetCar);
+      setBestCarBrain(currentTargetCar?.network ?? null);
+
+      // Deselect if car is gone
+      if (
+        selectedCarId !== null &&
+        !cars.some((car) => car.id === selectedCarId)
+      ) {
+        setSelectedCarId(null);
+      }
 
       if (stats.isGenerationComplete) {
         // May do something in future
@@ -126,11 +208,16 @@ export default function TrainingCanvas({
     }, 100);
 
     return () => clearInterval(intervalId);
-  }, [isTraining, world]);
+  }, [isTraining, world, selectedCarId]);
 
   const handleSaveBrain = useCallback(async () => {
+    if (selectedCarId === null) {
+      toast("No car selected. Please select a car to save its brain.", "error");
+      return;
+    }
+
     if (!bestCarBrain) {
-      toast("No best car brain to save. Spawn cars first.", "error");
+      toast("No brain to save for the selected car.", "error");
       return;
     }
 
@@ -147,12 +234,12 @@ export default function TrainingCanvas({
 
       localStorage.setItem(BRAIN_STORAGE_KEY, JSON.stringify(brainJson));
       setHasLoadedBrain(true);
-      toast("Best brain saved to local storage.", "success");
+      toast(`Brain saved to local storage.`, "success");
     } catch (e) {
       console.error("Could not save brain to localStorage", e);
       toast("Failed to save brain. Storage may be full.", "error");
     }
-  }, [bestCarBrain, toast]);
+  }, [bestCarBrain, toast, selectedCarId]);
 
   const handleExportBrain = useCallback(async () => {
     try {
@@ -275,7 +362,20 @@ export default function TrainingCanvas({
       console.warn("Could not load saved brain for spawning", e);
     }
 
-    if (stackSpawnAtSource) {
+    if (spawnOnePerPath) {
+      const paths = world.pathFindingSystem.getPaths();
+      if (paths.length === 0) {
+        toast("No valid paths found.", "error");
+        return;
+      }
+
+      world.spawnerSystem.spawnCarsAtPaths(
+        paths,
+        ControlType.AI,
+        baseBrain,
+        mutationAmount,
+      );
+    } else if (stackSpawnAtSource) {
       const source = world.markings.find((m) => m.type === "source");
       const sourcePos = source ? source.position : undefined;
 
@@ -323,7 +423,14 @@ export default function TrainingCanvas({
     setCurrentCarCount(spawnedCount);
     setIsTraining(true);
     setCarsReachedDestination(0);
-  }, [worldRef, carCount, stackSpawnAtSource, mutationAmount, toast]);
+  }, [
+    worldRef,
+    carCount,
+    stackSpawnAtSource,
+    spawnOnePerPath,
+    mutationAmount,
+    toast,
+  ]);
 
   const handleClearCars = useCallback(() => {
     const world = worldRef.current;
@@ -333,6 +440,7 @@ export default function TrainingCanvas({
     world.trainingSystem.stopTraining();
     world.trainingSystem.clearProgress();
     setBestCarId(null);
+    setSelectedCarId(null);
     setCurrentCarCount(0);
     setIsTraining(false);
     setCarsReachedDestination(0);
@@ -364,6 +472,7 @@ export default function TrainingCanvas({
         world.trainingSystem.reset();
       }
       setBestCarId(null);
+      setSelectedCarId(null);
       setBestFitness(0);
       setGeneration(0);
       setCurrentCarCount(0);
@@ -389,8 +498,9 @@ export default function TrainingCanvas({
               min={1}
               max={500}
               value={carCount}
+              disabled={spawnOnePerPath}
               onChange={(e) => setCarCount(Number(e.target.value))}
-              className="w-20 h-8 border-zinc-700 bg-zinc-800 text-zinc-50 text-center"
+              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50 disabled:opacity-50"
             />
           </div>
 
@@ -406,7 +516,7 @@ export default function TrainingCanvas({
               step={0.05}
               value={mutationAmount}
               onChange={(e) => setMutationAmount(Number(e.target.value))}
-              className="w-20 h-8 border-zinc-700 bg-zinc-800 text-zinc-50 text-center"
+              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50"
             />
           </div>
 
@@ -422,18 +532,29 @@ export default function TrainingCanvas({
             </Button>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-zinc-400">Stack spawn at Source</Label>
-            <Checkbox
-              checked={stackSpawnAtSource}
-              onChange={(e) => setStackSpawnAtSource(e.target.checked)}
-              aria-label="Stack spawn cars at source"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-zinc-400">Stack spawn at Source</Label>
+              <Checkbox
+                checked={stackSpawnAtSource}
+                disabled={spawnOnePerPath}
+                onChange={(e) => setStackSpawnAtSource(e.target.checked)}
+                aria-label="Stack spawn cars at source"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-zinc-400">Spawn one car per path</Label>
+              <Checkbox
+                checked={spawnOnePerPath}
+                onChange={(e) => setSpawnOnePerPath(e.target.checked)}
+                aria-label="Spawn one car per path"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
             <Button variant="outline" onClick={handleSaveBrain}>
-              Save Best Brain
+              Save Current Brain
             </Button>
             <Button variant="outline" onClick={handleExportBrain}>
               Export Brain (JSON)
@@ -449,12 +570,13 @@ export default function TrainingCanvas({
             </Button>
           </div>
 
-          <div className="text-sm text-zinc-400 border-t border-zinc-700 pt-3 space-y-1">
+          <div className="space-y-1 border-t border-zinc-700 pt-3 text-sm text-zinc-400">
             <p>Status: {isTraining ? "Training..." : "Ready"}</p>
             <p>Generation: {generation}</p>
             <p>Cars: {currentCarCount}</p>
             <p>Best Fitness: {(bestFitness ?? 0).toFixed(4)}</p>
             <p>Best Car: {bestCarId ?? "—"}</p>
+            {selectedCarId !== null && <p>Selected Car: {selectedCarId}</p>}
             <p>Reached Destination: {carsReachedDestination}</p>
             <p>Brain: {hasLoadedBrain ? "Loaded ✓" : "None (random start)"}</p>
           </div>

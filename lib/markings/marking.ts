@@ -1,5 +1,5 @@
 import { MarkingType } from "@/types/marking";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { Group, Material, Mesh, Object3D } from "three";
 import { MarkingJson } from "@/types/save";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";

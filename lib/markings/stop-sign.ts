@@ -1,6 +1,6 @@
 import { Group } from "three";
-import { Node } from "../primitives/node";
-import { Marking } from "./marking";
+import { Node } from "@/lib/primitives/node";
+import { Marking } from "@/lib/markings/marking";
 
 /**
  * Stop sign road marking.

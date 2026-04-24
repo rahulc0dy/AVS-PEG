@@ -7,6 +7,7 @@ import { Node } from "@/lib/primitives/node";
 import { angle, average, clamp } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
+import { Path } from "@/lib/markings/path";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -134,6 +135,58 @@ export class SpawnerSystem {
       baseBrain,
       mutationAmount,
     );
+  }
+
+  /**
+   * Spawn a car for each path at its first (index 0) waypoint.
+   *
+   * @param paths - Array of paths to spawn cars on
+   * @param controlType - Control type for all spawned cars
+   * @param baseBrain - Optional base brain to use (with mutation) instead of random
+   * @param mutationAmount - Amount of mutation to apply (0 = no change, 1 = fully random)
+   */
+  spawnCarsAtPaths(
+    paths: Path[],
+    controlType: ControlType,
+    baseBrain?: NeuralNetworkJson,
+    mutationAmount: number = 0.1,
+  ): void {
+    if (paths.length === 0) return;
+
+    for (const path of paths) {
+      if (path.waypoints.length === 0 || path.edges.length === 0) continue;
+
+      const firstWaypoint = path.waypoints[0];
+      const firstEdge = path.edges[0];
+      const dir = firstEdge.directionVector();
+
+      const offset = this.length + 20;
+      const spawnNode = new Node(
+        firstWaypoint.x + dir.x * offset,
+        firstWaypoint.y + dir.y * offset,
+      );
+
+      const car = new Car(
+        this.cars.length,
+        spawnNode,
+        this.breadth,
+        this.length,
+        this.height,
+        controlType,
+        this.worldGroup,
+        angle(dir),
+        false,
+      );
+
+      car.pathBorders = [...path.borders];
+
+      if (baseBrain) {
+        const mutatedBrain = this.createMutatedBrain(baseBrain, mutationAmount);
+        car.setBrain(mutatedBrain);
+      }
+
+      this.cars.push(car);
+    }
   }
 
   /**

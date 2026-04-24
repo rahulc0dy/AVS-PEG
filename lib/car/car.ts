@@ -1,8 +1,16 @@
-import { BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D } from "three";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
 import { Sensor } from "@/lib/car/sensor";
 import { Controls, ControlType } from "@/lib/car/controls";
 import { Polygon } from "@/lib/primitives/polygon";
-import { Node } from "../primitives/node";
+import { Node } from "@/lib/primitives/node";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
 import {
@@ -15,7 +23,7 @@ import {
   UpdateControlsPayload,
   UpdateWeightPayload,
   WorkerInboundMessageType,
-  WorkerOutboundMessageType
+  WorkerOutboundMessageType,
 } from "@/types/car/message";
 import { ControlInputs } from "@/types/car/shared";
 import { NeuralNetworkStateJson } from "@/types/car/state";
@@ -43,7 +51,7 @@ export class Car {
   /** Default collider opacity. */
   private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
   /** Highlight collider opacity (more visible). */
-  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.6;
+  private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.4;
 
   /** Unique identifier for this car. */
   id: number;
@@ -77,6 +85,8 @@ export class Car {
   ignoreCarDamage: boolean = false;
   /** Latest neural network state snapshot received from the worker (or `null` if unavailable). */
   network: NeuralNetworkStateJson | null = null;
+  /** Path borders specific to this car's path, if any. Used to constrain the car. */
+  pathBorders: Edge[] | null = null;
   /** Web Worker handling physics, collisions, and neural network updates for this car. */
   private worker: Worker | null = null;
 
@@ -173,12 +183,19 @@ export class Car {
       });
 
       // Send collision data to worker
+      const effectivePathBorders =
+        this.pathBorders && this.pathBorders.length > 0
+          ? this.pathBorders
+          : pathBorders;
+
       this.worker?.postMessage({
         type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
         payload: {
           id: this.id,
           traffic: traffic.map((car) => car.polygon?.toJson()),
-          pathBorders: pathBorders.map((pathBorder) => pathBorder.toJson()),
+          pathBorders: effectivePathBorders.map((pathBorder) =>
+            pathBorder.toJson(),
+          ),
           markingWalls,
         } as UpdateCollisionDataPayload,
       });

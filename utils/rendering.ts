@@ -1,10 +1,13 @@
 import {
   AmbientLight,
+  CanvasTexture,
   DirectionalLight,
   Material,
   MathUtils,
   PerspectiveCamera,
   Scene,
+  Sprite,
+  SpriteMaterial,
   Texture,
   Vector3,
   WebGLRenderer,
@@ -27,6 +30,97 @@ const isDisposable = (value: unknown): value is Disposable => {
   if (typeof value !== "object" || value === null) return false;
   return "dispose" in value && typeof value.dispose === "function";
 };
+
+/**
+ * Create a billboarded text label rendered via an offscreen canvas texture.
+ *
+ * Text is drawn in bold `sans-serif` on a semi-transparent pill background.
+ * The returned sprite has `depthTest`/`depthWrite` disabled and a high
+ * `renderOrder` so it draws on top of scene geometry. Dispose with
+ * {@link disposeTextSprite} to free the underlying `CanvasTexture` and
+ * `SpriteMaterial`.
+ *
+ * @param text - Label text to render.
+ * @param color - CSS color for the text fill. Defaults to `"#ffffff"`.
+ * @returns A configured `Sprite`, or an empty `Sprite` when a 2D context
+ *          cannot be obtained.
+ */
+export function createTextSprite(
+  text: string,
+  color: string = "#ffffff",
+): Sprite {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return new Sprite();
+
+  // Set initial font to precisely measure text width
+  const fontSize = 80;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+
+  const textWidth = ctx.measureText(text).width;
+  ctx.canvas.width = Math.max(128, textWidth + 60);
+  ctx.canvas.height = 128;
+
+  // Draw background circle or pill
+  ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+  ctx.beginPath();
+  const radius = ctx.canvas.height / 2;
+  ctx.arc(radius, radius, radius, Math.PI / 2, (Math.PI * 3) / 2);
+  ctx.arc(
+    ctx.canvas.width - radius,
+    radius,
+    radius,
+    (Math.PI * 3) / 2,
+    Math.PI / 2,
+  );
+  ctx.closePath();
+  ctx.fill();
+
+  // Render text at center
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = color;
+  ctx.fillText(text, ctx.canvas.width / 2, ctx.canvas.height / 2 + 5);
+
+  const texture = new CanvasTexture(canvas);
+  texture.needsUpdate = true;
+
+  const spriteMaterial = new SpriteMaterial({
+    map: texture,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new Sprite(spriteMaterial);
+
+  // Set the sprite's size and center
+  const scaleRatio = 12; // Adjustment to convert canvas size to Three.js units appropriately
+  sprite.scale.set(
+    ctx.canvas.width / scaleRatio,
+    ctx.canvas.height / scaleRatio,
+    1,
+  );
+  sprite.renderOrder = 999;
+
+  return sprite;
+}
+
+/**
+ * Dispose GPU resources allocated by {@link createTextSprite}.
+ *
+ * @param sprite - Sprite created for text rendering.
+ */
+export function disposeTextSprite(sprite: Sprite): void {
+  const material = sprite.material;
+  const materials = Array.isArray(material) ? material : [material];
+
+  for (const currentMaterial of materials) {
+    if (!(currentMaterial instanceof SpriteMaterial)) continue;
+    currentMaterial.map?.dispose();
+    currentMaterial.dispose();
+  }
+}
 
 /**
  * Dispose textures assigned to shader uniforms when present.

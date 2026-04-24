@@ -1,4 +1,5 @@
 import { GraphEditor } from "@/lib/editors/graph-editor";
+import { PathEditor } from "@/lib/editors/path-editor";
 import { SourceDestinationEditor } from "@/lib/editors/source-destination-editor";
 import { StopSignEditor } from "@/lib/editors/stop-sign-editor";
 import { TrafficLightEditor } from "@/lib/editors/traffic-light-editor";
@@ -34,6 +35,7 @@ export function useWorldAnimation(
   trafficLightEditorRef: RefObject<TrafficLightEditor | null>,
   sourceDestinationEditorRef: RefObject<SourceDestinationEditor | null>,
   stopSignEditorRef: RefObject<StopSignEditor | null>,
+  pathEditorRef: RefObject<PathEditor | null>,
   worldRef: RefObject<World | null>,
 ) {
   // Ref to store the active requestAnimationFrame id so we can cancel it on cleanup.
@@ -65,6 +67,7 @@ export function useWorldAnimation(
       const tlEditor = trafficLightEditorRef.current;
       const sdEditor = sourceDestinationEditorRef.current;
       const ssEditor = stopSignEditorRef.current;
+      const pathEditor = pathEditorRef.current;
       const world = worldRef.current;
       const graph = world?.graph;
 
@@ -74,7 +77,8 @@ export function useWorldAnimation(
         (gEditor?.draw() ?? false) ||
         (tlEditor?.draw() ?? false) ||
         (sdEditor?.draw() ?? false) ||
-        (ssEditor?.draw() ?? false);
+        (ssEditor?.draw() ?? false) ||
+        (pathEditor?.draw() ?? false);
 
       // If required runtime objects are missing, skip this frame's logic.
       if (!world || !graph) {
@@ -107,6 +111,11 @@ export function useWorldAnimation(
           ssEditor.targetEdges = world.roadBorders;
         }
 
+        // Update path editor with any new target nodes from the world.
+        if (pathEditor) {
+          pathEditor.targetNodes = world.graph.getNodes();
+        }
+
         return;
       }
 
@@ -136,6 +145,7 @@ export function useWorldAnimation(
     trafficLightEditorRef,
     sourceDestinationEditorRef,
     stopSignEditorRef,
+    pathEditorRef,
     worldRef,
   ]);
 }
