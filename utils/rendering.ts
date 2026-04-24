@@ -1,16 +1,16 @@
 import {
   AmbientLight,
+  CanvasTexture,
   DirectionalLight,
   Material,
   MathUtils,
   PerspectiveCamera,
   Scene,
+  Sprite,
+  SpriteMaterial,
   Texture,
   Vector3,
   WebGLRenderer,
-  CanvasTexture,
-  SpriteMaterial,
-  Sprite,
 } from "three";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
 import { ORBIT_CAM_FAR, ORBIT_CAM_FOV, ORBIT_CAM_NEAR } from "@/env";
@@ -37,12 +37,12 @@ const isDisposable = (value: unknown): value is Disposable => {
  * Text is drawn in bold `sans-serif` on a semi-transparent pill background.
  * The returned sprite has `depthTest`/`depthWrite` disabled and a high
  * `renderOrder` so it draws on top of scene geometry. Dispose with
- * {`@link` disposeTextSprite} to free the underlying `CanvasTexture` and
+ * {@link disposeTextSprite} to free the underlying `CanvasTexture` and
  * `SpriteMaterial`.
  *
- * `@param` text - Label text to render.
- * `@param` color - CSS color for the text fill. Defaults to `"#ffffff"`.
- * `@returns` A configured `Sprite`, or an empty `Sprite` when a 2D context
+ * @param text - Label text to render.
+ * @param color - CSS color for the text fill. Defaults to `"#ffffff"`.
+ * @returns A configured `Sprite`, or an empty `Sprite` when a 2D context
  *          cannot be obtained.
  */
 export function createTextSprite(
