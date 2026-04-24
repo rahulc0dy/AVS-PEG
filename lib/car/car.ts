@@ -183,12 +183,17 @@ export class Car {
       });
 
       // Send collision data to worker
+      const effectivePathBorders =
+        this.pathBorders && this.pathBorders.length > 0
+          ? this.pathBorders
+          : pathBorders;
+
       this.worker?.postMessage({
         type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
         payload: {
           id: this.id,
           traffic: traffic.map((car) => car.polygon?.toJson()),
-          pathBorders: (this.pathBorders ?? pathBorders).map((pathBorder) =>
+          pathBorders: effectivePathBorders.map((pathBorder) =>
             pathBorder.toJson(),
           ),
           markingWalls,

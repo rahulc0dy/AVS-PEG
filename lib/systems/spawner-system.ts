@@ -178,7 +178,7 @@ export class SpawnerSystem {
         false,
       );
 
-      car.pathBorders = path.borders;
+      car.pathBorders = [...path.borders];
 
       if (baseBrain) {
         const mutatedBrain = this.createMutatedBrain(baseBrain, mutationAmount);

@@ -93,6 +93,22 @@ export function createTextSprite(
 }
 
 /**
+ * Dispose GPU resources allocated by {@link createTextSprite}.
+ *
+ * @param sprite - Sprite created for text rendering.
+ */
+export function disposeTextSprite(sprite: Sprite): void {
+  const material = sprite.material;
+  const materials = Array.isArray(material) ? material : [material];
+
+  for (const currentMaterial of materials) {
+    if (!(currentMaterial instanceof SpriteMaterial)) continue;
+    currentMaterial.map?.dispose();
+    currentMaterial.dispose();
+  }
+}
+
+/**
  * Dispose textures assigned to shader uniforms when present.
  *
  * @param material - Material to inspect for custom uniforms.

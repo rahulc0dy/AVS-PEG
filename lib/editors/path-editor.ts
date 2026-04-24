@@ -1,9 +1,9 @@
 import { BaseEditor } from "@/lib/editors/base-editor";
-import { Color, Scene, Vector3 } from "three";
+import { Color, Scene, Sprite, Vector3 } from "three";
 import { Path } from "@/lib/markings/path";
 import { Node } from "@/lib/primitives/node";
 import { getNearestNode } from "@/utils/math";
-import { createTextSprite } from "@/utils/rendering";
+import { createTextSprite, disposeTextSprite } from "@/utils/rendering";
 
 /**
  * Editor that lets the user assign target nodes to the currently selected path.
@@ -67,6 +67,7 @@ export class PathEditor extends BaseEditor {
 
     if (!this.needsRedraw) return false;
 
+    this.disposeWaypointLabelSprites();
     this.editorGroup.clear();
 
     const currentPath =
@@ -122,9 +123,17 @@ export class PathEditor extends BaseEditor {
       }
     }
 
-    this.scene.add(this.editorGroup);
     this.needsRedraw = false;
     return true;
+  }
+
+  /**
+   * Dispose this editor and any sprite label GPU resources it owns.
+   */
+  override dispose(): void {
+    this.disposeWaypointLabelSprites();
+    this.editorGroup.clear();
+    super.dispose();
   }
 
   /**
@@ -212,5 +221,18 @@ export class PathEditor extends BaseEditor {
     super.disable();
     this.hoveredNode = null;
     this.needsRedraw = true;
+  }
+
+  /**
+   * Dispose sprite label materials/textures currently attached to the editor group.
+   *
+   * `Group.clear()` only detaches children; it does not release GPU resources.
+   */
+  private disposeWaypointLabelSprites(): void {
+    for (const child of this.editorGroup.children) {
+      if (!(child instanceof Sprite)) continue;
+
+      disposeTextSprite(child);
+    }
   }
 }
