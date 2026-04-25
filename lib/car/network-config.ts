@@ -11,10 +11,10 @@ export const NetworkConfig = {
 export function getNetworkInputLabels(rayCount: number): string[] {
   const labels: string[] = [];
   for (let i = 0; i < rayCount; i++) {
-    labels.push(`Virtual Ray ${i + 1}`);
+    labels.push(`Physical Ray ${i + 1}`);
   }
   for (let i = 0; i < rayCount; i++) {
-    labels.push(`Physical Ray ${i + 1}`);
+    labels.push(`Virtual Ray ${i + 1}`);
   }
   labels.push(...NetworkConfig.markings);
   labels.push(...NetworkConfig.telemetry);

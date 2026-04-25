@@ -127,9 +127,12 @@ const updateAndBroadcastState = () => {
 
 /** Apply AI-driven controls based on neural network decisions. */
 const applyAIControls = () => {
-  // 1. Get standard physical ray distances
-  const sensorInputs = carState.sensorReadings.map((reading) =>
-    reading ? reading.intersection.offset : 1.0,
+  // 1. Get standard physical and virtual ray distances
+  const physicalSensorInputs = carState.sensorReadings.map((reading) =>
+    reading && reading.label == "traffic" ? reading.intersection.offset : 1.0,
+  );
+  const virtualSensorInputs = carState.sensorReadings.map((reading) =>
+    reading && reading.label == "border" ? reading.intersection.offset : 1.0,
   );
 
   // 2. Default states for our dedicated marking inputs (1.0 = Clear/Go)
@@ -187,7 +190,9 @@ const applyAIControls = () => {
     carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
 
   // 6. Feed the dynamically built array into the Neural Network based on Config
-  const inputs: number[] = [...sensorInputs];
+  const inputs: number[] = [];
+  inputs.push(...physicalSensorInputs);
+  inputs.push(...virtualSensorInputs);
 
   for (const marking of NetworkConfig.markings) {
     if (marking === "Traffic Light") inputs.push(tlValue);
