@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { clamp } from "@/utils/math";
+import { NeuronLabel } from "@/lib/car/network-config";
 
 interface NetworkCanvasProps {
   architecture: number[];
   activations: number[][] | null;
   weights: number[][][] | null;
   biases: number[][] | null;
-  inputLabels?: string[];
-  outputLabels?: string[];
+  inputLabels?: NeuronLabel[];
+  outputLabels?: NeuronLabel[];
+  hiddenLabels?: NeuronLabel[][];
   onWeightChange?: (
     layerIdx: number,
     fromIdx: number,
@@ -109,14 +111,24 @@ function isPointNearLine(
 
 function drawTooltip(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  lines: string[],
   position: Point,
 ) {
   ctx.fillStyle = COLORS.labelText;
   ctx.font = LAYOUT.font;
   ctx.textAlign = "left";
   ctx.textBaseline = "bottom";
-  ctx.fillText(text, position.x + 10, position.y - 5);
+
+  const lineHeight = 16;
+  const totalHeight = lines.length * lineHeight;
+
+  lines.forEach((line, idx) => {
+    ctx.fillText(
+      line,
+      position.x + 10,
+      position.y - 5 - totalHeight + (idx + 1) * lineHeight,
+    );
+  });
 }
 
 function drawLabel(
@@ -169,7 +181,7 @@ function drawConnections(
         ctx.stroke();
 
         if (isHovered && mousePos)
-          drawTooltip(ctx, weight.toFixed(2), mousePos);
+          drawTooltip(ctx, [weight.toFixed(2)], mousePos);
       }
     }
   }
@@ -184,8 +196,9 @@ function drawNeurons(
   biases: number[][] | null,
   hover: HoverTarget | null,
   mousePos: Point | null,
-  inputLabels?: string[],
-  outputLabels?: string[],
+  inputLabels?: NeuronLabel[],
+  outputLabels?: NeuronLabel[],
+  hiddenLabels?: NeuronLabel[][],
 ) {
   const lastLayerIndex = architecture.length - 1;
 
@@ -211,19 +224,36 @@ function drawNeurons(
       ctx.stroke();
 
       if (isHovered && mousePos) {
+        let labelInfo: NeuronLabel | undefined;
+        if (layerIndex === 0) {
+          labelInfo = inputLabels?.[neuronIndex];
+        } else if (layerIndex === lastLayerIndex) {
+          labelInfo = outputLabels?.[neuronIndex];
+        } else {
+          labelInfo = hiddenLabels?.[layerIndex - 1]?.[neuronIndex];
+        }
+
         const bias =
           layerIndex > 0 ? biases?.[layerIndex - 1]?.[neuronIndex] : undefined;
-        const label =
+        const valStr =
           bias != null
             ? `val: ${activation.toFixed(2)}  bias: ${bias.toFixed(2)}`
-            : activation.toFixed(2);
-        drawTooltip(ctx, label, mousePos);
+            : `val: ${activation.toFixed(2)}`;
+
+        const tooltipLines: string[] = [];
+        if (labelInfo) {
+          tooltipLines.push(labelInfo.name);
+          tooltipLines.push(labelInfo.description);
+        }
+        tooltipLines.push(valStr);
+
+        drawTooltip(ctx, tooltipLines, mousePos);
       }
 
       if (layerIndex === 0 && inputLabels?.[neuronIndex]) {
         drawLabel(
           ctx,
-          inputLabels[neuronIndex],
+          inputLabels[neuronIndex].name,
           x - radius - LAYOUT.labelOffset,
           y,
           "right",
@@ -233,7 +263,7 @@ function drawNeurons(
       if (layerIndex === lastLayerIndex && outputLabels?.[neuronIndex]) {
         drawLabel(
           ctx,
-          outputLabels[neuronIndex],
+          outputLabels[neuronIndex].name,
           x + radius + LAYOUT.labelOffset,
           y,
           "left",
@@ -250,6 +280,7 @@ export const NetworkCanvas = ({
   biases,
   inputLabels,
   outputLabels,
+  hiddenLabels,
   onWeightChange,
   onBiasChange,
 }: NetworkCanvasProps) => {
@@ -301,6 +332,7 @@ export const NetworkCanvas = ({
       mousePos,
       inputLabels,
       outputLabels,
+      hiddenLabels,
     );
 
     ctx.restore();
@@ -313,6 +345,7 @@ export const NetworkCanvas = ({
     mousePos,
     inputLabels,
     outputLabels,
+    hiddenLabels,
     transform,
   ]);
 
