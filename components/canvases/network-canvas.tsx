@@ -256,6 +256,9 @@ export const NetworkCanvas = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState<HoverTarget | null>(null);
   const [mousePos, setMousePos] = useState<Point | null>(null);
+  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastPanPos, setLastPanPos] = useState<Point | null>(null);
   const positionsRef = useRef<Point[][]>([]);
   const radiusRef = useRef(0);
 
@@ -271,6 +274,10 @@ export const NetworkCanvas = ({
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(transform.x, transform.y);
+    ctx.scale(transform.scale, transform.scale);
 
     const maxNeurons = Math.max(...architecture);
     const radius = Math.min(
@@ -295,6 +302,8 @@ export const NetworkCanvas = ({
       inputLabels,
       outputLabels,
     );
+
+    ctx.restore();
   }, [
     architecture,
     weights,
@@ -304,7 +313,18 @@ export const NetworkCanvas = ({
     mousePos,
     inputLabels,
     outputLabels,
+    transform,
   ]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsPanning(true);
+    setLastPanPos({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+    setLastPanPos(null);
+  }, []);
 
   // Hover detection
   const handleMouseMove = useCallback(
@@ -312,11 +332,33 @@ export const NetworkCanvas = ({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      if (isPanning && lastPanPos) {
+        setTransform((prev) => ({
+          ...prev,
+          x: prev.x + (e.clientX - lastPanPos.x),
+          y: prev.y + (e.clientY - lastPanPos.y),
+        }));
+        setLastPanPos({ x: e.clientX, y: e.clientY });
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
+      // Mouse pos relative to canvas element:
+      const screenCursorX = e.clientX - rect.left;
+      const screenCursorY = e.clientY - rect.top;
+
+      // Compute unscaled canvas coordinate for hit testing:
       const cursorPosition: Point = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: (screenCursorX - transform.x) / transform.scale,
+        y: (screenCursorY - transform.y) / transform.scale,
       };
+
+      // Store raw position to draw tooltips appropriately scaled:
+      const rawMousePosForDrawing = {
+        x: cursorPosition.x,
+        y: cursorPosition.y,
+      };
+
       const radius = radiusRef.current;
       const positions = positionsRef.current;
 
@@ -336,7 +378,7 @@ export const NetworkCanvas = ({
               layerIdx: layerIndex,
               neuronIdx: neuronIndex,
             });
-            setMousePos(cursorPosition);
+            setMousePos(rawMousePosForDrawing);
             return;
           }
         }
@@ -372,7 +414,7 @@ export const NetworkCanvas = ({
                 fromIdx: fromIndex,
                 toIdx: toIndex,
               });
-              setMousePos(cursorPosition);
+              setMousePos(rawMousePosForDrawing);
               return;
             }
           }
@@ -382,12 +424,14 @@ export const NetworkCanvas = ({
       setHover(null);
       setMousePos(null);
     },
-    [],
+    [isPanning, lastPanPos, transform],
   );
 
   const handleMouseLeave = useCallback(() => {
     setHover(null);
     setMousePos(null);
+    setIsPanning(false);
+    setLastPanPos(null);
   }, []);
 
   // Scroll to adjust weight or bias (Shift+scroll for fine control)
@@ -408,6 +452,7 @@ export const NetworkCanvas = ({
           toIdx,
           clamp(currentWeight + delta, -1, 1),
         );
+        return;
       }
 
       if (hover?.type === "neuron" && hover.layerIdx > 0 && onBiasChange) {
@@ -420,7 +465,26 @@ export const NetworkCanvas = ({
           neuronIdx,
           clamp(currentBias + delta, -1, 1),
         );
+        return;
       }
+
+      // Zoom
+      e.preventDefault();
+      setTransform((prev) => {
+        const zoomDelta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+        const newScale = clamp(prev.scale * zoomDelta, 0.1, 10);
+        if (newScale === prev.scale) return prev;
+
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+
+        return {
+          scale: newScale,
+          x: cursorX - (cursorX - prev.x) * (newScale / prev.scale),
+          y: cursorY - (cursorY - prev.y) * (newScale / prev.scale),
+        };
+      });
     },
     [hover, weights, biases, onWeightChange, onBiasChange],
   );
@@ -443,17 +507,51 @@ export const NetworkCanvas = ({
     [hover, onWeightChange, onBiasChange],
   );
 
+  const resetView = useCallback(() => {
+    setTransform({ scale: 1, x: 0, y: 0 });
+  }, []);
+
+  const cursorClass = isPanning
+    ? "cursor-grabbing"
+    : hover
+      ? "cursor-pointer"
+      : "cursor-grab";
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      style={{ minHeight: "50vh", outline: "none" }}
-      tabIndex={0}
-      onMouseEnter={() => canvasRef.current?.focus()}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onWheel={handleWheel}
-      onKeyDown={handleKeyDown}
-    />
+    <div className="relative w-full h-full" style={{ minHeight: "50vh" }}>
+      <button
+        onClick={resetView}
+        className="absolute top-2 right-2 p-1.5 bg-zinc-800/80 hover:bg-zinc-700 rounded text-zinc-200 z-10 border border-zinc-700 transition-colors"
+        title="Reset zoom and pan"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      </button>
+      <canvas
+        ref={canvasRef}
+        className={`w-full h-full block outline-none ${cursorClass}`}
+        tabIndex={0}
+        onMouseEnter={() => canvasRef.current?.focus()}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+    </div>
   );
 };

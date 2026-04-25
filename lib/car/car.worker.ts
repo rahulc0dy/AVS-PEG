@@ -39,7 +39,7 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         pathBorders: [],
         markingWalls: [],
         network: new NeuralNetwork([
-          message.payload.sensor.rayCount +
+          2 * message.payload.sensor.rayCount +
             NetworkConfig.markings.length +
             NetworkConfig.telemetry.length,
           ...NetworkConfig.hiddenLayers,
@@ -209,8 +209,8 @@ const applyAIControls = () => {
   }
 
   carState.controls.forward = controlsMap["Accelerate"] || false;
-  carState.controls.left = controlsMap["Left"] || false;
-  carState.controls.right = controlsMap["Right"] || false;
+  carState.controls.left = controlsMap["Steer Left"] || false;
+  carState.controls.right = controlsMap["Steer Right"] || false;
   carState.controls.reverse = controlsMap["Decelerate"] || false;
 };
 

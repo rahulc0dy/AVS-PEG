@@ -1,7 +1,7 @@
 export const NetworkConfig = {
-  markings: ["Traffic Light", "Stop Sign"],
+  markings: ["Traffic Light"],
   telemetry: ["Speed"],
-  outputs: ["Accelerate", "Left", "Right", "Decelerate"],
+  outputs: ["Accelerate", "Steer Left", "Steer Right", "Decelerate"],
   hiddenLayers: [7, 6],
 };
 
@@ -11,7 +11,10 @@ export const NetworkConfig = {
 export function getNetworkInputLabels(rayCount: number): string[] {
   const labels: string[] = [];
   for (let i = 0; i < rayCount; i++) {
-    labels.push(`Ray ${i + 1}`);
+    labels.push(`Virtual Ray ${i + 1}`);
+  }
+  for (let i = 0; i < rayCount; i++) {
+    labels.push(`Physical Ray ${i + 1}`);
   }
   labels.push(...NetworkConfig.markings);
   labels.push(...NetworkConfig.telemetry);
