@@ -42,7 +42,7 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
           2 * message.payload.sensor.rayCount +
             NetworkConfig.markings.length +
             NetworkConfig.telemetry.length,
-          ...NetworkConfig.hiddenLayers,
+          ...NetworkConfig.hiddenLayers.map((layer) => layer.length),
           NetworkConfig.outputs.length,
         ]),
         sensorReadings: [],
@@ -195,13 +195,13 @@ const applyAIControls = () => {
   inputs.push(...virtualSensorInputs);
 
   for (const marking of NetworkConfig.markings) {
-    if (marking === "Traffic Light") inputs.push(tlValue);
-    else if (marking === "Stop Sign") inputs.push(ssValue);
+    if (marking.name === "Traffic Light") inputs.push(tlValue);
+    else if (marking.name === "Stop Sign") inputs.push(ssValue);
     else inputs.push(1.0); // Default/Clear
   }
 
   for (const telemetry of NetworkConfig.telemetry) {
-    if (telemetry === "Speed") inputs.push(normalizedSpeed);
+    if (telemetry.name === "Speed") inputs.push(normalizedSpeed);
     else inputs.push(0.0);
   }
 
@@ -210,7 +210,7 @@ const applyAIControls = () => {
   // 7. Map outputs according to the schema
   const controlsMap: Record<string, boolean> = {};
   for (let i = 0; i < NetworkConfig.outputs.length; i++) {
-    controlsMap[NetworkConfig.outputs[i]] = outputs[i] == 1;
+    controlsMap[NetworkConfig.outputs[i].name] = outputs[i] == 1;
   }
 
   carState.controls.forward = controlsMap["Accelerate"] || false;

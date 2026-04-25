@@ -19,7 +19,68 @@ export const NetworkConfig = {
     { name: "Steer Right", description: "Turn wheels to the right" },
     { name: "Decelerate", description: "Apply brakes or reverse" },
   ],
-  hiddenLayers: [7, 6],
+  hiddenLayers: [
+    [
+      {
+        name: "Hidden Neuron 1-1",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-2",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-3",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-4",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-5",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-6",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-7",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 1-8",
+        description: "Intermediate processing node",
+      },
+    ],
+    [
+      {
+        name: "Hidden Neuron 2-1",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 2-2",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 2-3",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 2-4",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 2-5",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 2-6",
+        description: "Intermediate processing node",
+      },
+    ],
+  ],
 };
 
 /**
@@ -55,10 +116,5 @@ export function getNetworkOutputLabels(): NeuronLabel[] {
  * Returns the configured hidden layer labels.
  */
 export function getNetworkHiddenLabels(): NeuronLabel[][] {
-  return NetworkConfig.hiddenLayers.map((count, layerIndex) => {
-    return Array.from({ length: count }, (_, neuronIndex) => ({
-      name: `Hidden Neuron ${layerIndex + 1}-${neuronIndex + 1}`,
-      description: `Intermediate processing node`,
-    }));
-  });
+  return [...NetworkConfig.hiddenLayers];
 }
