@@ -15,68 +15,132 @@ export const NetworkConfig = {
   ],
   outputs: [
     { name: "Accelerate", description: "Apply forward throttle" },
+    { name: "Decelerate", description: "Apply brakes or reverse" },
     { name: "Steer Left", description: "Turn wheels to the left" },
     { name: "Steer Right", description: "Turn wheels to the right" },
-    { name: "Decelerate", description: "Apply brakes or reverse" },
   ],
   hiddenLayers: [
     [
       {
-        name: "Hidden Neuron 1-1",
+        name: "Hidden Neuron 1",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-2",
+        name: "Hidden Neuron 2",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-3",
+        name: "Hidden Neuron 3",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-4",
+        name: "Hidden Neuron 4",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-5",
+        name: "Hidden Neuron 5",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-6",
+        name: "Hidden Neuron 6",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-7",
+        name: "Hidden Neuron 7",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 1-8",
+        name: "Hidden Neuron 8",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 9",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 10",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 11",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 12",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 13",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 14",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 15",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 16",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 17",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 18",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 19",
         description: "Intermediate processing node",
       },
     ],
     [
       {
-        name: "Hidden Neuron 2-1",
+        name: "Hidden Neuron 1",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 2-2",
+        name: "Hidden Neuron 2",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 2-3",
+        name: "Hidden Neuron 3",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 2-4",
+        name: "Hidden Neuron 4",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 2-5",
+        name: "Hidden Neuron 5",
         description: "Intermediate processing node",
       },
       {
-        name: "Hidden Neuron 2-6",
+        name: "Hidden Neuron 6",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 7",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 8",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 9",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 10",
+        description: "Intermediate processing node",
+      },
+      {
+        name: "Hidden Neuron 11",
         description: "Intermediate processing node",
       },
     ],

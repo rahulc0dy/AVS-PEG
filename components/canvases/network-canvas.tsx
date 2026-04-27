@@ -474,7 +474,6 @@ export const NetworkCanvas = ({
       const delta = e.deltaY > 0 ? -step : step;
 
       if (hover?.type === "connection" && onWeightChange) {
-        e.preventDefault();
         const { layerIdx, fromIdx, toIdx } = hover;
         const currentWeight =
           Math.round((weights?.[layerIdx]?.[fromIdx]?.[toIdx] ?? 0) * 100) /
@@ -502,7 +501,6 @@ export const NetworkCanvas = ({
       }
 
       // Zoom
-      e.preventDefault();
       setTransform((prev) => {
         const zoomDelta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
         const newScale = clamp(prev.scale * zoomDelta, 0.1, 10);
