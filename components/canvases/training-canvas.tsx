@@ -5,7 +5,6 @@ import { Camera, Scene } from "three";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
 import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import Label from "@/components/ui/label";
@@ -22,7 +21,6 @@ import {
   getNetworkInputLabels,
   getNetworkOutputLabels,
 } from "@/lib/car/network-config";
-
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { Node } from "@/lib/primitives/node";
 
@@ -33,6 +31,47 @@ interface TrainingCanvasProps {
   scene: Scene;
   camera: Camera;
   dom: HTMLElement;
+}
+
+/**
+ * Collapsible section wrapper for organizing the training panel.
+ */
+function PanelSection({
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-zinc-700/30">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full cursor-pointer items-center justify-between px-5 py-2.5 transition-colors hover:bg-zinc-800/50"
+      >
+        <span className="text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+          {title}
+        </span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-zinc-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="px-5 pb-3.5">{children}</div>}
+    </div>
+  );
 }
 
 /**
@@ -58,7 +97,6 @@ export default function TrainingCanvas({
   const [bestCarId, setBestCarId] = useState<string | null>(null);
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [hasLoadedBrain, setHasLoadedBrain] = useState(() => {
-    // Check for saved brain on initial render
     if (typeof window === "undefined") return false;
     try {
       const savedBrain = localStorage.getItem(BRAIN_STORAGE_KEY);
@@ -222,7 +260,6 @@ export default function TrainingCanvas({
     }
 
     try {
-      // Convert NeuralNetworkStateJson to NeuralNetworkJson format
       const brainJson: NeuralNetworkJson = {
         levels: bestCarBrain.levels.map((level) => ({
           inputCount: level.inputs.length,
@@ -483,105 +520,258 @@ export default function TrainingCanvas({
 
   return (
     <>
-      <Card className="absolute top-16 left-4 z-10 w-72 border-zinc-700 bg-zinc-900 text-zinc-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-zinc-50">Training Mode</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Label htmlFor="carCount" className="text-zinc-400">
-              Cars:
-            </Label>
-            <Input
-              id="carCount"
-              type="number"
-              min={1}
-              max={500}
-              value={carCount}
-              disabled={spawnOnePerPath}
-              onChange={(e) => setCarCount(Number(e.target.value))}
-              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50 disabled:opacity-50"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Label htmlFor="mutationAmount" className="text-zinc-400">
-              Mutation:
-            </Label>
-            <Input
-              id="mutationAmount"
-              type="number"
-              min={0}
-              max={1}
-              step={0.05}
-              value={mutationAmount}
-              onChange={(e) => setMutationAmount(Number(e.target.value))}
-              className="h-8 w-20 border-zinc-700 bg-zinc-800 text-center text-zinc-50"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Button onClick={handleSpawnCars} disabled={isTraining}>
-              Spawn Cars
-            </Button>
-            <Button onClick={handleNextGeneration} disabled={!isTraining}>
-              Next Generation
-            </Button>
-            <Button onClick={handleClearCars} disabled={!isTraining}>
-              Clear Cars
-            </Button>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label className="text-zinc-400">Stack spawn at Source</Label>
-              <Checkbox
-                checked={stackSpawnAtSource}
-                disabled={spawnOnePerPath}
-                onChange={(e) => setStackSpawnAtSource(e.target.checked)}
-                aria-label="Stack spawn cars at source"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <Label className="text-zinc-400">Spawn one car per path</Label>
-              <Checkbox
-                checked={spawnOnePerPath}
-                onChange={(e) => setSpawnOnePerPath(e.target.checked)}
-                aria-label="Spawn one car per path"
-              />
+      <div
+        className="absolute top-16 left-4 z-10 w-[19rem]"
+        style={{ animation: "guide-enter 0.3s ease-out" }}
+      >
+        <div className="overflow-hidden rounded-2xl border border-zinc-700/50 bg-zinc-900/95 shadow-2xl backdrop-blur-xl">
+          {/* Header */}
+          <div className="border-b border-zinc-700/40 px-5 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-violet-400"
+                >
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  Training Mode
+                </h3>
+                <p className="text-[11px] text-zinc-500">
+                  AI agent evolution &amp; training
+                </p>
+              </div>
+              {isTraining && (
+                <span
+                  className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400"
+                  style={{
+                    animation: "status-pulse 2s ease-in-out infinite",
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Live
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-zinc-700 pt-3">
-            <Button variant="outline" onClick={handleSaveBrain}>
-              Save Current Brain
-            </Button>
-            <Button variant="outline" onClick={handleExportBrain}>
-              Export Brain (JSON)
-            </Button>
-            <Button variant="outline" onClick={handleImportBrain}>
-              Import Brain (JSON)
-            </Button>
-            <Button variant="outline" onClick={handleDiscardBrain}>
-              Discard Saved Brain
-            </Button>
-            <Button variant="outline" onClick={handleLoadWorld}>
-              Load World
-            </Button>
-          </div>
+          {/* Spawn Configuration */}
+          <PanelSection title="Spawn Config">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="carCount" className="shrink-0 text-xs text-zinc-400">
+                  Cars
+                </Label>
+                <Input
+                  id="carCount"
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={carCount}
+                  disabled={spawnOnePerPath}
+                  onChange={(e) => setCarCount(Number(e.target.value))}
+                  className="h-7 w-20 border-zinc-700/60 bg-zinc-800/80 text-center text-xs text-zinc-50 disabled:opacity-50"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="mutationAmount" className="shrink-0 text-xs text-zinc-400">
+                  Mutation
+                </Label>
+                <Input
+                  id="mutationAmount"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={mutationAmount}
+                  onChange={(e) => setMutationAmount(Number(e.target.value))}
+                  className="h-7 w-20 border-zinc-700/60 bg-zinc-800/80 text-center text-xs text-zinc-50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-400">
+                    Stack at source
+                  </Label>
+                  <Checkbox
+                    checked={stackSpawnAtSource}
+                    disabled={spawnOnePerPath}
+                    onChange={(e) => setStackSpawnAtSource(e.target.checked)}
+                    aria-label="Stack spawn cars at source"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-400">
+                    One per path
+                  </Label>
+                  <Checkbox
+                    checked={spawnOnePerPath}
+                    onChange={(e) => setSpawnOnePerPath(e.target.checked)}
+                    aria-label="Spawn one car per path"
+                  />
+                </div>
+              </div>
+            </div>
+          </PanelSection>
 
-          <div className="space-y-1 border-t border-zinc-700 pt-3 text-sm text-zinc-400">
-            <p>Status: {isTraining ? "Training..." : "Ready"}</p>
-            <p>Generation: {generation}</p>
-            <p>Cars: {currentCarCount}</p>
-            <p>Best Fitness: {(bestFitness ?? 0).toFixed(4)}</p>
-            <p>Best Car: {bestCarId ?? "—"}</p>
-            {selectedCarId !== null && <p>Selected Car: {selectedCarId}</p>}
-            <p>Reached Destination: {carsReachedDestination}</p>
-            <p>Brain: {hasLoadedBrain ? "Loaded ✓" : "None (random start)"}</p>
+          {/* Training Actions */}
+          <PanelSection title="Actions">
+            <div className="space-y-1.5">
+              <div className="flex gap-1.5">
+                <Button
+                  className="flex-1 text-xs"
+                  size="sm"
+                  onClick={handleSpawnCars}
+                  disabled={isTraining}
+                >
+                  Spawn
+                </Button>
+                <Button
+                  className="flex-1 text-xs"
+                  size="sm"
+                  onClick={handleNextGeneration}
+                  disabled={!isTraining}
+                >
+                  Next Gen
+                </Button>
+                <Button
+                  className="flex-1 text-xs"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleClearCars}
+                  disabled={!isTraining}
+                >
+                  Clear
+                </Button>
+              </div>
+              <Button
+                className="w-full text-xs"
+                size="sm"
+                variant="outline"
+                onClick={handleLoadWorld}
+              >
+                Load World
+              </Button>
+            </div>
+          </PanelSection>
+
+          {/* Brain Management */}
+          <PanelSection title="Brain" defaultOpen={false}>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleSaveBrain}
+              >
+                Save
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleExportBrain}
+              >
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleImportBrain}
+              >
+                Import
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleDiscardBrain}
+              >
+                Discard
+              </Button>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${hasLoadedBrain ? "bg-emerald-400" : "bg-zinc-600"}`}
+              />
+              <span className="text-[11px] text-zinc-500">
+                {hasLoadedBrain ? "Brain loaded ✓" : "No saved brain"}
+              </span>
+            </div>
+          </PanelSection>
+
+          {/* Statistics */}
+          <PanelSection title="Statistics">
+            <div className="space-y-1">
+              {[
+                {
+                  label: "Generation",
+                  value: generation,
+                },
+                {
+                  label: "Cars",
+                  value: currentCarCount,
+                },
+                {
+                  label: "Best Fitness",
+                  value: (bestFitness ?? 0).toFixed(4),
+                },
+                {
+                  label: "Best Car",
+                  value: bestCarId ?? "—",
+                },
+                ...(selectedCarId !== null
+                  ? [{ label: "Selected", value: selectedCarId }]
+                  : []),
+                {
+                  label: "Reached Dest.",
+                  value: carsReachedDestination,
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex items-center justify-between py-0.5"
+                >
+                  <span className="text-[11px] text-zinc-500">
+                    {stat.label}
+                  </span>
+                  <span className="font-mono text-[11px] font-medium text-zinc-300">
+                    {stat.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </PanelSection>
+
+          {/* Controls Guide */}
+          <div className="px-5 py-3">
+            <p className="mb-1.5 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase">
+              Controls
+            </p>
+            <div className="space-y-1 text-[11px] text-zinc-500">
+              <p>
+                <kbd className="rounded border border-zinc-700 bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-400">
+                  Left Click
+                </kbd>{" "}
+                on car to select
+              </p>
+              <p>Click empty space to deselect</p>
+              <p>Drag / right-click to orbit camera</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <NeuralNetworkVisualizer
         state={bestCarBrain}

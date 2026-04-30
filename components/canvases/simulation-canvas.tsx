@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Camera, Scene } from "three";
 import Button from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useWorld } from "@/components/hooks/use-world";
 import { useWorldSimulation } from "@/components/hooks/use-world-simulation";
@@ -18,6 +17,17 @@ interface SimulationCanvasProps {
 }
 
 /**
+ * Renders a styled keyboard key badge for control guides.
+ */
+function KeyBadge({ children }: { children: string }) {
+  return (
+    <kbd className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-zinc-600/80 bg-zinc-700/50 px-1.5 py-1 text-[11px] font-semibold text-zinc-300 shadow-sm">
+      {children}
+    </kbd>
+  );
+}
+
+/**
  * Simulation canvas for manual driving on a loaded world.
  *
  * Responsibilities:
@@ -25,6 +35,7 @@ interface SimulationCanvasProps {
  * - Allow loading a saved world JSON.
  * - Spawn a single human-controlled car (WASD/arrow keys).
  * - Provide lightweight status (player presence, speed).
+ * - Display contextual driving controls guide.
  */
 export default function SimulationCanvas({
   scene,
@@ -107,46 +118,141 @@ export default function SimulationCanvas({
 
   return (
     <>
-      <Card className="absolute top-16 left-4 z-10 w-80 border-zinc-700 bg-zinc-900/90 text-zinc-50 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-zinc-50">
-            Simulation Mode
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
+      <div
+        className="absolute top-16 left-4 z-10 w-80"
+        style={{ animation: "guide-enter 0.3s ease-out" }}
+      >
+        {/* Main panel */}
+        <div className="overflow-hidden rounded-2xl border border-zinc-700/50 bg-zinc-900/95 shadow-2xl backdrop-blur-xl">
+          {/* Header */}
+          <div className="border-b border-zinc-700/40 px-5 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/15">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-indigo-400"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="10 8 16 12 10 16 10 8" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  Simulation Mode
+                </h3>
+                <p className="text-[11px] text-zinc-500">
+                  Manual driving on loaded world
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-2 border-b border-zinc-700/30 px-5 py-4">
             <Button
-              className="flex-1"
+              className="w-full"
               onClick={handleLoadWorld}
               variant="outline"
             >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0"
+              >
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
               Load World JSON
             </Button>
+
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={handleSpawnPlayer}>
+                {hasPlayerCar ? "Respawn" : "Spawn Player"}
+              </Button>
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={handleClearCars}
+              >
+                Clear Cars
+              </Button>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button className="flex-1" onClick={handleSpawnPlayer}>
-              {hasPlayerCar ? "Respawn Player" : "Spawn Player"}
-            </Button>
-            <Button
-              className="flex-1"
-              variant="outline"
-              onClick={handleClearCars}
-            >
-              Clear Cars
-            </Button>
-          </div>
-
-          <div className="text-sm text-zinc-400 space-y-1">
-            <p>Player car: {hasPlayerCar ? "Active" : "Not spawned"}</p>
-            <p>Speed: {playerSpeed.toFixed(2)} u/s</p>
-            <p className="text-xs text-zinc-500">
-              Drive with WASD or Arrow Keys. Drag/right-click to orbit the
-              scene.
+          {/* Status */}
+          <div className="border-b border-zinc-700/30 px-5 py-3">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+              Status
             </p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Player Car</span>
+                <span
+                  className={`flex items-center gap-1.5 text-xs font-medium ${hasPlayerCar ? "text-emerald-400" : "text-zinc-600"}`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${hasPlayerCar ? "bg-emerald-400" : "bg-zinc-600"}`}
+                    style={
+                      hasPlayerCar
+                        ? { animation: "status-pulse 2s ease-in-out infinite" }
+                        : undefined
+                    }
+                  />
+                  {hasPlayerCar ? "Active" : "Not spawned"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Speed</span>
+                <span className="font-mono text-xs font-medium text-zinc-300">
+                  {playerSpeed.toFixed(2)}{" "}
+                  <span className="text-zinc-600">u/s</span>
+                </span>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Controls guide */}
+          <div className="px-5 py-3.5">
+            <p className="mb-2.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+              Driving Controls
+            </p>
+            <div className="flex flex-col gap-2.5">
+              {/* WASD cluster */}
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center gap-0.5">
+                  <KeyBadge>W</KeyBadge>
+                  <div className="flex gap-0.5">
+                    <KeyBadge>A</KeyBadge>
+                    <KeyBadge>S</KeyBadge>
+                    <KeyBadge>D</KeyBadge>
+                  </div>
+                </div>
+                <span className="text-[11px] text-zinc-500">
+                  or Arrow Keys
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-zinc-400">
+                  Drag / right-click to orbit the camera
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

@@ -10,6 +10,7 @@ import { useWorldPersistence } from "@/components/hooks/use-world-persistence";
 import { FileToolbar } from "@/components/world-ui/file-toolbar";
 import { ModeControls } from "@/components/world-ui/mode-controls";
 import { PathPanel } from "@/components/world-ui/path-panel";
+import { EditorGuide } from "@/components/world-ui/editor-guide";
 import { useWorld } from "@/components/hooks/use-world";
 
 interface EditorCanvasProps {
@@ -22,7 +23,8 @@ interface EditorCanvasProps {
  * Editor canvas component that provides the full editing experience.
  *
  * Includes graph editing, traffic light placement, source/destination marking,
- * file save/load functionality, and OSM import modal.
+ * file save/load functionality, OSM import modal, and a contextual guide panel
+ * that displays controls for the active editor mode.
  */
 export default function EditorCanvas({
   scene,
@@ -81,6 +83,12 @@ export default function EditorCanvas({
         onGraphRoadTypeChange={setGraphRoadType}
         sourceDestinationMarkingType={sourceDestMarkingType}
         onSourceDestinationTypeChange={setSourceDestMarkingType}
+      />
+
+      <EditorGuide
+        activeMode={activeMode}
+        graphRoadType={graphRoadType}
+        sourceDestMarkingType={sourceDestMarkingType}
       />
 
       {activeMode === "path" && (
