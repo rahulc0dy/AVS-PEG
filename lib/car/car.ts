@@ -13,6 +13,7 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "@/lib/primitives/node";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
+import { CAR_ACCELERATION, CAR_MAX_SPEED } from "@/env";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
@@ -128,7 +129,7 @@ export class Car {
     group: Group,
     angle = 0,
     ignoreCarDamage = false,
-    maxSpeed = 0.5,
+    maxSpeed = CAR_MAX_SPEED,
   ) {
     this.id = id;
     this.position = position;
@@ -137,9 +138,11 @@ export class Car {
     this.height = height;
 
     this.speed = 0;
-    this.acceleration = 0.2;
-    this.maxSpeed = maxSpeed;
-    this.friction = 0.05;
+    this.acceleration = CAR_ACCELERATION;
+    // Increase variability: random multiplier between 0.6x and 1.4x of base maxSpeed
+    this.maxSpeed = maxSpeed * (0.6 + Math.random() * 0.8);
+    // Set friction slightly lower than acceleration so it visibly accelerates
+    this.friction = CAR_ACCELERATION * 0.4;
     this.angle = angle;
     this.damaged = false;
 
