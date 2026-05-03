@@ -1,5 +1,3 @@
-import Button from "@/components/ui/button";
-
 interface FileToolbarProps {
   onImportOsm: () => void;
   onLoadJson: () => void;

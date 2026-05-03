@@ -109,7 +109,7 @@ export function EditorGuide({
 
   // Re-trigger entrance animation on mode change
   useEffect(() => {
-    setAnimKey((prev) => prev + 1);
+    queueMicrotask(() => setAnimKey((prev) => prev + 1));
   }, [activeMode]);
 
   const guide = MODE_GUIDES[activeMode];
