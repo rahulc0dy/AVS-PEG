@@ -23,6 +23,7 @@ import {
 } from "@/lib/car/network-config";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { Node } from "@/lib/primitives/node";
+import Image from "next/image";
 
 /** Local storage key for saved brain */
 const BRAIN_STORAGE_KEY = "avs-peg-saved-brain";
@@ -86,8 +87,8 @@ export default function TrainingCanvas({
   dom,
 }: TrainingCanvasProps) {
   const [carCount, setCarCount] = useState(10);
-  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(true);
-  const [spawnOnePerPath, setSpawnOnePerPath] = useState(false);
+  const [stackSpawnAtSource, setStackSpawnAtSource] = useState(false);
+  const [spawnOnePerPath, setSpawnOnePerPath] = useState(true);
   const [mutationAmount, setMutationAmount] = useState(0.0);
   const [isTraining, setIsTraining] = useState(false);
   const [currentCarCount, setCurrentCarCount] = useState(0);
@@ -521,7 +522,7 @@ export default function TrainingCanvas({
   return (
     <>
       <div
-        className="absolute top-16 left-4 z-10 w-[19rem]"
+        className="absolute top-16 left-4 z-10 w-76"
         style={{ animation: "guide-enter 0.3s ease-out" }}
       >
         <div className="overflow-hidden rounded-2xl border border-zinc-700/50 bg-zinc-900/95 shadow-2xl backdrop-blur-xl">
@@ -529,19 +530,13 @@ export default function TrainingCanvas({
           <div className="border-b border-zinc-700/40 px-5 py-3.5">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-violet-400"
-                >
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
+                <Image
+                  src={"/icons/training.png"}
+                  alt="Training"
+                  width={24}
+                  height={24}
+                  className="rounded-md"
+                />
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-zinc-100">
@@ -569,7 +564,10 @@ export default function TrainingCanvas({
           <PanelSection title="Spawn Config">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <Label htmlFor="carCount" className="shrink-0 text-xs text-zinc-400">
+                <Label
+                  htmlFor="carCount"
+                  className="shrink-0 text-xs text-zinc-400"
+                >
                   Cars
                 </Label>
                 <Input
@@ -584,7 +582,10 @@ export default function TrainingCanvas({
                 />
               </div>
               <div className="flex items-center gap-3">
-                <Label htmlFor="mutationAmount" className="shrink-0 text-xs text-zinc-400">
+                <Label
+                  htmlFor="mutationAmount"
+                  className="shrink-0 text-xs text-zinc-400"
+                >
                   Mutation
                 </Label>
                 <Input
@@ -611,9 +612,7 @@ export default function TrainingCanvas({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-400">
-                    One per path
-                  </Label>
+                  <Label className="text-xs text-zinc-400">One per path</Label>
                   <Checkbox
                     checked={spawnOnePerPath}
                     onChange={(e) => setSpawnOnePerPath(e.target.checked)}
