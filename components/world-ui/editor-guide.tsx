@@ -112,21 +112,30 @@ export function EditorGuide({
   let subTypeLabel: string | undefined;
   if (activeMode === "graph") {
     subTypeLabel =
-      graphRoadType === "directed" ? "One-way roads" : "Two-way roads";
+      graphRoadType === "directed"
+        ? "One-way roads"
+        : graphRoadType === "undirected"
+          ? "Two-way roads"
+          : undefined;
   } else if (activeMode === "source-destination") {
     subTypeLabel =
       sourceDestMarkingType === "source"
         ? "Placing: Source"
-        : "Placing: Destination";
+        : sourceDestMarkingType === "destination"
+          ? "Placing: Destination"
+          : undefined;
   }
 
   return (
     <div className="fixed bottom-4 left-4 z-40 max-w-xs">
       {/* Collapsed state toggle */}
       <button
+        type="button"
         onClick={() => setIsExpanded(!isExpanded)}
         className="mb-1.5 flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-700/50 bg-zinc-800/90 px-2.5 py-1.5 text-[11px] font-medium text-zinc-400 backdrop-blur-sm transition-colors hover:bg-zinc-700/90 hover:text-zinc-200"
         aria-label={isExpanded ? "Hide guide" : "Show guide"}
+        aria-expanded={isExpanded}
+        aria-controls="editor-guide-panel"
       >
         <svg
           width="14"
@@ -148,6 +157,7 @@ export function EditorGuide({
 
       {isExpanded && (
         <div
+          id="editor-guide-panel"
           key={activeMode}
           className="overflow-hidden rounded-xl border border-zinc-700/50 bg-zinc-900/95 shadow-xl backdrop-blur-xl"
           style={{ animation: "guide-enter 0.25s ease-out" }}
