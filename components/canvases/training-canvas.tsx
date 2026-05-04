@@ -17,9 +17,9 @@ import { NeuralNetworkJson } from "@/types/save";
 import { Car } from "@/lib/car/car";
 import { NeuralNetwork } from "@/lib/ai/network";
 import {
-  NetworkConfig,
   getNetworkInputLabels,
   getNetworkOutputLabels,
+  NetworkConfig,
 } from "@/lib/car/network-config";
 import { useWorldInput } from "@/components/hooks/use-world-input";
 import { Node } from "@/lib/primitives/node";
@@ -50,6 +50,7 @@ function PanelSection({
   return (
     <div className="border-b border-zinc-700/30">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="flex w-full cursor-pointer items-center justify-between px-5 py-2.5 transition-colors hover:bg-zinc-800/50"
       >

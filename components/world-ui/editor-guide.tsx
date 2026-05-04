@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EditorMode } from "@/types/editor";
 import { GraphEdgeType, SourceDestinationMarkingType } from "@/types/marking";
 
@@ -105,12 +105,6 @@ export function EditorGuide({
   sourceDestMarkingType,
 }: EditorGuideProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [animKey, setAnimKey] = useState(0);
-
-  // Re-trigger entrance animation on mode change
-  useEffect(() => {
-    queueMicrotask(() => setAnimKey((prev) => prev + 1));
-  }, [activeMode]);
 
   const guide = MODE_GUIDES[activeMode];
 
@@ -154,7 +148,7 @@ export function EditorGuide({
 
       {isExpanded && (
         <div
-          key={animKey}
+          key={activeMode}
           className="overflow-hidden rounded-xl border border-zinc-700/50 bg-zinc-900/95 shadow-xl backdrop-blur-xl"
           style={{ animation: "guide-enter 0.25s ease-out" }}
         >

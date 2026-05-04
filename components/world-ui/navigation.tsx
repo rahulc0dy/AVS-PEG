@@ -109,6 +109,15 @@ const PlayIcon = () => (
   </svg>
 );
 
+/**
+ * Floating navigation sidebar for the application.
+ *
+ * Renders a hamburger button that opens a slide-in sidebar containing
+ * links to all main routes, a branded header, and a product description footer.
+ * Active route is highlighted based on the current pathname.
+ *
+ * `@returns` The navigation overlay including the trigger button, backdrop, and sidebar.
+ */
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
