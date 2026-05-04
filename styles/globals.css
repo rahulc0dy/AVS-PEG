@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+/* Editor guide animations */
+@keyframes guide-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes guide-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes active-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(129, 140, 248, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(129, 140, 248, 0.35);
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
