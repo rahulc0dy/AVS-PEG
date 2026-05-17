@@ -6,7 +6,7 @@ import { LevelStateJson } from "@/types/car/state";
  * A single layer in a neural network.
  *
  * Each level connects inputs to outputs through weighted connections.
- * Supports sigmoid or step activation function per layer.
+ * Supports min activation or step activation function per layer.
  */
 export class Level {
   /** Input values for this layer */
@@ -17,31 +17,31 @@ export class Level {
   biases: number[];
   /** Weight matrix [inputIndex][outputIndex] */
   weights: number[][];
-  /** Whether to use sigmoid (true) or step function (false) */
-  useSigmoid: boolean;
+  /** Whether to use min activation (true) or step function (false) */
+  useMinActivation: boolean;
 
   /**
    * Create a new neural network level.
    * @param inputCount Number of input neurons
    * @param outputCount Number of output neurons
-   * @param useSigmoid Use sigmoid activation (default: false = step function)
+   * @param useMinActivation Use min activation (default: false = step function)
    */
   constructor(
     inputCount: number,
     outputCount: number,
-    useSigmoid: boolean = false,
+    useMinActivation: boolean = false,
   ) {
     this.inputs = new Array(inputCount).fill(0);
     this.outputs = new Array(outputCount).fill(0);
     this.biases = new Array(outputCount).fill(0);
-    this.useSigmoid = useSigmoid;
+    this.useMinActivation = useMinActivation;
 
     this.weights = [];
     for (let i = 0; i < inputCount; i++) {
       this.weights[i] = new Array(outputCount).fill(0);
     }
 
-    // Level.randomize(this);
+    Level.randomize(this);
   }
 
   /**
@@ -51,7 +51,7 @@ export class Level {
     const level = new Level(
       json.inputCount,
       json.outputCount,
-      json.useSigmoid ?? false,
+      json.useMinActivation,
     );
     level.biases = [...json.biases];
     level.weights = json.weights.map((row) => [...row]);
@@ -61,9 +61,9 @@ export class Level {
   /**
    * Perform forward propagation through this level.
    *
-   * Uses sigmoid or step activation depending on level.useSigmoid:
-   * - Sigmoid: output = sigmoid(weighted_sum + bias)
-   * - Step:    output = 1 if weighted_sum > bias, else 0
+   * Uses min or step activation depending on level.useMinActivation:
+   * - Min: output is the minimum product of input and weight, or 0 if no inputs
+   * - Step: output = 1 if weighted_sum > bias, else 0
    *
    * @param givenInputs Input values to process
    * @param level The level to process through
@@ -87,8 +87,8 @@ export class Level {
         }
       }
 
-      if (level.useSigmoid) {
-        // Sigmoid activation: smooth output in (0, 1)
+      if (level.useMinActivation) {
+        // Min activation: min output
         level.outputs[i] = level.inputs.length > 0 ? min : 0;
         console.log(level.outputs);
       } else {
@@ -98,14 +98,6 @@ export class Level {
     }
 
     return level.outputs;
-  }
-
-  /**
-   * Sigmoid activation function.
-   * Maps any real number to (0, 1).
-   */
-  private static sigmoid(x: number): number {
-    return 1 / (1 + Math.exp(-x));
   }
 
   /**
@@ -144,7 +136,7 @@ export class Level {
       outputCount: this.outputs.length,
       biases: [...this.biases],
       weights: this.weights.map((row) => [...row]),
-      useSigmoid: this.useSigmoid,
+      useMinActivation: this.useMinActivation,
     };
   }
 }

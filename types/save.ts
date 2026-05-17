@@ -116,6 +116,7 @@ export interface LevelJson {
   outputCount: number;
   biases: number[];
   weights: number[][];
+  useMinActivation: boolean;
 }
 
 /**
