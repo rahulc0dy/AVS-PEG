@@ -120,9 +120,48 @@ function drawTooltip(
   ctx.textBaseline = "bottom";
 
   const lineHeight = 16;
-  const totalHeight = lines.length * lineHeight;
+  const maxWidth = 350;
 
-  lines.forEach((line, idx) => {
+  // Wrap text
+  const wrappedLines: string[] = [];
+  for (const line of lines) {
+    const words = line.split(" ");
+    let currentLine = words[0] || "";
+
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const width = ctx.measureText(currentLine + " " + word).width;
+      if (width < maxWidth) {
+        currentLine += " " + word;
+      } else {
+        wrappedLines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    wrappedLines.push(currentLine);
+  }
+
+  const totalHeight = wrappedLines.length * lineHeight;
+
+  // Calculate maximum line width for background
+  const maxLineWidth = wrappedLines.reduce((max, line) => {
+    return Math.max(max, ctx.measureText(line).width);
+  }, 0);
+
+  // Draw background
+  const padding = 6;
+  const bgX = position.x + 10 - padding;
+  const bgY = position.y - 5 - totalHeight - padding + lineHeight * 0.2; // Adjust vertical positioning
+  const bgWidth = maxLineWidth + padding * 2;
+  const bgHeight = totalHeight + padding * 2;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+  ctx.beginPath();
+  ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 4);
+  ctx.fill();
+
+  ctx.fillStyle = COLORS.labelText;
+  wrappedLines.forEach((line, idx) => {
     ctx.fillText(
       line,
       position.x + 10,
@@ -201,6 +240,7 @@ function drawNeurons(
   hiddenLabels?: NeuronLabel[][],
 ) {
   const lastLayerIndex = architecture.length - 1;
+  let hoveredTooltip: { lines: string[]; pos: Point } | null = null;
 
   for (let layerIndex = 0; layerIndex < architecture.length; layerIndex++) {
     for (
@@ -247,7 +287,7 @@ function drawNeurons(
         }
         tooltipLines.push(valStr);
 
-        drawTooltip(ctx, tooltipLines, mousePos);
+        hoveredTooltip = { lines: tooltipLines, pos: mousePos };
       }
 
       if (layerIndex === 0 && inputLabels?.[neuronIndex]) {
@@ -271,9 +311,13 @@ function drawNeurons(
       }
     }
   }
+
+  if (hoveredTooltip) {
+    drawTooltip(ctx, hoveredTooltip.lines, hoveredTooltip.pos);
+  }
 }
 
-export const NetworkCanvas = ({
+export function NetworkCanvas({
   architecture,
   activations,
   weights,
@@ -283,7 +327,7 @@ export const NetworkCanvas = ({
   hiddenLabels,
   onWeightChange,
   onBiasChange,
-}: NetworkCanvasProps) => {
+}: NetworkCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState<HoverTarget | null>(null);
   const [mousePos, setMousePos] = useState<Point | null>(null);
@@ -585,4 +629,4 @@ export const NetworkCanvas = ({
       />
     </div>
   );
-};
+}

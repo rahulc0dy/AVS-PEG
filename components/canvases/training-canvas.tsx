@@ -230,6 +230,7 @@ export default function TrainingCanvas({
           outputCount: level.outputs.length,
           biases: level.biases,
           weights: level.weights,
+          useMinActivation: false,
         })),
       };
 

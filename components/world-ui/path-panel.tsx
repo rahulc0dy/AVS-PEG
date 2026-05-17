@@ -35,7 +35,7 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
     if (isVisible && editor) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPaths(editor.paths || []);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSelectedIdx(editor.selectedPathIdx ?? -1);
     }
   }, [isVisible, editorRef]);
