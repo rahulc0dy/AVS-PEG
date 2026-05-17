@@ -30,7 +30,7 @@ export const NetworkConfig = {
     { name: "Decelerate", description: "Apply brakes or reverse" },
   ],
   hiddenLayers: [
-    // H1: Min-logic combiners — one node per ray direction.
+    // H1: Min-logic combiners: one node per ray direction.
     // Each node combines its Physical ray (obstacle) and Virtual ray (path border)
     // via min logic. Output ≈ 0 means danger from EITHER source in that direction;
     // output ≈ 1 means direction is fully clear of both obstacles AND borders.
@@ -63,12 +63,12 @@ export const NetworkConfig = {
       {
         name: "Left Side Blocked",
         description:
-          "Aggregates hard-left and slight-left clearance (H1.1, H1.2). Fires when left side is obstructed by a car or the left lane border — triggers rightward evasion.",
+          "Aggregates hard-left and slight-left clearance (H1.1, H1.2). Fires when left side is obstructed by a car or the left lane border: triggers rightward evasion.",
       },
       {
         name: "Right Side Blocked",
         description:
-          "Aggregates slight-right and hard-right clearance (H1.4, H1.5). Fires when right side is obstructed by a car or the right lane border — triggers leftward evasion.",
+          "Aggregates slight-right and hard-right clearance (H1.4, H1.5). Fires when right side is obstructed by a car or the right lane border: triggers leftward evasion.",
       },
       {
         name: "Traffic Control",
@@ -77,7 +77,7 @@ export const NetworkConfig = {
       },
     ],
 
-    // H2: Intermediate reasoning — converts H1 clearance signals into
+    // H2: Intermediate reasoning: converts H1 clearance signals into
     // directional intentions and speed decisions.
     [
       {
@@ -93,7 +93,7 @@ export const NetworkConfig = {
       {
         name: "Front Blocked",
         description:
-          "Centre ray is obstructed (H1.3 near 0). A car or border is directly ahead — triggers braking and initiates lateral escape decision.",
+          "Centre ray is obstructed (H1.3 near 0). A car or border is directly ahead: triggers braking and initiates lateral escape decision.",
       },
       {
         name: "Path Clear Ahead",
@@ -101,23 +101,23 @@ export const NetworkConfig = {
           "Centre and both forward-diagonal rays are clear (H1.2, H1.3, H1.4 all near 1). Safe to maintain or increase speed.",
       },
       {
-        name: "Brake — Traffic Signal",
+        name: "Brake: Traffic Signal",
         description:
           "Traffic control node (H1.8) indicates red light or stop sign. Overrides acceleration regardless of road clearance.",
       },
       {
         name: "Lane Drift Left",
         description:
-          "Left virtual rays (VR1/VR2 component of H1.1/H1.2) are near 0 while physical rays are clear. Vehicle is drifting toward the left lane border — steer right to re-centre.",
+          "Left virtual rays (VR1/VR2 component of H1.1/H1.2) are near 0 while physical rays are clear. Vehicle is drifting toward the left lane border: steer right to re-centre.",
       },
       {
         name: "Lane Drift Right",
         description:
-          "Right virtual rays (VR4/VR5 component of H1.4/H1.5) are near 0 while physical rays are clear. Vehicle is drifting toward the right lane border — steer left to re-centre.",
+          "Right virtual rays (VR4/VR5 component of H1.4/H1.5) are near 0 while physical rays are clear. Vehicle is drifting toward the right lane border: steer left to re-centre.",
       },
     ],
 
-    // H3: Decision pre-processing — resolves conflicts between H2 intentions
+    // H3: Decision pre-processing: resolves conflicts between H2 intentions
     // and gates them before reaching the output layer.
     [
       {
@@ -148,7 +148,7 @@ export const NetworkConfig = {
       {
         name: "Conflict Resolver",
         description:
-          "Detects simultaneous Steer Left + Steer Right signals (e.g. symmetric deadlock). Applies a tie-breaking bias — preferring rightward escape for oncoming traffic — to prevent the vehicle from freezing.",
+          "Detects simultaneous Steer Left + Steer Right signals (e.g. symmetric deadlock). Applies a tie-breaking bias: preferring rightward escape for oncoming traffic: to prevent the vehicle from freezing.",
       },
     ],
   ],
@@ -166,14 +166,14 @@ export function getNetworkInputLabels(rayCount: number): NeuronLabel[] {
 
   for (let i = 0; i < rayCount; i++) {
     labels.push({
-      name: `PR${i + 1} — ${rayDirections[i]}`,
+      name: `PR${i + 1}: ${rayDirections[i]}`,
       description: `Physical Ray ${i + 1} (${rayDirections[i]}): detects solid obstacles (cars, walls). 1.0 = fully clear, 0.0 = contact.`,
     });
   }
 
   for (let i = 0; i < rayCount; i++) {
     labels.push({
-      name: `VR${i + 1} — ${rayDirections[i]}`,
+      name: `VR${i + 1}: ${rayDirections[i]}`,
       description: `Virtual Ray ${i + 1} (${rayDirections[i]}): detects path borders and lane markings. 1.0 = fully clear, 0.0 = border contact.`,
     });
   }
