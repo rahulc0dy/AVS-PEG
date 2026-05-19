@@ -84,9 +84,10 @@ export default function TrainingCanvas({
   const inputLabels = useMemo(() => {
     if (!bestCarBrain) return undefined;
     const rayCount =
-      bestCarBrain.inputs.length -
-      NetworkConfig.markings.length -
-      NetworkConfig.telemetry.length;
+      (bestCarBrain.inputs.length -
+        NetworkConfig.markings.length -
+        NetworkConfig.telemetry.length) /
+      2;
     return getNetworkInputLabels(rayCount);
   }, [bestCarBrain]);
 
@@ -229,6 +230,7 @@ export default function TrainingCanvas({
           outputCount: level.outputs.length,
           biases: level.biases,
           weights: level.weights,
+          useMinActivation: false,
         })),
       };
 

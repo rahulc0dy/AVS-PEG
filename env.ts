@@ -42,6 +42,11 @@ export const {
 
   // Neural network variables
   NEXT_PUBLIC_BEST_BRAIN_STORE_KEY: BEST_BRAIN_STORE_KEY,
+
+  // Car variables
+  NEXT_PUBLIC_CAR_ACCELERATION: CAR_ACCELERATION,
+  NEXT_PUBLIC_CAR_MAX_SPEED: CAR_MAX_SPEED,
+  NEXT_PUBLIC_CAR_TURN_SPEED: CAR_TURN_SPEED,
 } = createEnv({
   client: {
     // Roads
@@ -79,6 +84,11 @@ export const {
     NEXT_PUBLIC_BEST_BRAIN_STORE_KEY: string()
       .nonempty()
       .default("avs-peg-best-brain"),
+
+    // Car Variables
+    NEXT_PUBLIC_CAR_ACCELERATION: posNum(0.005),
+    NEXT_PUBLIC_CAR_MAX_SPEED: posNum(0.5),
+    NEXT_PUBLIC_CAR_TURN_SPEED: posNum(0.03),
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_ORBIT_CAM_FAR: process.env.NEXT_PUBLIC_ORBIT_CAM_FAR,
@@ -112,5 +122,9 @@ export const {
 
     NEXT_PUBLIC_BEST_BRAIN_STORE_KEY:
       process.env.NEXT_PUBLIC_BEST_BRAIN_STORE_KEY,
+
+    NEXT_PUBLIC_CAR_ACCELERATION: process.env.NEXT_PUBLIC_CAR_ACCELERATION,
+    NEXT_PUBLIC_CAR_MAX_SPEED: process.env.NEXT_PUBLIC_CAR_MAX_SPEED,
+    NEXT_PUBLIC_CAR_TURN_SPEED: process.env.NEXT_PUBLIC_CAR_TURN_SPEED,
   },
 });

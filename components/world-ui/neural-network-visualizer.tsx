@@ -5,13 +5,14 @@ import Image from "next/image";
 import { NeuralNetworkStateJson } from "@/types/car/state";
 import { SlideablePanel } from "@/components/ui/slideable-panel";
 import { NetworkCanvas } from "@/components/canvases/network-canvas";
+import { getNetworkHiddenLabels, NeuronLabel } from "@/lib/car/network-config";
 
 interface NeuralNetworkVisualizerProps {
   state?: NeuralNetworkStateJson | null;
   /** Labels displayed beside each input-layer neuron. */
-  inputLabels?: string[];
+  inputLabels?: NeuronLabel[];
   /** Labels displayed beside each output-layer neuron. */
-  outputLabels?: string[];
+  outputLabels?: NeuronLabel[];
   onWeightChange?: (
     layerIdx: number,
     fromIdx: number,
@@ -45,6 +46,8 @@ export const NeuralNetworkVisualizer = ({
     };
   }, [state]);
 
+  const hiddenLabels = useMemo(() => getNetworkHiddenLabels(), []);
+
   return (
     <SlideablePanel
       title="Neural Network"
@@ -71,6 +74,7 @@ export const NeuralNetworkVisualizer = ({
           {...networkData}
           inputLabels={inputLabels}
           outputLabels={outputLabels}
+          hiddenLabels={hiddenLabels}
           onWeightChange={onWeightChange}
           onBiasChange={onBiasChange}
         />
