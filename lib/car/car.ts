@@ -1,18 +1,11 @@
-import {
-  BoxGeometry,
-  Color,
-  Group,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-} from "three";
-import { Sensor } from "@/lib/car/sensor";
-import { Controls, ControlType } from "@/lib/car/controls";
-import { Polygon } from "@/lib/primitives/polygon";
-import { Node } from "@/lib/primitives/node";
-import { GLTFLoader } from "three/examples/jsm/Addons.js";
-import { Edge } from "@/lib/primitives/edge";
+import {BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D,} from "three";
+import {Sensor} from "@/lib/car/sensor";
+import {Controls, ControlType} from "@/lib/car/controls";
+import {Polygon} from "@/lib/primitives/polygon";
+import {Node} from "@/lib/primitives/node";
+import {GLTFLoader} from "three/examples/jsm/Addons.js";
+import {Edge} from "@/lib/primitives/edge";
+import {CAR_ACCELERATION, CAR_MAX_SPEED} from "@/env";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
@@ -25,9 +18,9 @@ import {
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import { ControlInputs } from "@/types/car/shared";
-import { NeuralNetworkStateJson } from "@/types/car/state";
-import { NeuralNetworkJson } from "@/types/save";
+import {ControlInputs} from "@/types/car/shared";
+import {NeuralNetworkStateJson} from "@/types/car/state";
+import {NeuralNetworkJson} from "@/types/save";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -128,7 +121,7 @@ export class Car {
     group: Group,
     angle = 0,
     ignoreCarDamage = false,
-    maxSpeed = 0.5,
+    maxSpeed = CAR_MAX_SPEED,
   ) {
     this.id = id;
     this.position = position;
@@ -137,9 +130,11 @@ export class Car {
     this.height = height;
 
     this.speed = 0;
-    this.acceleration = 0.2;
-    this.maxSpeed = maxSpeed;
-    this.friction = 0.05;
+    this.acceleration = CAR_ACCELERATION;
+    // Increase variability: random multiplier between 0.5x and 1.5x of base maxSpeed
+    this.maxSpeed = maxSpeed * (0.5 + Math.random());
+    // Set friction slightly lower than acceleration so it visibly accelerates
+    this.friction = CAR_ACCELERATION * 0.4;
     this.angle = angle;
     this.damaged = false;
 

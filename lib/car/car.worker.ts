@@ -39,10 +39,10 @@ self.onmessage = (event: MessageEvent<CarWorkerInboundMessage>) => {
         pathBorders: [],
         markingWalls: [],
         network: new NeuralNetwork([
-          message.payload.sensor.rayCount +
+          2 * message.payload.sensor.rayCount +
             NetworkConfig.markings.length +
             NetworkConfig.telemetry.length,
-          ...NetworkConfig.hiddenLayers,
+          ...NetworkConfig.hiddenLayers.map((layer) => layer.length),
           NetworkConfig.outputs.length,
         ]),
         sensorReadings: [],
@@ -127,9 +127,12 @@ const updateAndBroadcastState = () => {
 
 /** Apply AI-driven controls based on neural network decisions. */
 const applyAIControls = () => {
-  // 1. Get standard physical ray distances
-  const sensorInputs = carState.sensorReadings.map((reading) =>
-    reading ? reading.intersection.offset : 1.0,
+  // 1. Get standard physical and virtual ray distances
+  const physicalSensorInputs = carState.sensorReadings.map((reading) =>
+    reading && reading.label == "traffic" ? reading.intersection.offset : 1.0,
+  );
+  const virtualSensorInputs = carState.sensorReadings.map((reading) =>
+    reading && reading.label == "border" ? reading.intersection.offset : 1.0,
   );
 
   // 2. Default states for our dedicated marking inputs (1.0 = Clear/Go)
@@ -187,16 +190,18 @@ const applyAIControls = () => {
     carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
 
   // 6. Feed the dynamically built array into the Neural Network based on Config
-  const inputs: number[] = [...sensorInputs];
+  const inputs: number[] = [];
+  inputs.push(...physicalSensorInputs);
+  inputs.push(...virtualSensorInputs);
 
   for (const marking of NetworkConfig.markings) {
-    if (marking === "Traffic Light") inputs.push(tlValue);
-    else if (marking === "Stop Sign") inputs.push(ssValue);
+    if (marking.name === "Traffic Light") inputs.push(tlValue);
+    else if (marking.name === "Stop Sign") inputs.push(ssValue);
     else inputs.push(1.0); // Default/Clear
   }
 
   for (const telemetry of NetworkConfig.telemetry) {
-    if (telemetry === "Speed") inputs.push(normalizedSpeed);
+    if (telemetry.name === "Speed") inputs.push(normalizedSpeed);
     else inputs.push(0.0);
   }
 
@@ -205,12 +210,12 @@ const applyAIControls = () => {
   // 7. Map outputs according to the schema
   const controlsMap: Record<string, boolean> = {};
   for (let i = 0; i < NetworkConfig.outputs.length; i++) {
-    controlsMap[NetworkConfig.outputs[i]] = outputs[i] == 1;
+    controlsMap[NetworkConfig.outputs[i].name] = outputs[i] == 1;
   }
 
   carState.controls.forward = controlsMap["Accelerate"] || false;
-  carState.controls.left = controlsMap["Left"] || false;
-  carState.controls.right = controlsMap["Right"] || false;
+  carState.controls.left = controlsMap["Steer Left"] || false;
+  carState.controls.right = controlsMap["Steer Right"] || false;
   carState.controls.reverse = controlsMap["Decelerate"] || false;
 };
 
