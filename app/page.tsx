@@ -104,7 +104,39 @@ const CodeIcon = () => (
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-green-500/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-emerald-500/30">
+      {/* Top Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link
+            href="/"
+            className="font-bold text-xl tracking-tight flex items-center gap-2"
+          >
+            AVS-PEG
+          </Link>
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+            <Link href="/" className="hover:text-zinc-50 transition-colors">
+              Home
+            </Link>
+            <Link href="/edit" className="hover:text-zinc-50 transition-colors">
+              Editor
+            </Link>
+            <Link
+              href="/train"
+              className="hover:text-zinc-50 transition-colors"
+            >
+              Training
+            </Link>
+            <Link
+              href="/simulate"
+              className="hover:text-zinc-50 transition-colors"
+            >
+              Simulation
+            </Link>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden pt-32 pb-20 lg:pt-48 lg:pb-32">
         <div className="container mx-auto px-6 relative z-10 text-center">
@@ -120,12 +152,12 @@ export default function Home() {
             {/* Cards */}
             <Link
               href="/edit"
-              className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 hover:bg-zinc-900 transition-all overflow-hidden text-left hover:border-green-500/50 hover:shadow-[0_0_30px_-5px_rgba(34,197,94,0.15)]"
+              className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 hover:bg-zinc-900 transition-all overflow-hidden text-left hover:border-emerald-500/50 hover:shadow-[0_0_30px_-5px_rgba(34,197,94,0.15)]"
             >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-green-500">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-teal-500">
                 <EditIcon />
               </div>
-              <div className="h-14 w-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-green-500/20 text-zinc-400 group-hover:text-green-400 transition-all duration-300">
+              <div className="h-14 w-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-500/20 text-zinc-400 group-hover:text-teal-400 transition-all duration-300">
                 <EditIcon />
               </div>
               <h3 className="text-xl font-bold mb-3">Environment Editor</h3>
@@ -138,12 +170,12 @@ export default function Home() {
 
             <Link
               href="/train"
-              className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 hover:bg-zinc-900 transition-all overflow-hidden text-left hover:border-emerald-500/50 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.15)]"
+              className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 hover:bg-zinc-900 transition-all overflow-hidden text-left hover:border-teal-500/50 hover:shadow-[0_0_30px_-5px_rgba(20,184,166,0.15)]"
             >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-emerald-500">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-teal-500">
                 <BrainIcon />
               </div>
-              <div className="h-14 w-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-emerald-500/20 text-zinc-400 group-hover:text-emerald-400 transition-all duration-300">
+              <div className="h-14 w-14 rounded-xl bg-zinc-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-500/20 text-zinc-400 group-hover:text-teal-400 transition-all duration-300">
                 <BrainIcon />
               </div>
               <h3 className="text-xl font-bold mb-3">AI Training</h3>
@@ -177,7 +209,7 @@ export default function Home() {
 
       {/* Features Section */}
       <div className="py-24 border-t border-zinc-900 bg-zinc-950/50 relative overflow-hidden">
-        <div className="absolute -left-40 top-40 w-[400px] h-[400px] bg-green-500/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute -left-40 top-40 w-100 h-100 bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="container mx-auto px-6 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">

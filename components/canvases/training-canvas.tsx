@@ -534,7 +534,7 @@ export default function TrainingCanvas({
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
                 <Image
-                  src={"/icons/training.png"}
+                  src={"/icons/neural.png"}
                   alt="Training"
                   width={24}
                   height={24}
