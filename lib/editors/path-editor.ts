@@ -141,9 +141,9 @@ export class PathEditor extends BaseEditor {
    *
    * Path editing does not use click-release interactions, so this is a no-op.
    *
-   * @param _pointer - World-space pointer position.
+   * @param _ - World-space pointer position.
    */
-  override handleClickRelease(_pointer: Vector3): void {}
+  override handleClickRelease(_: Vector3): void {}
 
   /**
    * Append the hovered node to the selected path if it is not already the last waypoint.
@@ -151,9 +151,9 @@ export class PathEditor extends BaseEditor {
    * Consecutive duplicates are skipped so repeated clicks on the same hovered node do
    * not create redundant waypoints.
    *
-   * @param _pointer - World-space pointer position.
+   * @param _ - World-space pointer position.
    */
-  override handleLeftClick(_pointer: Vector3): void {
+  override handleLeftClick(_: Vector3): void {
     if (!this.hoveredNode) return;
 
     if (this.selectedPathIdx >= 0 && this.selectedPathIdx < this.paths.length) {
@@ -193,9 +193,9 @@ export class PathEditor extends BaseEditor {
    * This intentionally removes all matching waypoint references, not just the first
    * one, so repeated waypoints are fully cleared from the current path.
    *
-   * @param _pointer - World-space pointer position.
+   * @param _ - World-space pointer position.
    */
-  override handleRightClick(_pointer: Vector3): void {
+  override handleRightClick(_: Vector3): void {
     if (this.selectedPathIdx >= 0 && this.selectedPathIdx < this.paths.length) {
       const currentPath = this.paths[this.selectedPathIdx];
 

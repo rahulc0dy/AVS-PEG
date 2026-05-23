@@ -109,7 +109,7 @@ export class TrafficLightEditor extends MarkingEditor {
    * - clears current selection, otherwise
    * - deletes the hovered traffic light node/marking.
    */
-  override handleRightClick(_pointer: Vector3) {
+  override handleRightClick(_: Vector3) {
     if (this.selectedTrafficLight) {
       this.selectedTrafficLight = null;
       this.needsRedraw = true;
