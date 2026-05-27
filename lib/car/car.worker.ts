@@ -141,7 +141,12 @@ const applyAIControls = () => {
 
   // 3. Cast a virtual marking ray straight ahead
   if (carState.markingWalls && carState.markingWalls.length > 0) {
-    const rayLength = carState.sensor.rayLength * 0.3; // Stop as close as possible to the marking
+    // Look ahead distance scales with current speed to allow enough braking time
+    const speedRatio =
+      carState.maxSpeed !== 0
+        ? Math.max(0, carState.speed) / carState.maxSpeed
+        : 0;
+    const rayLength = carState.sensor.rayLength * (0.3 + speedRatio * 1.2);
     const n1 = new Node(carState.position.x, carState.position.y);
     const n2 = new Node(
       n1.x + Math.cos(carState.angle) * rayLength,

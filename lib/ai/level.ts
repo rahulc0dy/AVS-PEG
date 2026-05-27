@@ -79,18 +79,22 @@ export class Level {
     for (let i = 0; i < level.outputs.length; i++) {
       let sum = 0;
       let min = 1;
+      let hasPositiveProduct = false;
+      
       for (let j = 0; j < level.inputs.length; j++) {
         const product = level.inputs[j] * level.weights[j][i];
         sum += product;
-        if (product > 0 && product < min) {
-          min = level.inputs[j] * level.weights[j][i];
+        if (product > 0) {
+          hasPositiveProduct = true;
+          if (product < min) {
+            min = product;
+          }
         }
       }
 
       if (level.useMinActivation) {
         // Min activation: min output
-        level.outputs[i] = level.inputs.length > 0 ? min : 0;
-        console.log(level.outputs);
+        level.outputs[i] = hasPositiveProduct ? min : 0;
       } else {
         // Step activation: 1 if sum > bias, else 0
         level.outputs[i] = sum > level.biases[i] ? 1 : 0;
