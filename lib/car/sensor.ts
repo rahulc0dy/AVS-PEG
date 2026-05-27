@@ -6,8 +6,6 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
-  Line,
-  LineBasicMaterial,
   Mesh,
   MeshBasicMaterial,
   Object3D,
@@ -32,7 +30,12 @@ const SENSOR_DRAW_HEIGHT = 0.05;
  *
  * @returns A Three.js CanvasTexture with a horizontal opacity gradient.
  */
-function createBeamGradientTexture(): CanvasTexture {
+function createBeamGradientTexture(
+  r: number,
+  g: number,
+  b: number,
+  peakAlpha: number = 0.7,
+): CanvasTexture {
   const width = 256;
   const height = 1;
   const canvas = document.createElement("canvas");
@@ -41,10 +44,9 @@ function createBeamGradientTexture(): CanvasTexture {
   const ctx = canvas.getContext("2d")!;
 
   const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  // Left edge = origin (opaque yellow), right edge = tip (fully transparent)
-  gradient.addColorStop(0, "rgba(255, 220, 30, 0.7)");
-  gradient.addColorStop(0.3, "rgba(255, 200, 10, 0.35)");
-  gradient.addColorStop(1, "rgba(255, 200, 10, 0.0)");
+  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
+  gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${peakAlpha * 0.5})`);
+  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.0)`);
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
@@ -90,17 +92,17 @@ export class Sensor {
   /** Sub-group holding the filled beam wedge meshes (one per adjacent ray pair). */
   private beamGroup: Group;
 
-  /** Sub-group holding the hit-point indicator lines. */
-  private hitGroup: Group;
+  /** Shared material for clear (no-hit) beam wedges — yellow gradient. */
+  private clearMaterial: MeshBasicMaterial;
 
-  /** Shared material for the radar beam fill (uses gradient texture + polygonOffset). */
-  private beamMaterial: MeshBasicMaterial;
+  /** Shared material for hit-detected beam wedges — red gradient. */
+  private hitMaterial: MeshBasicMaterial;
 
-  /** Shared material for hit-point indicator lines. */
-  private hitMaterial: LineBasicMaterial;
+  /** Gradient texture for clear beam wedges. */
+  private clearTexture: CanvasTexture;
 
-  /** Gradient texture applied to beam wedges. */
-  private beamTexture: CanvasTexture;
+  /** Gradient texture for hit beam wedges. */
+  private hitTexture: CanvasTexture;
 
   /**
    * Create a Sensor attached to `car`.
@@ -116,27 +118,28 @@ export class Sensor {
     this.readings = [];
     this.sensorGroup = new Group();
     this.beamGroup = new Group();
-    this.hitGroup = new Group();
     this.sensorGroup.add(this.beamGroup);
-    this.sensorGroup.add(this.hitGroup);
 
-    this.beamTexture = createBeamGradientTexture();
-
-    this.beamMaterial = new MeshBasicMaterial({
-      map: this.beamTexture,
+    /** Shared polygonOffset config so beams render above the road surface. */
+    const beamMaterialConfig = {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      // Push the beam forward in the depth buffer so it wins over
-      // the road surface and lane overlays without disabling depthTest
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
+    } as const;
+
+    this.clearTexture = createBeamGradientTexture(255, 220, 30, 0.7);
+    this.clearMaterial = new MeshBasicMaterial({
+      map: this.clearTexture,
+      ...beamMaterialConfig,
     });
 
-    this.hitMaterial = new LineBasicMaterial({
-      color: 0xff3333,
-      linewidth: 2,
+    this.hitTexture = createBeamGradientTexture(255, 50, 50, 0.8);
+    this.hitMaterial = new MeshBasicMaterial({
+      map: this.hitTexture,
+      ...beamMaterialConfig,
     });
   }
 
@@ -172,38 +175,72 @@ export class Sensor {
     }
 
     this.drawBeamWedges();
-    this.drawHitIndicators();
   }
 
   /**
-   * Build or update filled triangular wedge meshes between each pair of
-   * adjacent sensor rays. The origin vertex gets UV `u = 0` (opaque) and
-   * the tip vertices get `u = 1` (transparent), mapping onto the gradient
-   * texture to produce the radar fade effect.
+   * Build or update one filled triangular wedge per sensor ray. Each wedge is
+   * a narrow angular segment centred on the ray's direction, with angular
+   * width equal to the total spread divided by the ray count. The origin
+   * vertex gets UV `u = 0` (opaque) and the two tip vertices get `u = 1`
+   * (transparent), producing the radar fade via the gradient texture.
+   *
+   * When a ray detects a non-border obstacle, its wedge is shortened to
+   * the intersection distance and coloured red.
    */
   private drawBeamWedges() {
-    const wedgeCount = Math.max(0, this.rayCount - 1);
+    const halfSegment =
+      this.rayCount > 1
+        ? this.raySpreadAngle / (this.rayCount - 1) / 2
+        : this.raySpreadAngle / 4;
 
-    for (let i = 0; i < wedgeCount; i++) {
-      if (!this.rays[i] || !this.rays[i + 1]) continue;
+    for (let i = 0; i < this.rayCount; i++) {
+      if (!this.rays[i]) continue;
 
       const origin = this.rays[i].n1;
-      const endA = this.getEffectiveEnd(i);
-      const endB = this.getEffectiveEnd(i + 1);
 
-      // Triangle: origin → endA → endB
+      // Determine ray length — shorten to hit distance if non-border hit
+      const reading = this.readings[i];
+      const intersection = reading?.intersection;
+      const hasHit = !!(
+        reading && reading.label !== "border" && intersection
+      );
+      const effectiveLength = hasHit
+        ? intersection.offset * this.rayLength
+        : this.rayLength;
+
+      // Compute the ray's centre angle from its endpoint direction
+      const dx = this.rays[i].n2.x - origin.x;
+      const dy = this.rays[i].n2.y - origin.y;
+      const rayAngle = Math.atan2(dy, dx);
+
+      // Two edges of the angular segment
+      const leftAngle = rayAngle - halfSegment;
+      const rightAngle = rayAngle + halfSegment;
+
+      const endLeft = new Node(
+        origin.x + Math.cos(leftAngle) * effectiveLength,
+        origin.y + Math.sin(leftAngle) * effectiveLength,
+      );
+      const endRight = new Node(
+        origin.x + Math.cos(rightAngle) * effectiveLength,
+        origin.y + Math.sin(rightAngle) * effectiveLength,
+      );
+
+      // Triangle: origin → endLeft → endRight
       const positions = new Float32Array([
         origin.x, SENSOR_DRAW_HEIGHT, origin.y,
-        endA.x,   SENSOR_DRAW_HEIGHT, endA.y,
-        endB.x,   SENSOR_DRAW_HEIGHT, endB.y,
+        endLeft.x, SENSOR_DRAW_HEIGHT, endLeft.y,
+        endRight.x, SENSOR_DRAW_HEIGHT, endRight.y,
       ]);
 
       // UV mapping: u=0 at origin (opaque), u=1 at tips (transparent)
       const uvs = new Float32Array([
-        0, 0.5,  // origin — left edge of gradient
-        1, 0,    // tip A  — right edge of gradient
-        1, 1,    // tip B  — right edge of gradient
+        0, 0.5, // origin — left edge of gradient
+        1, 0, // tip left  — right edge of gradient
+        1, 1, // tip right — right edge of gradient
       ]);
+
+      const material = hasHit ? this.hitMaterial : this.clearMaterial;
 
       let mesh = this.beamGroup.children[i] as Mesh;
 
@@ -212,10 +249,8 @@ export class Sensor {
           "position",
           new Float32BufferAttribute(positions, 3),
         );
-        mesh.geometry.setAttribute(
-          "uv",
-          new Float32BufferAttribute(uvs, 2),
-        );
+        mesh.geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+        mesh.material = material;
         mesh.geometry.computeBoundingSphere();
       } else {
         const geometry = new BufferGeometry();
@@ -223,95 +258,15 @@ export class Sensor {
           "position",
           new Float32BufferAttribute(positions, 3),
         );
-        geometry.setAttribute(
-          "uv",
-          new Float32BufferAttribute(uvs, 2),
-        );
-        mesh = new Mesh(geometry, this.beamMaterial);
+        geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+        mesh = new Mesh(geometry, material);
         mesh.frustumCulled = false;
         this.beamGroup.add(mesh);
       }
     }
 
     // Remove excess wedge meshes if ray count was reduced
-    this.pruneChildren(this.beamGroup, wedgeCount);
-  }
-
-  /**
-   * Draw red cross-hair indicators at each non-border intersection point,
-   * rendered as short perpendicular line segments at the intersection
-   * location.
-   */
-  private drawHitIndicators() {
-    let hitIdx = 0;
-
-    for (let i = 0; i < this.rayCount; i++) {
-      if (!this.rays[i]) continue;
-
-      const reading = this.readings[i];
-      const intersection = reading?.intersection;
-      const showHit = reading && reading.label !== "border" && intersection;
-
-      if (!showHit) continue;
-
-      const hitPos = new Node(intersection.x, intersection.y);
-      const ray = this.rays[i];
-      const dx = ray.n2.x - ray.n1.x;
-      const dy = ray.n2.y - ray.n1.y;
-      const len = Math.hypot(dx, dy);
-      const crossSize = 2.5;
-      const px = (-dy / len) * crossSize;
-      const py = (dx / len) * crossSize;
-
-      const points = new Float32Array([
-        hitPos.x - px, SENSOR_DRAW_HEIGHT + 0.02, hitPos.y - py,
-        hitPos.x + px, SENSOR_DRAW_HEIGHT + 0.02, hitPos.y + py,
-      ]);
-
-      let line = this.hitGroup.children[hitIdx] as Line<
-        BufferGeometry,
-        LineBasicMaterial
-      >;
-
-      if (line) {
-        line.geometry.setAttribute(
-          "position",
-          new Float32BufferAttribute(points, 3),
-        );
-        line.geometry.computeBoundingSphere();
-        line.visible = true;
-      } else {
-        const geometry = new BufferGeometry();
-        geometry.setAttribute(
-          "position",
-          new Float32BufferAttribute(points, 3),
-        );
-        line = new Line(geometry, this.hitMaterial);
-        this.hitGroup.add(line);
-      }
-      hitIdx++;
-    }
-
-    // Hide surplus hit indicators
-    for (let j = hitIdx; j < this.hitGroup.children.length; j++) {
-      this.hitGroup.children[j].visible = false;
-    }
-  }
-
-  /**
-   * Get the effective endpoint for ray `i`, clamped to the intersection
-   * point if a non-border hit is detected.
-   *
-   * @param i - Ray index
-   * @returns Effective endpoint Node
-   */
-  private getEffectiveEnd(i: number): Node {
-    const reading = this.readings[i];
-    const intersection = reading?.intersection;
-    if (reading && reading.label !== "border" && intersection) {
-      return new Node(intersection.x, intersection.y);
-    }
-    return this.rays[i].n2;
+    this.pruneChildren(this.beamGroup, this.rayCount);
   }
 
   /**
@@ -344,19 +299,11 @@ export class Sensor {
     });
     this.beamGroup.clear();
 
-    // Dispose hit indicator geometries
-    this.hitGroup.children.forEach((child) => {
-      const line = child as Line;
-      if (line.geometry) {
-        line.geometry.dispose();
-      }
-    });
-    this.hitGroup.clear();
-
-    // Dispose shared materials and texture
-    this.beamMaterial.dispose();
-    this.beamTexture.dispose();
+    // Dispose shared materials and textures
+    this.clearMaterial.dispose();
+    this.clearTexture.dispose();
     this.hitMaterial.dispose();
+    this.hitTexture.dispose();
 
     this.sensorGroup.clear();
     if (this.sensorGroup.parent) {
