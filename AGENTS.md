@@ -9,6 +9,7 @@ AVS-PEG/
 ├── app/                      # Next.js App Router pages
 │   ├── layout.tsx            # Root layout with metadata
 │   ├── page.tsx              # Landing page (/)
+│   ├── favicon.ico           # App favicon
 │   ├── manifest.ts           # PWA manifest
 │   ├── edit/                 # Graph/marking editor (/edit)
 │   ├── simulate/             # Manual driving mode (/simulate)
@@ -20,11 +21,11 @@ AVS-PEG/
 │   └── world-ui/             # World interaction UI (toolbars, overlays)
 ├── lib/                      # Pure simulation logic (no React)
 │   ├── ai/                   # NeuralNetwork, Level
-│   ├── car/                  # Car, Sensor, Controls, car.worker.ts
-│   ├── editors/              # BaseEditor, GraphEditor, MarkingEditor subclasses
-│   ├── markings/             # Marking base class and subtypes
+│   ├── car/                  # Car, Sensor, Controls, NetworkConfig, car.worker.ts
+│   ├── editors/              # BaseEditor, GraphEditor, MarkingEditor subclasses, HistoryManager, PathEditor
+│   ├── markings/             # Marking base class and subtypes (TrafficLight, Source, Destination, StopSign, Path)
 │   ├── primitives/           # Node, Edge, Graph, Polygon, Envelope
-│   ├── systems/              # TrafficLightSystem, PathFindingSystem, etc.
+│   ├── systems/              # TrafficLightSystem, PathFindingSystem, SpawnerSystem, TrainingSystem
 │   └── world/                # World, Road
 ├── public/
 │   ├── icons/                # App icons
@@ -36,20 +37,20 @@ AVS-PEG/
 │   └── globals.css           # Global styles and Tailwind imports
 ├── types/                    # Shared TypeScript definitions
 │   ├── car/                  # Worker thread communication types
-│   │   ├── message.ts        # Message payloads and type constants
+│   │   ├── message.ts        # Message payloads, type constants, MarkingWallJson
 │   │   ├── shared.ts         # Types shared between main/worker threads
 │   │   └── state.ts          # Worker state and network visualization types
 │   ├── editor.ts             # EditorMode, Editor interface
-│   ├── intersection.ts       # Intersection geometry types
+│   ├── intersection.ts       # Intersection, IntersectionLabel, LabelledIntersection
 │   ├── marking.ts            # MarkingType, GraphEdgeType
 │   ├── osm.ts                # OpenStreetMap data types
-│   └── save.ts               # Serialization interfaces (WorldJson, etc.)
+│   └── save.ts               # Serialization interfaces (WorldJson, PathJson, etc.)
 ├── utils/                    # Pure utility functions
 │   ├── browser.ts            # Browser detection
 │   ├── infinite-grid-helper.ts # Three.js infinite grid
 │   ├── math.ts               # Mathematical helpers
 │   ├── osm.ts                # OSM parsing and coordinate conversion
-│   ├── rendering.ts          # Three.js rendering utilities
+│   ├── rendering.ts          # Three.js rendering utilities (including text sprites)
 │   └── road-surface-texture.ts # Procedural road textures
 ├── env.ts                    # Environment variables (t3-oss/env-nextjs)
 ├── AGENTS.md                 # This file - agent instructions
@@ -62,23 +63,27 @@ AVS-PEG/
 ### Core Layers
 
 - **`lib/`** - Pure simulation logic (no React). Classes manage their own Three.js meshes and disposal.
-  - `world/World` - Central orchestrator: owns `Graph`, roads, cars, markings, and four subsystems
+  - `world/World` - Central orchestrator: owns `Graph`, roads, cars, markings, and four subsystems (`TrafficLightSystem`, `PathFindingSystem`, `SpawnerSystem`, `TrainingSystem`)
   - `world/Road` - Road segment extending `Envelope` with lane count, road type, and visual layers (base, lanes, arrows)
   - `primitives/` - `Node`, `Edge`, `Graph`, `Polygon`, `Envelope` - foundation for all geometry
   - `ai/` - `NeuralNetwork` (feedforward network with mutation support) and `Level` (single layer with step activation)
   - `systems/` - `TrafficLightSystem`, `PathFindingSystem`, `SpawnerSystem`, `TrainingSystem` - update each frame
-  - `editors/` - `BaseEditor` abstract class → `GraphEditor` for graph manipulation; `MarkingEditor` intermediate abstract → `TrafficLightEditor`, `SourceDestinationEditor` for marking placement
-  - `markings/` - `Marking` base class for traffic lights, sources, destinations
-  - `car/` - `Car` with physics offloaded to Web Worker, `Sensor`, and `Controls` (`ControlType`: `HUMAN`/`AI`/`NONE`)
+  - `editors/` - Editor classes and undo/redo history management:
+    - `BaseEditor` abstract class → `GraphEditor` for graph manipulation
+    - `MarkingEditor` intermediate abstract → `TrafficLightEditor`, `SourceDestinationEditor`, `StopSignEditor`
+    - `BaseEditor` → `PathEditor` for waypoint-based path editing
+    - `HistoryManager` - JSON-patch-based undo/redo for world state (uses `fast-json-patch`)
+  - `markings/` - `Marking` base class for traffic lights, sources, destinations, stop signs; `Path` class for user-defined waypoint routes
+  - `car/` - `Car` with physics offloaded to Web Worker, `Sensor`, `Controls` (`ControlType`: `HUMAN`/`AI`/`NONE`), `NetworkConfig` (neuron labels and network topology metadata)
 
 - **`types/car/`** - Type definitions for car worker thread communication
-  - `message.ts` - Message payloads (`CarInitPayload`, `UpdateControlsPayload`, `UpdateCollisionDataPayload`, `UpdateWeightPayload`, `UpdateBiasPayload`, `SetBrainPayload`, `CarStatePayload`, `SensorUpdatePayload`), type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`), and discriminated unions (`CarWorkerInboundMessage`, `CarWorkerOutboundMessage`)
+  - `message.ts` - Message payloads (`CarInitPayload`, `UpdateControlsPayload`, `UpdateCollisionDataPayload`, `UpdateWeightPayload`, `UpdateBiasPayload`, `SetBrainPayload`, `CarStatePayload`, `SensorUpdatePayload`, `MarkingWallJson`), type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`), and discriminated unions (`CarWorkerInboundMessage`, `CarWorkerOutboundMessage`)
   - `shared.ts` - Serializable types shared between main thread and worker: `CarBasePayload`, `SensorConfig`, `ControlInputs`
   - `state.ts` - `WorkerCarState` type for worker-side state, `NeuralNetworkStateJson` and `LevelStateJson` for real-time network visualization
 
 - **`components/hooks/`** - React hooks that bridge simulation and UI
   - `useWorld` - Creates/disposes `World` instance
-  - `useWorldEditors` - Wires up editor instances and mode switching
+  - `useWorldEditors` - Wires up all editor instances (graph, traffic-light, stop-sign, source-destination, path), mode switching, `HistoryManager` for undo/redo, and keyboard shortcuts (Ctrl+Z, Ctrl+Y)
   - `useWorldInput` - Pointer/raycasting to world coordinates
   - `useWorldAnimation` - Render loop calling `world.update()` and `editor.draw()`
   - `useWorldSimulation` - Simulation loop for non-editor views (updates OrbitControls, world, and graph changes)
@@ -101,6 +106,7 @@ AVS-PEG/
   - `Navigation` - Page navigation links
   - `NeuralNetworkVisualizer` - Slideable panel wrapping `NetworkCanvas` for real-time network state display
   - `OsmModal` - OpenStreetMap import dialog
+  - `PathPanel` - Slideable panel for managing paths: create, delete, select, toggle loop, view waypoint count
 
 - **`components/ui/`** - Reusable UI primitives
   - `SlideablePanel` - Collapsible panel supporting top/bottom/left/right positions
@@ -112,16 +118,17 @@ AVS-PEG/
 - **`utils/`** - Pure utility functions
   - `browser.ts` - Browser detection and capabilities
   - `infinite-grid-helper.ts` - Three.js infinite grid helper class
-  - `math.ts` - Mathematical helpers (lerp, clamp, angle calculations, `Intersection` type)
+  - `math.ts` - Mathematical helpers (lerp, clamp, angle calculations, `getNearestNode`, `getNearestEdge`)
   - `osm.ts` - OSM data parsing and coordinate conversion
-  - `rendering.ts` - Three.js rendering utilities
+  - `rendering.ts` - Three.js rendering utilities (`createTextSprite`, `disposeTextSprite`, and general helpers)
   - `road-surface-texture.ts` - Procedural road texture generation
 
 - **`types/`** - Shared type definitions
-  - `editor.ts` - `EditorMode` type (`"graph" | "traffic-lights" | "source-destination"`) and `Editor` interface
-  - `marking.ts` - `MarkingType`, `GraphEdgeType`, `SourceDestinationMarkingType`
+  - `editor.ts` - `EditorMode` type (`"graph" | "traffic-lights" | "source-destination" | "stop-sign" | "path"`) and `Editor` interface
+  - `intersection.ts` - `Intersection` type, `IntersectionLabel` type (discriminated labels: `"traffic"`, `"border"`, `"stop-sign"`, `"traffic-light-red"`, etc.), `LabelledIntersection` type
+  - `marking.ts` - `MarkingType` (`"traffic-light" | "source" | "destination" | "stop-sign" | "default"`), `GraphEdgeType`, `SourceDestinationMarkingType`
   - `osm.ts` - OpenStreetMap data types
-  - `save.ts` - Serialization interfaces: `WorldJson`, `GraphJson`, `NodeJson`, `EdgeJson`, `RoadJson`, `EnvelopeJson`, `PolygonJson`, `MarkingJson`, `TrafficLightJson`, `LevelJson`, `NeuralNetworkJson`
+  - `save.ts` - Serialization interfaces: `WorldJson`, `GraphJson`, `NodeJson`, `EdgeJson`, `RoadJson`, `EnvelopeJson`, `PolygonJson`, `MarkingJson`, `TrafficLightJson`, `PathJson`, `LevelJson`, `NeuralNetworkJson`
 
 ### App Routes
 
@@ -155,9 +162,19 @@ abstract draw(): boolean; // return true if scene needs re-render
 **Editor hierarchy:**
 
 - `BaseEditor` (abstract) → `GraphEditor` (graph nodes/edges)
-- `BaseEditor` → `MarkingEditor` (abstract, adds intent preview + edge snapping) → `TrafficLightEditor`, `SourceDestinationEditor`
+- `BaseEditor` → `MarkingEditor` (abstract, adds intent preview + edge snapping) → `TrafficLightEditor`, `SourceDestinationEditor`, `StopSignEditor`
+- `BaseEditor` → `PathEditor` (waypoint editing on graph nodes, renders numbered waypoint labels and path borders)
 
 Each editor owns an `editorGroup: Group` attached to the scene. Toggle visibility via `enable()`/`disable()`.
+
+### Undo/Redo (HistoryManager)
+
+`HistoryManager` provides undo/redo by diffing `WorldJson` snapshots using `fast-json-patch`:
+
+- On each significant action (pointer up, right-click), `saveState()` captures the world state and pushes a diff-based action onto the undo stack.
+- `undo()` / `redo()` apply JSON patches to revert/reapply state, then call `world.fromJson()` and `world.draw()`.
+- Transient state (traffic light phases, road borders) is stripped before diffing to avoid polluting the history.
+- Keyboard shortcuts: `Ctrl+Z` (undo), `Ctrl+Y` / `Ctrl+Shift+Z` (redo).
 
 ### Resource Disposal
 
@@ -175,9 +192,9 @@ Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main
 **Message Flow:**
 
 1. `Car.initWorker()` spawns worker and sends `INIT` message with initial car state
-2. Each frame, `Car.update()` sends `UPDATE_CONTROLS` and `UPDATE_COLLISION_DATA` to worker
+2. Each frame, `Car.update()` sends `UPDATE_CONTROLS` and `UPDATE_COLLISION_DATA` (includes traffic polygons, path borders, and marking walls) to worker
 3. Worker runs physics at `requestAnimationFrame` rate, posts `STATE_UPDATE` back with position, angle, damage, polygon, and network state
-4. Worker also posts `SENSOR_UPDATE` with sensor rays and readings
+4. Worker also posts `SENSOR_UPDATE` with sensor rays and labelled readings (`LabelledIntersection`)
 5. Main thread updates `Car` properties from worker state
 
 **Additional inbound messages:**
@@ -189,12 +206,33 @@ Vehicle physics run in a dedicated Web Worker (`car.worker.ts`) to keep the main
 Complex classes (`Node`, `Polygon`, `Edge`) are serialized to plain objects (`NodeJson`, `PolygonJson`, `EdgeJson`) from `types/save.ts` for worker transfer. Worker-specific types live in `types/car/`:
 
 - `shared.ts` - Base types: `CarBasePayload`, `SensorConfig`, `ControlInputs`
-- `message.ts` - Message payloads (`CarInitPayload`, `CarStatePayload`, `UpdateCollisionDataPayload`, `UpdateControlsPayload`, `UpdateWeightPayload`, `UpdateBiasPayload`, `SetBrainPayload`, `SensorUpdatePayload`) and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
+- `message.ts` - Message payloads (`CarInitPayload`, `CarStatePayload`, `UpdateCollisionDataPayload`, `UpdateControlsPayload`, `UpdateWeightPayload`, `UpdateBiasPayload`, `SetBrainPayload`, `SensorUpdatePayload`, `MarkingWallJson`) and type constants (`WorkerInboundMessageType`, `WorkerOutboundMessageType`)
 - `state.ts` - `WorkerCarState` type for worker-side state, `NeuralNetworkStateJson` and `LevelStateJson` for real-time visualization
+
+### Marking Walls
+
+Markings can expose a detection wall via `getMarkingWall()` → `MarkingWallJson` (from `types/car/message.ts`). Each wall has an `edge`, a `label` (e.g., `"stop-sign"`, `"traffic-light-red"`), and a `direction`. These walls are passed to the car's worker each frame alongside traffic and border data, allowing sensor rays to detect and classify markings.
+
+### Path System
+
+Paths (`lib/markings/path.ts`) represent user-defined waypoint routes:
+
+- A `Path` holds ordered `waypoints` (graph nodes), a `color`, an `isLoop` flag, and derived `edges`/`borders` geometry.
+- `PathFindingSystem.calculatePaths()` recomputes the shortest-path edges and border envelopes for each path using Dijkstra over the graph.
+- `PathEditor` lets users click graph nodes to add/remove waypoints; `PathPanel` provides a UI for creating, selecting, deleting paths, and toggling loop mode.
+- Paths are serialized as `PathJson` in `types/save.ts` and persisted in `WorldJson.paths`.
+
+### Neural Network Configuration
+
+`lib/car/network-config.ts` defines the network topology metadata:
+
+- `NeuronLabel` interface: `{ name, description }` for each neuron.
+- `NetworkConfig` object: declares `markings` inputs (traffic light, stop sign), `telemetry` inputs (speed), `outputs` (accelerate, steer left, steer right, decelerate), and `hiddenLayers` (3 hidden layers with 8, 7, 6 neurons).
+- Helper functions: `getNetworkInputLabels(rayCount)` generates sensor ray labels (physical + virtual) plus marking/telemetry inputs; `getNetworkOutputLabels()` and `getNetworkHiddenLabels()` return the configured labels.
 
 ### Serialization
 
-`World.toJson()` / `World.fromJson(json)` handle save/load via `WorldJson` interface in `types/save.ts`. Markings, roads, and graphs are serialized separately.
+`World.toJson()` / `World.fromJson(json)` handle save/load via `WorldJson` interface in `types/save.ts`. Markings, roads, paths, and graphs are serialized separately. `fromJson` deserializes markings by type discriminator (`"traffic-light"`, `"source"`, `"destination"`, `"stop-sign"`, default) and hydrates paths via `Path.fromJson()`.
 
 ### Environment Variables
 
@@ -250,14 +288,16 @@ import { ROAD_WIDTH, TRAFFIC_LIGHT_THRESHOLD } from "@/env";
 1. Add type to `MarkingType` in `types/marking.ts`
 2. Create class extending `Marking` in `lib/markings/`
 3. Place GLTF model at `public/models/{type}.gltf` (auto-loaded by `Marking.draw()`)
-4. Update `WorldJson` in `types/save.ts` if serialization needed
-5. Update `World.fromJson()` to deserialize the new marking type
+4. If the marking emits a detection wall, implement `getMarkingWall()` returning `MarkingWallJson`
+5. Add the corresponding `IntersectionLabel` string to `types/intersection.ts` if it introduces a new sensor label
+6. Update `WorldJson` in `types/save.ts` if serialization needed
+7. Update `World.fromJson()` to deserialize the new marking type
 
 #### New Editor Mode
 
 1. Add mode to `EditorMode` in `types/editor.ts`
 2. Create editor class extending `BaseEditor` (or `MarkingEditor`) in `lib/editors/`
-3. Wire up in `useWorldEditors` hook - create instance, handle mode switching
+3. Wire up in `useWorldEditors` hook - create instance, handle mode switching, add to `disableEditors`, all event switch statements, and cleanup
 4. Add UI toggle in `ModeControls` component
 
 #### New System
