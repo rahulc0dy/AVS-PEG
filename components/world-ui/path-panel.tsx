@@ -163,9 +163,11 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                   <select
                     value={path.carModelId}
                     onChange={(e) => {
-                      path.carModelId = e.target.value;
+                      const newModelId = e.target.value;
                       const editor = editorRef.current;
                       if (editor) {
+                        const target = editor.paths.find((p) => p === path);
+                        if (target) target.carModelId = newModelId;
                         editor.onUpdate?.();
                         setPaths([...editor.paths]);
                       }
