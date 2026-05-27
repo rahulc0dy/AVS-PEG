@@ -8,6 +8,7 @@ import { angle, average, clamp } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { Path } from "@/lib/markings/path";
+import { getCarModel } from "@/lib/car/car-models";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -156,11 +157,13 @@ export class SpawnerSystem {
     for (const path of paths) {
       if (path.waypoints.length === 0 || path.edges.length === 0) continue;
 
+      const model = getCarModel(path.carModelId);
+
       const firstWaypoint = path.waypoints[0];
       const firstEdge = path.edges[0];
       const dir = firstEdge.directionVector();
 
-      const offset = this.length + 20;
+      const offset = model.length + 20;
       const spawnNode = new Node(
         firstWaypoint.x + dir.x * offset,
         firstWaypoint.y + dir.y * offset,
@@ -169,13 +172,15 @@ export class SpawnerSystem {
       const car = new Car(
         this.cars.length,
         spawnNode,
-        this.breadth,
-        this.length,
-        this.height,
+        model.breadth,
+        model.length,
+        model.height,
         controlType,
         this.worldGroup,
         angle(dir),
         false,
+        undefined,
+        model,
       );
 
       car.pathBorders = [...path.borders];

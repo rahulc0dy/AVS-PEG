@@ -107,6 +107,8 @@ export interface PathJson {
   borders: EdgeJson[];
   /** Optional display color. */
   color?: string;
+  /** Optional car model identifier for the vehicle spawned on this path. */
+  carModelId?: string;
 }
 /**
  * Serialized representation of a {@link Level}.

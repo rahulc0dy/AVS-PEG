@@ -2,6 +2,7 @@ import { Node } from "@/lib/primitives/node";
 import { Edge } from "@/lib/primitives/edge";
 import { EdgeJson, NodeJson, PathJson } from "@/types/save";
 import { Graph } from "@/lib/primitives/graph";
+import { DEFAULT_CAR_MODEL_ID } from "@/lib/car/car-models";
 
 /**
  * Represents a user-defined route made of ordered waypoint nodes.
@@ -20,6 +21,8 @@ export class Path {
   borders: Edge[] = [];
   /** Display color used when rendering the path in the editor. */
   color: string;
+  /** Identifier of the car model to spawn on this path. */
+  carModelId: string;
 
   /**
    * Create a path from pre-existing waypoint and derived geometry arrays.
@@ -29,6 +32,7 @@ export class Path {
    * @param edges - Optional precomputed centerline edges.
    * @param borders - Optional precomputed border edges.
    * @param color - Optional display color. A bright random HSL color is generated when omitted.
+   * @param carModelId - Optional car model identifier. Defaults to {@link DEFAULT_CAR_MODEL_ID}.
    */
   constructor(
     waypoints: Node[],
@@ -36,6 +40,7 @@ export class Path {
     edges: Edge[] = [],
     borders: Edge[] = [],
     color?: string,
+    carModelId?: string,
   ) {
     this.waypoints = waypoints;
     this.isLoop = isLoop;
@@ -43,6 +48,7 @@ export class Path {
     this.borders = borders;
     // Generate a prominent, bright color shifting only the hue
     this.color = color || `hsl(${Math.floor(Math.random() * 360)}, 100%, 50%)`;
+    this.carModelId = carModelId || DEFAULT_CAR_MODEL_ID;
   }
 
   /**
@@ -102,6 +108,7 @@ export class Path {
       edges,
       json.borders.map((e: EdgeJson) => Edge.fromJson(e)),
       json.color,
+      json.carModelId,
     );
   }
 
@@ -120,6 +127,7 @@ export class Path {
       edges: this.edges.map((e) => e.toJson()),
       borders: this.borders.map((e) => e.toJson()),
       color: this.color,
+      carModelId: this.carModelId,
     };
   }
 }

@@ -1,11 +1,20 @@
-import {BoxGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, Object3D,} from "three";
-import {Sensor} from "@/lib/car/sensor";
-import {Controls, ControlType} from "@/lib/car/controls";
-import {Polygon} from "@/lib/primitives/polygon";
-import {Node} from "@/lib/primitives/node";
-import {GLTFLoader} from "three/examples/jsm/Addons.js";
-import {Edge} from "@/lib/primitives/edge";
-import {CAR_ACCELERATION, CAR_MAX_SPEED} from "@/env";
+import {
+  BoxGeometry,
+  Color,
+  Group,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+} from "three";
+import { Sensor } from "@/lib/car/sensor";
+import { Controls, ControlType } from "@/lib/car/controls";
+import { Polygon } from "@/lib/primitives/polygon";
+import { Node } from "@/lib/primitives/node";
+import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { Edge } from "@/lib/primitives/edge";
+import { CAR_ACCELERATION, CAR_MAX_SPEED } from "@/env";
+import { CarModelConfig } from "@/lib/car/car-models";
 import {
   CarInitPayload,
   CarWorkerOutboundMessage,
@@ -18,9 +27,9 @@ import {
   WorkerInboundMessageType,
   WorkerOutboundMessageType,
 } from "@/types/car/message";
-import {ControlInputs} from "@/types/car/shared";
-import {NeuralNetworkStateJson} from "@/types/car/state";
-import {NeuralNetworkJson} from "@/types/save";
+import { ControlInputs } from "@/types/car/shared";
+import { NeuralNetworkStateJson } from "@/types/car/state";
+import { NeuralNetworkJson } from "@/types/save";
 
 /**
  * Simulated vehicle with simple physics, optional sensors and a lazily
@@ -41,8 +50,8 @@ export class Car {
   private static readonly DEFAULT_COLLIDER_COLOR = new Color(0x00ff00);
   /** Highlight collider color (bright gold/yellow). */
   private static readonly HIGHLIGHT_COLLIDER_COLOR = new Color(0xffd700);
-  /** Default collider opacity. */
-  private static readonly DEFAULT_COLLIDER_OPACITY = 0.1;
+  /** Default collider opacity (invisible until highlighted). */
+  private static readonly DEFAULT_COLLIDER_OPACITY = 0;
   /** Highlight collider opacity (more visible). */
   private static readonly HIGHLIGHT_COLLIDER_OPACITY = 0.4;
 
@@ -84,7 +93,9 @@ export class Car {
   private worker: Worker | null = null;
 
   /** URL used to lazily load the GLTF model for this car. */
-  private modelUrl: string = "/models/car.gltf";
+  private modelUrl: string;
+  /** Uniform scale factor applied to the loaded GLTF model. */
+  private modelScale: number;
   /** Root group returned by the GLTF loader (null until loaded). */
   private model: Group | null = null;
   /** Simple guard to prevent concurrent model loads. */
@@ -110,6 +121,7 @@ export class Car {
    * @param angle Initial heading in radians.
    * @param ignoreCarDamage If enabled, car to car damages are ignored.
    * @param maxSpeed Maximum forward speed.
+   * @param modelConfig Optional car model config. When provided, overrides acceleration, maxSpeed, friction, and modelUrl with model-specific values.
    */
   constructor(
     id: number,
@@ -122,6 +134,7 @@ export class Car {
     angle = 0,
     ignoreCarDamage = false,
     maxSpeed = CAR_MAX_SPEED,
+    modelConfig?: CarModelConfig,
   ) {
     this.id = id;
     this.position = position;
@@ -130,11 +143,23 @@ export class Car {
     this.height = height;
 
     this.speed = 0;
-    this.acceleration = CAR_ACCELERATION;
-    // Increase variability: random multiplier between 0.5x and 1.5x of base maxSpeed
-    this.maxSpeed = maxSpeed * (0.5 + Math.random());
-    // Set friction slightly lower than acceleration so it visibly accelerates
-    this.friction = CAR_ACCELERATION * 0.4;
+    if (modelConfig) {
+      // Use exact values from the model config — no random multipliers.
+      this.acceleration = modelConfig.acceleration;
+      this.maxSpeed = modelConfig.maxSpeed;
+      this.friction = modelConfig.friction;
+      this.modelUrl = modelConfig.modelUrl;
+      this.modelScale = modelConfig.modelScale;
+    } else {
+      // Legacy fallback: env-based defaults with variability
+      this.acceleration = CAR_ACCELERATION;
+      // Increase variability: random multiplier between 0.5x and 1.5x of base maxSpeed
+      this.maxSpeed = maxSpeed * (0.5 + Math.random());
+      // Set friction slightly lower than acceleration so it visibly accelerates
+      this.friction = CAR_ACCELERATION * 0.4;
+      this.modelUrl = "/models/vehicles/car.gltf";
+      this.modelScale = 3;
+    }
     this.angle = angle;
     this.damaged = false;
 
@@ -219,7 +244,11 @@ export class Car {
         (gltf) => {
           this.model = gltf.scene;
           this.loadingModel = false;
-          this.model.scale.set(3, 3, 3);
+          this.model.scale.set(
+            this.modelScale,
+            this.modelScale,
+            this.modelScale,
+          );
           this.model.position.set(this.position.x, 0, this.position.y);
           // Three.js default forward is +Z; rotate so angle=0 faces +X.
           this.model.rotation.set(0, Math.PI / 2 - this.angle, 0);

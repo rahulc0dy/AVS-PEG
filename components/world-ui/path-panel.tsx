@@ -3,6 +3,7 @@ import { SlideablePanel } from "@/components/ui/slideable-panel";
 import { PathEditor } from "@/lib/editors/path-editor";
 import { useEffect, useState, RefObject } from "react";
 import Checkbox from "@/components/ui/checkbox";
+import { CAR_MODELS } from "@/lib/car/car-models";
 
 /**
  * Props for the PathPanel component.
@@ -55,8 +56,7 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
             onClick={() => {
               const editor = editorRef.current;
               if (editor) {
-                // Placeholder core logic call: e.g. editor.addNewPath()
-                const newPath = new Path([], false); // Empty path
+                const newPath = new Path([], false);
                 editor.paths.push(newPath);
                 editor.selectedPathIdx = editor.paths.length - 1;
                 editor.onUpdate?.();
@@ -80,7 +80,7 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
             paths.map((path, idx) => (
               <div
                 key={idx}
-                className={`flex cursor-pointer items-center justify-between rounded p-2 transition-colors ${
+                className={`cursor-pointer rounded p-2 transition-colors ${
                   idx === selectedIdx
                     ? "border border-blue-500/50 bg-blue-500/20"
                     : "border border-transparent bg-white/5 hover:bg-white/10"
@@ -93,61 +93,92 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                   }
                 }}
               >
-                <div className="flex items-center space-x-3">
-                  <div
-                    className="h-4 w-4 rounded-full border border-white/20"
-                    style={{ backgroundColor: path.color }}
-                  />
-                  <span className="text-sm text-zinc-300">Path {idx + 1}</span>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs text-zinc-500">
-                    {path.waypoints?.length || 0} nodes
-                  </span>
-
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={path.isLoop}
-                      onChange={(e) => {
-                        path.isLoop = e.target.checked;
-                        const editor = editorRef.current;
-                        if (editor) {
-                          editor.onUpdate?.();
-                          setPaths([...editor.paths]);
-                        }
-                      }}
-                      className="ml-1"
-                      label="Loop"
+                {/* Top row: path identity + actions */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div
+                      className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
+                      style={{ backgroundColor: path.color }}
                     />
+                    <span className="truncate text-sm text-zinc-300">
+                      Path {idx + 1}
+                    </span>
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      · {path.waypoints?.length || 0} nodes
+                    </span>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <div className="flex shrink-0 items-center gap-1">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={path.isLoop}
+                        onChange={(e) => {
+                          path.isLoop = e.target.checked;
+                          const editor = editorRef.current;
+                          if (editor) {
+                            editor.onUpdate?.();
+                            setPaths([...editor.paths]);
+                          }
+                        }}
+                        label="Loop"
+                      />
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const editor = editorRef.current;
+                        if (editor) {
+                          editor.paths.splice(idx, 1);
+                          if (idx < editor.selectedPathIdx) {
+                            editor.selectedPathIdx--;
+                          }
+                          if (editor.selectedPathIdx >= editor.paths.length) {
+                            editor.selectedPathIdx = Math.max(
+                              -1,
+                              editor.paths.length - 1,
+                            );
+                          }
+                          editor.onUpdate?.();
+                          setPaths([...editor.paths]);
+                          setSelectedIdx(editor.selectedPathIdx);
+                        }
+                      }}
+                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:bg-red-500/20 hover:text-red-400"
+                      title="Delete path"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom row: car model selector */}
+                <div
+                  className="mt-1.5 flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    Vehicle
+                  </span>
+                  <select
+                    value={path.carModelId}
+                    onChange={(e) => {
+                      path.carModelId = e.target.value;
                       const editor = editorRef.current;
                       if (editor) {
-                        // Placeholder core logic call: e.g. editor.removePath(idx)
-                        editor.paths.splice(idx, 1);
-                        if (idx < editor.selectedPathIdx) {
-                          editor.selectedPathIdx--;
-                        }
-                        if (editor.selectedPathIdx >= editor.paths.length) {
-                          editor.selectedPathIdx = Math.max(
-                            -1,
-                            editor.paths.length - 1,
-                          );
-                        }
                         editor.onUpdate?.();
                         setPaths([...editor.paths]);
-                        setSelectedIdx(editor.selectedPathIdx);
                       }
                     }}
-                    className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-red-500/20 hover:text-red-400"
-                    title="Delete path"
+                    className="w-full min-w-0 rounded border border-white/10 bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300 outline-none transition-colors hover:border-white/20 focus:border-blue-500/50"
+                    title="Car model for this path"
                   >
-                    ×
-                  </button>
+                    {CAR_MODELS.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.displayName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ))
