@@ -32,6 +32,39 @@ const isDisposable = (value: unknown): value is Disposable => {
 };
 
 /**
+ * Creates a 1-D gradient CanvasTexture that fades from semi-opaque to fully
+ * transparent. Used to UV-map onto beam triangles so the origin vertex is
+ * bright and the tips fade out.
+ *
+ * @returns A Three.js CanvasTexture with a horizontal opacity gradient.
+ */
+export function createBeamGradientTexture(
+  r: number,
+  g: number,
+  b: number,
+  peakAlpha: number = 0.7,
+): CanvasTexture {
+  const width = 256;
+  const height = 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
+  gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${peakAlpha * 0.5})`);
+  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.0)`);
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const texture = new CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
  * Create a billboarded text label rendered via an offscreen canvas texture.
  *
  * Text is drawn in bold `sans-serif` on a semi-transparent pill background.

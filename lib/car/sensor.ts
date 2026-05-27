@@ -13,6 +13,7 @@ import {
 import { EdgeJson } from "@/types/save";
 import { LabelledIntersection } from "@/types/intersection";
 import { Node } from "@/lib/primitives/node";
+import { createBeamGradientTexture } from "@/utils/rendering";
 
 /**
  * Y-height at which sensor beam visuals are drawn in the Three.js scene.
@@ -22,39 +23,6 @@ import { Node } from "@/lib/primitives/node";
  * be in roughly the right range.
  */
 const SENSOR_DRAW_HEIGHT = 0.05;
-
-/**
- * Creates a 1-D gradient CanvasTexture that fades from semi-opaque to fully
- * transparent. Used to UV-map onto beam triangles so the origin vertex is
- * bright and the tips fade out.
- *
- * @returns A Three.js CanvasTexture with a horizontal opacity gradient.
- */
-function createBeamGradientTexture(
-  r: number,
-  g: number,
-  b: number,
-  peakAlpha: number = 0.7,
-): CanvasTexture {
-  const width = 256;
-  const height = 1;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d")!;
-
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
-  gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${peakAlpha * 0.5})`);
-  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.0)`);
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  const texture = new CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
 
 /**
  * Sensor suite attached to a `Car` that casts multiple rays and reports the
@@ -89,7 +57,7 @@ export class Sensor {
   /** Three.js Group used to render the radar beam and hit-point visuals. */
   private sensorGroup: Group;
 
-  /** Sub-group holding the filled beam wedge meshes (one per adjacent ray pair). */
+  /** Sub-group holding the filled beam wedge meshes (one per ray). */
   private beamGroup: Group;
 
   /** Shared material for clear (no-hit) beam wedges — yellow gradient. */
@@ -201,9 +169,7 @@ export class Sensor {
       // Determine ray length — shorten to hit distance if non-border hit
       const reading = this.readings[i];
       const intersection = reading?.intersection;
-      const hasHit = !!(
-        reading && reading.label !== "border" && intersection
-      );
+      const hasHit = !!(reading && reading.label !== "border" && intersection);
       const effectiveLength = hasHit
         ? intersection.offset * this.rayLength
         : this.rayLength;
@@ -228,16 +194,25 @@ export class Sensor {
 
       // Triangle: origin → endLeft → endRight
       const positions = new Float32Array([
-        origin.x, SENSOR_DRAW_HEIGHT, origin.y,
-        endLeft.x, SENSOR_DRAW_HEIGHT, endLeft.y,
-        endRight.x, SENSOR_DRAW_HEIGHT, endRight.y,
+        origin.x,
+        SENSOR_DRAW_HEIGHT,
+        origin.y,
+        endLeft.x,
+        SENSOR_DRAW_HEIGHT,
+        endLeft.y,
+        endRight.x,
+        SENSOR_DRAW_HEIGHT,
+        endRight.y,
       ]);
 
       // UV mapping: u=0 at origin (opaque), u=1 at tips (transparent)
       const uvs = new Float32Array([
-        0, 0.5, // origin — left edge of gradient
-        1, 0, // tip left  — right edge of gradient
-        1, 1, // tip right — right edge of gradient
+        0,
+        0.5, // origin — left edge of gradient
+        1,
+        0, // tip left  — right edge of gradient
+        1,
+        1, // tip right — right edge of gradient
       ]);
 
       const material = hasHit ? this.hitMaterial : this.clearMaterial;
