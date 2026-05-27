@@ -93,7 +93,6 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                   }
                 }}
               >
-                {/* Top row: path identity + actions */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 overflow-hidden">
                     <div
@@ -152,7 +151,6 @@ export function PathPanel({ isVisible, editorRef }: PathPanelProps) {
                   </div>
                 </div>
 
-                {/* Bottom row: car model selector */}
                 <div
                   className="mt-1.5 flex items-center gap-2"
                   onClick={(e) => e.stopPropagation()}
