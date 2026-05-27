@@ -12,8 +12,8 @@ import {
 } from "three";
 import { EdgeJson } from "@/types/save";
 import { LabelledIntersection } from "@/types/intersection";
-import { Node } from "@/lib/primitives/node";
 import { createBeamGradientTexture } from "@/utils/rendering";
+import { angle, subtract, translate } from "@/utils/math";
 
 /**
  * Y-height at which sensor beam visuals are drawn in the Three.js scene.
@@ -175,22 +175,14 @@ export class Sensor {
         : this.rayLength;
 
       // Compute the ray's centre angle from its endpoint direction
-      const dx = this.rays[i].n2.x - origin.x;
-      const dy = this.rays[i].n2.y - origin.y;
-      const rayAngle = Math.atan2(dy, dx);
+      const rayAngle = angle(subtract(this.rays[i].n2, origin));
 
       // Two edges of the angular segment
       const leftAngle = rayAngle - halfSegment;
       const rightAngle = rayAngle + halfSegment;
 
-      const endLeft = new Node(
-        origin.x + Math.cos(leftAngle) * effectiveLength,
-        origin.y + Math.sin(leftAngle) * effectiveLength,
-      );
-      const endRight = new Node(
-        origin.x + Math.cos(rightAngle) * effectiveLength,
-        origin.y + Math.sin(rightAngle) * effectiveLength,
-      );
+      const endLeft = translate(origin, leftAngle, effectiveLength);
+      const endRight = translate(origin, rightAngle, effectiveLength);
 
       // Triangle: origin → endLeft → endRight
       const positions = new Float32Array([

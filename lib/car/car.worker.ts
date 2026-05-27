@@ -10,11 +10,13 @@ import {
   WorkerOutboundMessageType,
 } from "@/types/car/message";
 import {
+  clamp,
   doPolygonsIntersect,
   dot,
   getIntersection,
   lerp,
   normalize,
+  translate,
 } from "@/utils/math";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
@@ -148,10 +150,7 @@ const applyAIControls = () => {
         : 0;
     const rayLength = carState.sensor.rayLength * (0.3 + speedRatio * 1.2);
     const n1 = new Node(carState.position.x, carState.position.y);
-    const n2 = new Node(
-      n1.x + Math.cos(carState.angle) * rayLength,
-      n1.y + Math.sin(carState.angle) * rayLength,
-    );
+    const n2 = translate(n1, carState.angle, rayLength);
     const carDir = new Node(Math.cos(carState.angle), Math.sin(carState.angle));
 
     let nearestTL: { offset: number; label: string } | null = null;
@@ -264,12 +263,7 @@ const applyAcceleration = () => {
 /** Clamp speed to max forward speed and half max reverse speed */
 const clampSpeed = () => {
   const maxReverseSpeed = -carState.maxSpeed / 2;
-  if (carState.speed > carState.maxSpeed) {
-    carState.speed = carState.maxSpeed;
-  }
-  if (carState.speed < maxReverseSpeed) {
-    carState.speed = maxReverseSpeed;
-  }
+  carState.speed = clamp(carState.speed, maxReverseSpeed, carState.maxSpeed);
 };
 
 /** Apply friction to gradually reduce speed */
@@ -310,24 +304,13 @@ const createPolygon = (): PolygonJson => {
   const { position, breadth, length, angle } = carState;
   const rad = Math.hypot(breadth, length) / 2;
   const alpha = Math.atan2(breadth, length);
+  const pos = new Node(position.x, position.y);
 
   return new Polygon([
-    new Node(
-      position.x + Math.cos(angle - alpha) * rad,
-      position.y + Math.sin(angle - alpha) * rad,
-    ),
-    new Node(
-      position.x + Math.cos(angle + alpha) * rad,
-      position.y + Math.sin(angle + alpha) * rad,
-    ),
-    new Node(
-      position.x + Math.cos(Math.PI + angle - alpha) * rad,
-      position.y + Math.sin(Math.PI + angle - alpha) * rad,
-    ),
-    new Node(
-      position.x + Math.cos(Math.PI + angle + alpha) * rad,
-      position.y + Math.sin(Math.PI + angle + alpha) * rad,
-    ),
+    translate(pos, angle - alpha, rad),
+    translate(pos, angle + alpha, rad),
+    translate(pos, Math.PI + angle - alpha, rad),
+    translate(pos, Math.PI + angle + alpha, rad),
   ]).toJson();
 };
 
@@ -404,10 +387,7 @@ const castSensorRays = (): EdgeJson[] => {
       carState.angle + lerp(-raySpreadAngle / 2, raySpreadAngle / 2, t);
 
     const n1 = new Node(carState.position.x, carState.position.y);
-    const n2 = new Node(
-      carState.position.x + Math.cos(rayAngle) * rayLength,
-      carState.position.y + Math.sin(rayAngle) * rayLength,
-    );
+    const n2 = translate(n1, rayAngle, rayLength);
 
     const edge = new Edge(n1, n2);
     rays.push(edge.toJson());
