@@ -276,9 +276,9 @@ export class Car {
         this.length,
       );
       const carMaterial = new MeshBasicMaterial({
-        color: new Color(0x00ff00),
+        color: Car.DEFAULT_COLLIDER_COLOR,
         transparent: true,
-        opacity: 0.1,
+        opacity: Car.DEFAULT_COLLIDER_OPACITY,
       });
 
       this.carColliderMesh = new Mesh(carGeometry, carMaterial);
