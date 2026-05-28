@@ -17,10 +17,6 @@ import { DEFAULT_CAR_MODEL_ID, getCarModel } from "@/lib/car/car-models";
  * to manage training scenarios and different spawning strategies.
  */
 export class SpawnerSystem {
-  private readonly breadth = 8.9;
-  private readonly length = 19;
-  private readonly height = 6.6;
-
   private readonly worldGroup: Group;
 
   private cars: Car[];

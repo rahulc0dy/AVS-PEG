@@ -1,4 +1,4 @@
-import { World, WorldConfig } from "@/lib/world/world";
+import { World } from "@/lib/world/world";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Color, Scene } from "three";
 import { InfiniteGridHelper } from "@/utils/infinite-grid-helper";
@@ -7,8 +7,6 @@ import { InfiniteGridHelper } from "@/utils/infinite-grid-helper";
  * Options for the useWorld hook.
  */
 export interface UseWorldOptions {
-  /** Configuration for World initialization */
-  worldConfig?: WorldConfig;
   /** Whether to show the grid helper (default: true) */
   showGrid?: boolean;
   /** Grid size (default: 1000) */
@@ -59,7 +57,7 @@ export function useWorld(
   const gridRef = useRef<InfiniteGridHelper | null>(null);
   const subscribersRef = useRef<Set<() => void>>(new Set());
 
-  const { worldConfig, showGrid = true } = options ?? {};
+  const { showGrid = true } = options ?? {};
 
   // Use useSyncExternalStore to avoid setState in effect
   const world = useSyncExternalStore(
@@ -73,7 +71,7 @@ export function useWorld(
 
   useEffect(() => {
     // Create the World instance
-    worldRef.current = new World(scene, worldConfig);
+    worldRef.current = new World(scene);
     // Notify subscribers that world has changed
     subscribersRef.current.forEach((cb) => cb());
 
@@ -108,7 +106,7 @@ export function useWorld(
       }
       currentSubscribers.forEach((cb) => cb());
     };
-  }, [scene, worldConfig, showGrid]);
+  }, [scene, showGrid]);
 
   return { worldRef, world };
 }
