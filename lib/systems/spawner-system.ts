@@ -8,7 +8,7 @@ import { add, angle, average, clamp, scale } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { Path } from "@/lib/markings/path";
-import { getCarModel } from "@/lib/car/car-models";
+import { DEFAULT_CAR_MODEL_ID, getCarModel } from "@/lib/car/car-models";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -86,12 +86,11 @@ export class SpawnerSystem {
       const car = new Car(
         this.cars.length,
         midpoint,
-        this.breadth,
-        this.length,
-        this.height,
         controlType,
         this.worldGroup,
         roadAngle,
+        false,
+        getCarModel(DEFAULT_CAR_MODEL_ID),
       );
 
       // Set brain with mutation if provided
@@ -169,14 +168,10 @@ export class SpawnerSystem {
       const car = new Car(
         this.cars.length,
         spawnNode,
-        model.breadth,
-        model.length,
-        model.height,
         controlType,
         this.worldGroup,
         angle(dir),
         false,
-        undefined,
         model,
       );
 
@@ -219,15 +214,13 @@ export class SpawnerSystem {
         // mutate the same object, effectively multiplying movement speed by the
         // number of overlapped cars.
         new Node(position.x, position.y),
-        this.breadth,
-        this.length,
-        this.height,
         controlType,
         this.worldGroup,
         angle,
         // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
         // (so overlapped spawns can still move). World/road collisions are unaffected.
         true,
+        getCarModel(DEFAULT_CAR_MODEL_ID),
       );
 
       // Set brain with mutation if provided

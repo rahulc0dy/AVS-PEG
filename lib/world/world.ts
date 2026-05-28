@@ -19,20 +19,6 @@ import { TrainingSystem } from "@/lib/systems/training-system";
 import { MarkingWallJson } from "@/types/car/message";
 
 /**
- * Configuration options for initializing a World instance.
- */
-export interface WorldConfig {
-  /**
-   * Initial cars to spawn. If not provided, defaults to empty array.
-   * Use `generateTraffic()` to spawn cars after initialization.
-   */
-  initialCars?: {
-    position: Node;
-    controlType: ControlType;
-  }[];
-}
-
-/**
  * Responsible for generating visual road geometry from a `Graph`, managing
  * world objects (cars, markings), and providing serialization helpers for
  * save/load. The `World` owns a Three.js `Group` (`worldGroup`) which is
@@ -71,36 +57,14 @@ export class World {
    * Construct a World which generates visual road geometry from a `Graph`.
    *
    * @param scene - Three.js scene where generated geometry will be added
-   * @param config - Optional configuration for world initialization
    */
-  constructor(scene: Scene, config?: WorldConfig) {
+  constructor(scene: Scene) {
     this.graph = new Graph();
     this.scene = scene;
     this.roadBorders = [];
     this.roads = [];
     this.worldGroup = new Group();
-
-    // Initialize with empty car array by default
-    // Cars can be added via config.initialCars or generateTraffic()
     this.cars = [];
-
-    // If initial cars are provided in config, create them
-    if (config?.initialCars) {
-      for (const carConfig of config.initialCars) {
-        this.cars.push(
-          new Car(
-            this.cars.length,
-            carConfig.position,
-            10, // breadth
-            17.5, // length
-            7, // height
-            carConfig.controlType,
-            this.worldGroup,
-          ),
-        );
-      }
-    }
-
     this.markings = [];
 
     this.trafficLightGraph = new Graph();

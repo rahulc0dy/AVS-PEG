@@ -13,7 +13,6 @@ import { Polygon } from "@/lib/primitives/polygon";
 import { Node } from "@/lib/primitives/node";
 import { GLTFLoader } from "three/examples/jsm/Addons.js";
 import { Edge } from "@/lib/primitives/edge";
-import { CAR_ACCELERATION, CAR_MAX_SPEED } from "@/env";
 import { CarModelConfig } from "@/lib/car/car-models";
 import {
   CarInitPayload,
@@ -126,40 +125,23 @@ export class Car {
   constructor(
     id: number,
     position: Node,
-    breadth: number,
-    length: number,
-    height: number,
     controlType: ControlType,
     group: Group,
-    angle = 0,
+    angle: number = 0,
     ignoreCarDamage = false,
-    maxSpeed = CAR_MAX_SPEED,
-    modelConfig?: CarModelConfig,
+    modelConfig: CarModelConfig,
   ) {
     this.id = id;
     this.position = position;
-    this.breadth = breadth;
-    this.length = length;
-    this.height = height;
-
     this.speed = 0;
-    if (modelConfig) {
-      // Use exact values from the model config — no random multipliers.
-      this.acceleration = modelConfig.acceleration;
-      this.maxSpeed = modelConfig.maxSpeed;
-      this.friction = modelConfig.friction;
-      this.modelUrl = modelConfig.modelUrl;
-      this.modelScale = modelConfig.modelScale;
-    } else {
-      // Legacy fallback: env-based defaults with variability
-      this.acceleration = CAR_ACCELERATION;
-      // Increase variability: random multiplier between 0.5x and 1.5x of base maxSpeed
-      this.maxSpeed = maxSpeed * (0.5 + Math.random());
-      // Set friction slightly lower than acceleration so it visibly accelerates
-      this.friction = CAR_ACCELERATION * 0.4;
-      this.modelUrl = "/models/vehicles/car.gltf";
-      this.modelScale = 3;
-    }
+    this.breadth = modelConfig.breadth;
+    this.length = modelConfig.length;
+    this.height = modelConfig.height;
+    this.acceleration = modelConfig.acceleration;
+    this.maxSpeed = modelConfig.maxSpeed;
+    this.friction = modelConfig.friction;
+    this.modelUrl = modelConfig.modelUrl;
+    this.modelScale = modelConfig.modelScale;
     this.angle = angle;
     this.damaged = false;
 
