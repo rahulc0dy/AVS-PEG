@@ -4,10 +4,11 @@ import { Road } from "@/lib/world/road";
 import { ControlType } from "@/lib/car/controls";
 import { Edge } from "@/lib/primitives/edge";
 import { Node } from "@/lib/primitives/node";
-import { angle, average, clamp } from "@/utils/math";
+import { add, angle, average, clamp, scale } from "@/utils/math";
 import { NeuralNetworkJson } from "@/types/save";
 import { NeuralNetwork } from "@/lib/ai/network";
 import { Path } from "@/lib/markings/path";
+import { DEFAULT_CAR_MODEL_ID, getCarModel } from "@/lib/car/car-models";
 
 /**
  * System responsible for spawning and managing cars in the world.
@@ -16,10 +17,6 @@ import { Path } from "@/lib/markings/path";
  * to manage training scenarios and different spawning strategies.
  */
 export class SpawnerSystem {
-  private readonly breadth = 10;
-  private readonly length = 17.5;
-  private readonly height = 7;
-
   private readonly worldGroup: Group;
 
   private cars: Car[];
@@ -85,12 +82,11 @@ export class SpawnerSystem {
       const car = new Car(
         this.cars.length,
         midpoint,
-        this.breadth,
-        this.length,
-        this.height,
         controlType,
         this.worldGroup,
         roadAngle,
+        false,
+        getCarModel(DEFAULT_CAR_MODEL_ID),
       );
 
       // Set brain with mutation if provided
@@ -156,26 +152,23 @@ export class SpawnerSystem {
     for (const path of paths) {
       if (path.waypoints.length === 0 || path.edges.length === 0) continue;
 
+      const model = getCarModel(path.carModelId);
+
       const firstWaypoint = path.waypoints[0];
       const firstEdge = path.edges[0];
       const dir = firstEdge.directionVector();
 
-      const offset = this.length + 20;
-      const spawnNode = new Node(
-        firstWaypoint.x + dir.x * offset,
-        firstWaypoint.y + dir.y * offset,
-      );
+      const offset = model.length + 20;
+      const spawnNode = add(firstWaypoint, scale(dir, offset));
 
       const car = new Car(
         this.cars.length,
         spawnNode,
-        this.breadth,
-        this.length,
-        this.height,
         controlType,
         this.worldGroup,
         angle(dir),
         false,
+        model,
       );
 
       car.pathBorders = [...path.borders];
@@ -217,15 +210,13 @@ export class SpawnerSystem {
         // mutate the same object, effectively multiplying movement speed by the
         // number of overlapped cars.
         new Node(position.x, position.y),
-        this.breadth,
-        this.length,
-        this.height,
         controlType,
         this.worldGroup,
         angle,
         // Disable car-to-car detection via sensors AND prevent car-to-car overlap from marking cars as damaged
         // (so overlapped spawns can still move). World/road collisions are unaffected.
         true,
+        getCarModel(DEFAULT_CAR_MODEL_ID),
       );
 
       // Set brain with mutation if provided

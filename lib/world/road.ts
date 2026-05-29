@@ -15,7 +15,7 @@ import {
   createLaneTexture,
 } from "@/utils/road-surface-texture";
 import { ARROW_SPACING, ROAD_ROUNDNESS, ROAD_WIDTH } from "@/env";
-import { angle } from "@/utils/math";
+import { angle, average } from "@/utils/math";
 
 /**
  * Represents a road segment in the world, extending {@link Envelope} to provide
@@ -323,7 +323,8 @@ export class Road extends Envelope {
     const { n1, n2 } = this;
 
     // Position at the midpoint of the road
-    mesh.position.set((n1.x + n2.x) / 2, 0.03, (n1.y + n2.y) / 2);
+    const mid = average(n1, n2);
+    mesh.position.set(mid.x, 0.03, mid.y);
 
     // Align mesh with road direction
     const roadAngle = angle(this.skeleton.directionVector());
