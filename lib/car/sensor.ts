@@ -15,27 +15,23 @@ import { LabelledIntersection } from "@/types/intersection";
 import { createBeamGradientTexture } from "@/utils/rendering";
 import { angle, subtract, translate } from "@/utils/math";
 
-/**
- * Y-height at which sensor beam visuals are drawn in the Three.js scene.
- *
- * Set just above the road overlay layer (0.03) but below car model origins (0)
- * — the polygon offset handles the actual depth ordering so this only needs to
- * be in roughly the right range.
- */
-const SENSOR_DRAW_HEIGHT = 0.05;
+/** Y-height at which sensor beam visuals are drawn in the Three.js scene. */
+const SENSOR_DRAW_HEIGHT = 2;
+
+/** Default number of sensor rays cast by a car. */
+const SENSOR_RAY_COUNT = 5;
+
+/** Sensor maximum length of each sensor ray in world units. */
+const SENSOR_RAY_LENGTH = 60;
+
+/** Sensor total field of view (spread) of the sensor in radians (120 degrees). */
+const SENSOR_RAY_SPREAD = Math.PI / 1.5;
 
 /**
  * Sensor suite attached to a `Car` that casts multiple rays and reports the
  * closest intersection along each ray. The sensor does not perform physics
  * itself — it only performs geometric intersection tests against other cars'
  * polygons.
- *
- * Visually, the sensor renders as a filled radar-style beam that fades from
- * semi-opaque near the car to fully transparent at the maximum ray distance,
- * with red cross-hair indicators overlaid where non-border intersections occur.
- *
- * Uses `polygonOffset` to sit above the road surface without disabling depth
- * testing, so the beam correctly renders above the road but behind the car.
  */
 export class Sensor {
   /** Owning car instance (provides position and heading). */
@@ -78,9 +74,9 @@ export class Sensor {
    */
   constructor(car: Car) {
     this.car = car;
-    this.rayCount = 5;
-    this.rayLength = 60;
-    this.raySpreadAngle = Math.PI / 1.5;
+    this.rayCount = SENSOR_RAY_COUNT;
+    this.rayLength = SENSOR_RAY_LENGTH;
+    this.raySpreadAngle = SENSOR_RAY_SPREAD;
 
     this.rays = [];
     this.readings = [];
@@ -184,42 +180,44 @@ export class Sensor {
       const endLeft = translate(origin, leftAngle, effectiveLength);
       const endRight = translate(origin, rightAngle, effectiveLength);
 
-      // Triangle: origin → endLeft → endRight
-      const positions = new Float32Array([
-        origin.x,
-        SENSOR_DRAW_HEIGHT,
-        origin.y,
-        endLeft.x,
-        SENSOR_DRAW_HEIGHT,
-        endLeft.y,
-        endRight.x,
-        SENSOR_DRAW_HEIGHT,
-        endRight.y,
-      ]);
-
-      // UV mapping: u=0 at origin (opaque), u=1 at tips (transparent)
-      const uvs = new Float32Array([
-        0,
-        0.5, // origin — left edge of gradient
-        1,
-        0, // tip left  — right edge of gradient
-        1,
-        1, // tip right — right edge of gradient
-      ]);
-
       const material = hasHit ? this.hitMaterial : this.clearMaterial;
 
       let mesh = this.beamGroup.children[i] as Mesh;
 
       if (mesh) {
-        mesh.geometry.setAttribute(
+        const positionAttribute = mesh.geometry.getAttribute(
           "position",
-          new Float32BufferAttribute(positions, 3),
-        );
-        mesh.geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+        ) as Float32BufferAttribute;
+        positionAttribute.setXYZ(0, origin.x, SENSOR_DRAW_HEIGHT, origin.y);
+        positionAttribute.setXYZ(1, endLeft.x, SENSOR_DRAW_HEIGHT, endLeft.y);
+        positionAttribute.setXYZ(2, endRight.x, SENSOR_DRAW_HEIGHT, endRight.y);
+        positionAttribute.needsUpdate = true;
+
         mesh.material = material;
-        mesh.geometry.computeBoundingSphere();
       } else {
+        // Triangle: origin → endLeft → endRight
+        const positions = new Float32Array([
+          origin.x,
+          SENSOR_DRAW_HEIGHT,
+          origin.y,
+          endLeft.x,
+          SENSOR_DRAW_HEIGHT,
+          endLeft.y,
+          endRight.x,
+          SENSOR_DRAW_HEIGHT,
+          endRight.y,
+        ]);
+
+        // UV mapping: u=0 at origin (opaque), u=1 at tips (transparent)
+        const uvs = new Float32Array([
+          0,
+          0.5, // origin — left edge of gradient
+          1,
+          0, // tip left  — right edge of gradient
+          1,
+          1, // tip right — right edge of gradient
+        ]);
+
         const geometry = new BufferGeometry();
         geometry.setAttribute(
           "position",
