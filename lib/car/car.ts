@@ -84,6 +84,8 @@ export class Car {
   polygon: Polygon | null = null;
   /** If enabled, car to car damages are ignored */
   ignoreCarDamage: boolean = false;
+  /** Whether this car is a priority/emergency vehicle that other cars should yield to. */
+  priority: boolean = false;
   /** Latest neural network state snapshot received from the worker (or `null` if unavailable). */
   network: NeuralNetworkStateJson | null = null;
   /** Path borders specific to this car's path, if any. Used to constrain the car. */
@@ -142,6 +144,7 @@ export class Car {
     this.friction = modelConfig.friction;
     this.modelUrl = modelConfig.modelUrl;
     this.modelScale = modelConfig.modelScale;
+    this.priority = modelConfig.priority;
     this.angle = angle;
     this.damaged = false;
 
@@ -194,7 +197,12 @@ export class Car {
         type: WorkerInboundMessageType.UPDATE_COLLISION_DATA,
         payload: {
           id: this.id,
-          traffic: traffic.map((car) => car.polygon?.toJson()),
+          traffic: traffic
+            .filter((car) => car.polygon !== null)
+            .map((car) => ({
+              polygon: car.polygon!.toJson(),
+              priority: car.priority,
+            })),
           pathBorders: effectivePathBorders.map((pathBorder) =>
             pathBorder.toJson(),
           ),

@@ -131,7 +131,10 @@ const updateAndBroadcastState = () => {
 const applyAIControls = () => {
   // 1. Get standard physical and virtual ray distances
   const physicalSensorInputs = carState.sensorReadings.map((reading) =>
-    reading && reading.label == "traffic" ? reading.intersection.offset : 1.0,
+    reading &&
+    (reading.label === "traffic" || reading.label === "priority-vehicle")
+      ? reading.intersection.offset
+      : 1.0,
   );
   const virtualSensorInputs = carState.sensorReadings.map((reading) =>
     reading && reading.label == "border" ? reading.intersection.offset : 1.0,
@@ -189,11 +192,39 @@ const applyAIControls = () => {
     }
   }
 
-  // 5. Calculate speed
+  // 5. Compute Priority Direction input from sensor readings
+  let priorityDirection = 0.0;
+  if (carState.sensor.rayCount > 0) {
+    let nearestPriorityOffset = Infinity;
+    let nearestPriorityRayIndex = -1;
+
+    for (let i = 0; i < carState.sensorReadings.length; i++) {
+      const reading = carState.sensorReadings[i];
+      if (
+        reading &&
+        reading.label === "priority-vehicle" &&
+        reading.intersection.offset < nearestPriorityOffset
+      ) {
+        nearestPriorityOffset = reading.intersection.offset;
+        nearestPriorityRayIndex = i;
+      }
+    }
+
+    if (nearestPriorityRayIndex >= 0) {
+      const rayCount = carState.sensor.rayCount;
+      const t =
+        rayCount === 1
+          ? 0.5
+          : nearestPriorityRayIndex / (rayCount - 1);
+      priorityDirection = lerp(0.1, 0.5, t);
+    }
+  }
+
+  // 6. Calculate speed
   const normalizedSpeed =
     carState.maxSpeed !== 0 ? carState.speed / carState.maxSpeed : 0;
 
-  // 6. Feed the dynamically built array into the Neural Network based on Config
+  // 7. Feed the dynamically built array into the Neural Network based on Config
   const inputs: number[] = [];
   inputs.push(...physicalSensorInputs);
   inputs.push(...virtualSensorInputs);
@@ -206,6 +237,8 @@ const applyAIControls = () => {
 
   for (const telemetry of NetworkConfig.telemetry) {
     if (telemetry.name === "Speed") inputs.push(normalizedSpeed);
+    else if (telemetry.name === "Priority Direction")
+      inputs.push(priorityDirection);
     else inputs.push(0.0);
   }
 
@@ -322,10 +355,8 @@ const assessDamage = (): boolean => {
   if (!carState.ignoreCarDamage) {
     const carPolygon = Polygon.fromJson(carState.polygon);
 
-    for (const traffic of carState.traffic) {
-      if (!traffic) continue;
-
-      const trafficPolygon = Polygon.fromJson(traffic);
+    for (const trafficVehicle of carState.traffic) {
+      const trafficPolygon = Polygon.fromJson(trafficVehicle.polygon);
 
       if (doPolygonsIntersect(carPolygon, trafficPolygon)) {
         return true;
@@ -409,12 +440,13 @@ const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
 
   const rayEdge = Edge.fromJson(ray);
 
-  // Test against traffic polygons
+  // Test against traffic vehicle polygons
   if (!carState.sensor.ignoreTraffic) {
-    for (const trafficPolygonJson of carState.traffic) {
-      if (!trafficPolygonJson) continue;
-
-      const trafficPolygon = Polygon.fromJson(trafficPolygonJson);
+    for (const trafficVehicle of carState.traffic) {
+      const trafficPolygon = Polygon.fromJson(trafficVehicle.polygon);
+      const hitLabel = trafficVehicle.priority
+        ? "priority-vehicle"
+        : "traffic";
 
       for (let j = 0; j < trafficPolygon.nodes.length; j++) {
         const polyN1 = trafficPolygon.nodes[j];
@@ -430,7 +462,7 @@ const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
         if (intersection) {
           touches.push({
             intersection,
-            label: "traffic",
+            label: hitLabel,
           });
         }
       }

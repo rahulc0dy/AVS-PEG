@@ -11,6 +11,7 @@ export type IntersectionLabel =
   | "traffic-light-red"
   | "traffic-light-yellow"
   | "traffic-light-green"
+  | "priority-vehicle"
   | string;
 
 export type LabelledIntersection = {
