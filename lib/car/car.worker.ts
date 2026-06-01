@@ -132,7 +132,7 @@ const applyAIControls = () => {
   // 1. Get standard physical and virtual ray distances
   const physicalSensorInputs = carState.sensorReadings.map((reading) =>
     reading &&
-    (reading.label === "traffic" || reading.label === "priority-vehicle")
+    (reading.label === "vehicle" || reading.label === "vehicle-priority")
       ? reading.intersection.offset
       : 1.0,
   );
@@ -202,7 +202,7 @@ const applyAIControls = () => {
       const reading = carState.sensorReadings[i];
       if (
         reading &&
-        reading.label === "priority-vehicle" &&
+        reading.label === "vehicle-priority" &&
         reading.intersection.offset < nearestPriorityOffset
       ) {
         nearestPriorityOffset = reading.intersection.offset;
@@ -445,8 +445,8 @@ const getSensorReading = (ray: EdgeJson): LabelledIntersection | null => {
     for (const trafficVehicle of carState.traffic) {
       const trafficPolygon = Polygon.fromJson(trafficVehicle.polygon);
       const hitLabel = trafficVehicle.priority
-        ? "priority-vehicle"
-        : "traffic";
+        ? "vehicle-priority"
+        : "vehicle";
 
       for (let j = 0; j < trafficPolygon.nodes.length; j++) {
         const polyN1 = trafficPolygon.nodes[j];

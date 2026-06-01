@@ -120,7 +120,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.0016,
     modelUrl: "/models/vehicles/pickup-truck.gltf",
     modelScale: 3,
-    priority: true,
+    priority: false,
   },
   {
     id: "ambulance",
