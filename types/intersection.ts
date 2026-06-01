@@ -5,7 +5,8 @@ export type Intersection = { x: number; y: number; offset: number };
 
 // Expand the labels to support our markings
 export type IntersectionLabel =
-  | "traffic"
+  | "vehicle"
+  | "vehicle-priority"
   | "border"
   | "stop-sign"
   | "traffic-light-red"

@@ -55,6 +55,8 @@ export interface CarModelConfig {
   modelUrl: string;
   /** Uniform scale factor applied to the GLTF model when rendering. */
   modelScale: number;
+  /** Whether this vehicle type is a priority/emergency vehicle (e.g. ambulance, police). */
+  priority: boolean;
 }
 
 /**
@@ -79,6 +81,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.002,
     modelUrl: "/models/vehicles/car.gltf",
     modelScale: 3,
+    priority: false,
   },
   {
     id: "taxi",
@@ -91,6 +94,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.002,
     modelUrl: "/models/vehicles/taxi.gltf",
     modelScale: 3,
+    priority: false,
   },
   {
     id: "police_car",
@@ -103,6 +107,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.0028,
     modelUrl: "/models/vehicles/police-car.gltf",
     modelScale: 3,
+    priority: true,
   },
   {
     id: "pickup_truck",
@@ -115,6 +120,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.0016,
     modelUrl: "/models/vehicles/pickup-truck.gltf",
     modelScale: 3,
+    priority: false,
   },
   {
     id: "ambulance",
@@ -127,6 +133,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.002,
     modelUrl: "/models/vehicles/ambulance.gltf",
     modelScale: 3,
+    priority: true,
   },
   {
     id: "bus",
@@ -139,6 +146,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.0012,
     modelUrl: "/models/vehicles/bus.gltf",
     modelScale: 3.5,
+    priority: false,
   },
   {
     id: "truck",
@@ -151,6 +159,7 @@ export const CAR_MODELS: CarModelConfig[] = [
     friction: 0.001,
     modelUrl: "/models/vehicles/truck.gltf",
     modelScale: 3.5,
+    priority: false,
   },
 ];
 

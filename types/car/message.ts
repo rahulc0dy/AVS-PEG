@@ -27,9 +27,17 @@ export interface UpdateControlsPayload extends CarBasePayload {
   controls: ControlInputs;
 }
 
+/** Serializable representation of a traffic vehicle for worker collision detection */
+export interface TrafficVehicleJson {
+  /** Collision polygon of the vehicle */
+  polygon: PolygonJson;
+  /** Whether this vehicle is a priority/emergency vehicle that others should yield to */
+  priority: boolean;
+}
+
 /** Payload for updating traffic and borders for collision detection */
 export interface UpdateCollisionDataPayload extends CarBasePayload {
-  traffic: PolygonJson[];
+  traffic: TrafficVehicleJson[];
   pathBorders: EdgeJson[];
   markingWalls: MarkingWallJson[];
 }

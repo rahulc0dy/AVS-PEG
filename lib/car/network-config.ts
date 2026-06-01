@@ -22,6 +22,11 @@ export const NetworkConfig = {
       description:
         "Current forward velocity of the vehicle. 0.0 = stopped, 1.0 = max speed",
     },
+    {
+      name: "Priority Direction",
+      description:
+        "Direction of nearest detected priority/emergency vehicle. 0.0 = none detected, 0.1 = leftmost ray, 0.5 = rightmost ray.",
+    },
   ],
   outputs: [
     { name: "Accelerate", description: "Apply forward throttle" },
