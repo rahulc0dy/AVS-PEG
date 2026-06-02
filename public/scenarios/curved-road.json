@@ -1,0 +1,41 @@
+{
+  "graph": {
+    "nodes": [
+      { "x": -200, "y": 0 },
+      { "x": -100, "y": -120 },
+      { "x": 100, "y": -120 },
+      { "x": 200, "y": 0 },
+      { "x": 100, "y": 120 },
+      { "x": -100, "y": 120 }
+    ],
+    "edges": [
+      { "n1": { "x": -200, "y": 0 }, "n2": { "x": -100, "y": -120 }, "isDirected": false },
+      { "n1": { "x": -100, "y": -120 }, "n2": { "x": 100, "y": -120 }, "isDirected": false },
+      { "n1": { "x": 100, "y": -120 }, "n2": { "x": 200, "y": 0 }, "isDirected": false },
+      { "n1": { "x": 200, "y": 0 }, "n2": { "x": 100, "y": 120 }, "isDirected": false },
+      { "n1": { "x": 100, "y": 120 }, "n2": { "x": -100, "y": 120 }, "isDirected": false },
+      { "n1": { "x": -100, "y": 120 }, "n2": { "x": -200, "y": 0 }, "isDirected": false }
+    ]
+  },
+  "trafficLightGraph": { "nodes": [], "edges": [] },
+  "markings": [
+    { "position": { "x": -200, "y": 0 }, "direction": { "x": 1, "y": -1 }, "type": "source" },
+    { "position": { "x": 200, "y": 0 }, "direction": { "x": -1, "y": 1 }, "type": "destination" }
+  ],
+  "roadBorders": [],
+  "roads": [],
+  "paths": [
+    {
+      "waypoints": [
+        { "x": -200, "y": 0 },
+        { "x": -100, "y": -120 },
+        { "x": 100, "y": -120 },
+        { "x": 200, "y": 0 }
+      ],
+      "isLoop": false,
+      "edges": [],
+      "borders": [],
+      "color": "hsl(30, 100%, 50%)"
+    }
+  ]
+}

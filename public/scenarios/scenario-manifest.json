@@ -1,0 +1,28 @@
+{
+  "scenarios": [
+    {
+      "id": "straight-road",
+      "name": "Straight Road",
+      "description": "A simple straight road from source to destination. Good for testing basic forward driving and lane keeping.",
+      "worldPath": "/scenarios/straight-road.json",
+      "difficulty": "easy",
+      "tags": ["basic", "straight"]
+    },
+    {
+      "id": "t-intersection",
+      "name": "T-Intersection",
+      "description": "A horizontal road with a side branch forming a T-junction. The AI must navigate past the intersection without deviating.",
+      "worldPath": "/scenarios/t-intersection.json",
+      "difficulty": "medium",
+      "tags": ["intersection", "junction"]
+    },
+    {
+      "id": "curved-road",
+      "name": "Curved Road",
+      "description": "A road with multiple turns forming a curved path. Tests the AI's ability to handle steering through bends.",
+      "worldPath": "/scenarios/curved-road.json",
+      "difficulty": "hard",
+      "tags": ["curves", "steering"]
+    }
+  ]
+}
