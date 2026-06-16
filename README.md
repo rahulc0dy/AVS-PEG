@@ -1,4 +1,4 @@
-# AVS-Autonomous Vehicle Simulation
+# AVS-Autonomous Vehicle Simulator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Build](https://github.com/rahulc0dy/AVS-PEG/actions/workflows/build.yaml/badge.svg)](https://github.com/rahulc0dy/AVS-PEG/actions/workflows/build.yaml)
@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3+-fbf0df?logo=bun)](https://bun.sh/)
 
-**Autonomous Vehicle Simulation**
+**Autonomous Vehicle Simulator**
 
 A browser-based 3D sandbox for designing road networks, placing traffic infrastructure, and running manual or AI-driven vehicle simulations. Build environments from scratch or import real-world layouts from OpenStreetMap, then train neural-network agents to navigate them autonomously.
 
