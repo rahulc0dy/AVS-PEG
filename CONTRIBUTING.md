@@ -1,14 +1,14 @@
-# Contributing to AVS-PEG
+# Contributing to AVS
 
-Thank you for your interest in contributing to AVS-PEG. This document explains the process for contributing to this project and provides guidelines to keep the codebase consistent and maintainable.
+Thank you for your interest in contributing to AVS. This document explains the process for contributing to this project and provides guidelines to keep the codebase consistent and maintainable.
 
 ## Getting Started
 
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/<your-username>/AVS-PEG.git
-   cd AVS-PEG
+   git clone https://github.com/rahulc0dy/AVS-PEG.git
+   cd AVS
    ```
 3. **Install dependencies**:
    ```bash
@@ -47,18 +47,18 @@ Thank you for your interest in contributing to AVS-PEG. This document explains t
 
 The codebase enforces a strict separation of concerns:
 
-| Directory | Rules |
-| --- | --- |
-| `lib/` | Pure simulation logic. **No React imports.** Classes manage their own Three.js meshes and disposal. |
-| `components/` | React components and hooks. Bridges simulation logic to the UI. |
-| `types/` | Shared TypeScript type definitions. No runtime logic. |
-| `utils/` | Pure, stateless utility functions with no side effects. |
-| `services/` | External API integrations. |
+| Directory     | Rules                                                                                               |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| `lib/`        | Pure simulation logic. **No React imports.** Classes manage their own Three.js meshes and disposal. |
+| `components/` | React components and hooks. Bridges simulation logic to the UI.                                     |
+| `types/`      | Shared TypeScript type definitions. No runtime logic.                                               |
+| `utils/`      | Pure, stateless utility functions with no side effects.                                             |
+| `services/`   | External API integrations.                                                                          |
 
 ### Documentation
 
 - Add **JSDoc comments** to all new public functions, classes, and interfaces.
-- Use comments to explain *why*, not *what*.
+- Use comments to explain _why_, not _what_.
 - Do not write meta-comments like "New feature" or "Changes here".
 
 ### Commit Messages
@@ -74,6 +74,7 @@ Write clear, concise commit messages:
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`.
 
 Examples:
+
 ```
 feat: add path loop toggle to PathPanel
 fix: prevent sensor rays from clipping through road borders

@@ -1,4 +1,4 @@
-# AVS-PEG
+# AVS-Autonomous Vehicle Simulation
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Build](https://github.com/rahulc0dy/AVS-PEG/actions/workflows/build.yaml/badge.svg)](https://github.com/rahulc0dy/AVS-PEG/actions/workflows/build.yaml)
@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3+-fbf0df?logo=bun)](https://bun.sh/)
 
-**Autonomous Vehicle Simulation -- Pathfinding Environment Generator**
+**Autonomous Vehicle Simulation**
 
 A browser-based 3D sandbox for designing road networks, placing traffic infrastructure, and running manual or AI-driven vehicle simulations. Build environments from scratch or import real-world layouts from OpenStreetMap, then train neural-network agents to navigate them autonomously.
 
@@ -36,7 +36,7 @@ A browser-based 3D sandbox for designing road networks, placing traffic infrastr
 
 ## Features
 
-- **Procedural Road Generation** -- Edit a graph of nodes and edges; roads, intersections, lanes, and directional arrows are generated automatically.
+- **Road Generation** -- Edit a graph of nodes and edges; roads, intersections, lanes, and directional arrows are generated automatically.
 - **Traffic Infrastructure** -- Place traffic lights, stop signs, source/destination markers, and user-defined waypoint paths.
 - **OpenStreetMap Import** -- Fetch real-world road networks via the Overpass API and convert them into editable simulation environments.
 - **Manual Driving** -- Take direct control of a vehicle with keyboard input and a first-person mini-camera viewport.
@@ -50,16 +50,16 @@ A browser-based 3D sandbox for designing road networks, placing traffic infrastr
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Framework | Next.js 16 (App Router) |
-| UI | React 19 |
-| 3D Rendering | Three.js |
-| Language | TypeScript 6 |
-| Package Manager / Runtime | Bun 1.3+ |
+| Layer                        | Technology               |
+| ---------------------------- | ------------------------ |
+| Framework                    | Next.js 16 (App Router)  |
+| UI                           | React 19                 |
+| 3D Rendering                 | Three.js                 |
+| Language                     | TypeScript 6             |
+| Package Manager / Runtime    | Bun 1.3+                 |
 | ML (traffic light detection) | TensorFlow.js + COCO-SSD |
-| Styling | Tailwind CSS 4 |
-| Environment Validation | @t3-oss/env-nextjs + Zod |
+| Styling                      | Tailwind CSS 4           |
+| Environment Validation       | @t3-oss/env-nextjs + Zod |
 
 ---
 
@@ -118,14 +118,14 @@ All client-side variables are prefixed with `NEXT_PUBLIC_` and validated at buil
 
 Key variable groups:
 
-| Group | Controls |
-| --- | --- |
-| `ROAD_*` | Road width, roundness, arrow spacing |
-| `ORBIT_CAM_*` | Orbit camera FOV, near/far planes |
-| `MINICAM_*` | First-person mini-camera positioning |
-| `MINIVIEW_*` | Mini viewport size and position |
-| `CAR_*` | Acceleration, max speed, turn speed |
-| `WORLD_TRAFFIC_LIGHT_*` | Red/yellow/green phase durations |
+| Group                   | Controls                             |
+| ----------------------- | ------------------------------------ |
+| `ROAD_*`                | Road width, roundness, arrow spacing |
+| `ORBIT_CAM_*`           | Orbit camera FOV, near/far planes    |
+| `MINICAM_*`             | First-person mini-camera positioning |
+| `MINIVIEW_*`            | Mini viewport size and position      |
+| `CAR_*`                 | Acceleration, max speed, turn speed  |
+| `WORLD_TRAFFIC_LIGHT_*` | Red/yellow/green phase durations     |
 
 ### Running the Dev Server
 
