@@ -1,0 +1,35 @@
+{
+  "graph": {
+    "nodes": [
+      { "x": -200, "y": 0 },
+      { "x": 0, "y": 0 },
+      { "x": 200, "y": 0 },
+      { "x": 0, "y": -200 }
+    ],
+    "edges": [
+      { "n1": { "x": -200, "y": 0 }, "n2": { "x": 0, "y": 0 }, "isDirected": false },
+      { "n1": { "x": 0, "y": 0 }, "n2": { "x": 200, "y": 0 }, "isDirected": false },
+      { "n1": { "x": 0, "y": 0 }, "n2": { "x": 0, "y": -200 }, "isDirected": false }
+    ]
+  },
+  "trafficLightGraph": { "nodes": [], "edges": [] },
+  "markings": [
+    { "position": { "x": -200, "y": 0 }, "direction": { "x": 1, "y": 0 }, "type": "source" },
+    { "position": { "x": 200, "y": 0 }, "direction": { "x": -1, "y": 0 }, "type": "destination" }
+  ],
+  "roadBorders": [],
+  "roads": [],
+  "paths": [
+    {
+      "waypoints": [
+        { "x": -200, "y": 0 },
+        { "x": 0, "y": 0 },
+        { "x": 200, "y": 0 }
+      ],
+      "isLoop": false,
+      "edges": [],
+      "borders": [],
+      "color": "hsl(120, 100%, 50%)"
+    }
+  ]
+}
